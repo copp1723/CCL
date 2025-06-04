@@ -1,6 +1,6 @@
 import { dataMappingService } from './DataMappingService';
 import { storage } from '../storage';
-import { sendGridService } from './SendGridService';
+import { mailgunService } from './MailgunService';
 
 interface EmailTemplate {
   id: string;
@@ -288,8 +288,8 @@ class EmailCampaignService {
     const customer = dataMappingService.mapCsvRowToCustomerRecord(customerData);
     const message = dataMappingService.generatePersonalizedMessage(customer, template.messageType);
 
-    // Send email via SendGrid
-    const emailResult = await sendGridService.sendEmail({
+    // Send email via Mailgun
+    const emailResult = await mailgunService.sendEmail({
       to: visitor.emailHash,
       from: 'cathy@completecarloans.com', // You can configure this
       subject: template.subject,
@@ -324,7 +324,7 @@ class EmailCampaignService {
       agentName: 'EmailCampaignService',
       action: 'email_sent',
       status: 'success',
-      details: `Sent ${template.name} email via ${sendGridService.isServiceConfigured() ? 'SendGrid' : 'simulation'} for campaign ${campaign.name}`,
+      details: `Sent ${template.name} email via ${mailgunService.isServiceConfigured() ? 'Mailgun' : 'simulation'} for campaign ${campaign.name}`,
       visitorId: visitor.id
     });
 

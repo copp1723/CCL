@@ -559,15 +559,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // SendGrid configuration status
-  app.get("/api/sendgrid/status", (req, res) => {
+  // Mailgun configuration status
+  app.get("/api/mailgun/status", (req, res) => {
     try {
-      const { sendGridService } = require('./services/SendGridService');
-      const status = sendGridService.validateConfiguration();
+      const { mailgunService } = require('./services/MailgunService');
+      const status = mailgunService.validateConfiguration();
       res.json(status);
     } catch (error) {
-      console.error('Error checking SendGrid status:', error);
-      res.status(500).json({ error: 'Failed to check SendGrid status' });
+      console.error('Error checking Mailgun status:', error);
+      res.status(500).json({ error: 'Failed to check Mailgun status' });
     }
   });
 
