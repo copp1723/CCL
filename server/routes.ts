@@ -9,6 +9,7 @@ import { generateSessionId } from "./services/token";
 import { agentConfigService } from "./services/AgentConfigService";
 import { flexPathService } from "./services/FlexPathService";
 import { dataMappingService } from "./services/DataMappingService";
+import { emailCampaignService } from "./services/EmailCampaignService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -436,6 +437,125 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error generating test message:', error);
       res.status(500).json({ error: 'Failed to generate test message' });
+    }
+  });
+
+  // Email campaign automation endpoints
+  app.get("/api/email-campaigns", (req, res) => {
+    try {
+      const campaigns = emailCampaignService.getCampaigns();
+      res.json(campaigns);
+    } catch (error) {
+      console.error('Error getting campaigns:', error);
+      res.status(500).json({ error: 'Failed to get campaigns' });
+    }
+  });
+
+  app.get("/api/email-campaigns/:id", (req, res) => {
+    try {
+      const campaign = emailCampaignService.getCampaign(req.params.id);
+      if (!campaign) {
+        return res.status(404).json({ error: 'Campaign not found' });
+      }
+      res.json(campaign);
+    } catch (error) {
+      console.error('Error getting campaign:', error);
+      res.status(500).json({ error: 'Failed to get campaign' });
+    }
+  });
+
+  app.get("/api/email-campaigns/:id/metrics", (req, res) => {
+    try {
+      const metrics = emailCampaignService.getCampaignMetrics(req.params.id);
+      if (!metrics) {
+        return res.status(404).json({ error: 'Campaign not found' });
+      }
+      res.json(metrics);
+    } catch (error) {
+      console.error('Error getting campaign metrics:', error);
+      res.status(500).json({ error: 'Failed to get campaign metrics' });
+    }
+  });
+
+  app.get("/api/email-campaigns/:id/scheduled", (req, res) => {
+    try {
+      const executions = emailCampaignService.getScheduledExecutions(req.params.id);
+      res.json(executions);
+    } catch (error) {
+      console.error('Error getting scheduled executions:', error);
+      res.status(500).json({ error: 'Failed to get scheduled executions' });
+    }
+  });
+
+  app.post("/api/email-campaigns/bulk-send", async (req, res) => {
+    try {
+      const { campaignId, csvData, messageType, scheduleDelay } = req.body;
+      
+      if (!campaignId || !csvData || !Array.isArray(csvData)) {
+        return res.status(400).json({ error: 'Campaign ID and CSV data required' });
+      }
+      
+      const result = await emailCampaignService.processBulkEmailCampaign({
+        campaignId,
+        csvData,
+        messageType: messageType || 'reengagement',
+        scheduleDelay
+      });
+      
+      res.json(result);
+    } catch (error) {
+      console.error('Error processing bulk email campaign:', error);
+      res.status(500).json({ error: 'Failed to process bulk email campaign' });
+    }
+  });
+
+  app.put("/api/email-campaigns/:id", (req, res) => {
+    try {
+      const updated = emailCampaignService.updateCampaign(req.params.id, req.body);
+      if (!updated) {
+        return res.status(404).json({ error: 'Campaign not found' });
+      }
+      res.json(updated);
+    } catch (error) {
+      console.error('Error updating campaign:', error);
+      res.status(500).json({ error: 'Failed to update campaign' });
+    }
+  });
+
+  app.delete("/api/email-campaigns/:campaignId/executions/:customerId/:templateId", (req, res) => {
+    try {
+      const { campaignId, customerId, templateId } = req.params;
+      const cancelled = emailCampaignService.cancelExecution(campaignId, customerId, templateId);
+      
+      if (!cancelled) {
+        return res.status(404).json({ error: 'Execution not found or already sent' });
+      }
+      
+      res.json({ success: true, message: 'Execution cancelled' });
+    } catch (error) {
+      console.error('Error cancelling execution:', error);
+      res.status(500).json({ error: 'Failed to cancel execution' });
+    }
+  });
+
+  // Email tracking endpoints
+  app.post("/api/email-tracking/open/:emailId", async (req, res) => {
+    try {
+      await emailCampaignService.trackEmailOpen(req.params.emailId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error tracking email open:', error);
+      res.status(500).json({ error: 'Failed to track email open' });
+    }
+  });
+
+  app.post("/api/email-tracking/click/:emailId", async (req, res) => {
+    try {
+      await emailCampaignService.trackEmailClick(req.params.emailId);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error tracking email click:', error);
+      res.status(500).json({ error: 'Failed to track email click' });
     }
   });
 
