@@ -61,7 +61,7 @@ export default function EmailCampaigns() {
   });
 
   useEffect(() => {
-    if (settings?.timing) {
+    if (settings && settings.timing) {
       setTimingSettings(settings.timing);
     }
   }, [settings]);
