@@ -17,7 +17,7 @@ export class VisitorIdentifierService {
       // Validate and sanitize email
       const emailValidation = await piiProtectionService.validateEmail(event.email);
       if (!emailValidation.valid) {
-        throw new Error(`Invalid email: ${emailValidation.error}`);
+        throw new Error(`Invalid email: ${emailValidation.reason || 'Unknown validation error'}`);
       }
 
       const emailHash = generateEmailHash(event.email);

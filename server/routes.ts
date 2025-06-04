@@ -105,7 +105,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/email/return/:token", async (req, res) => {
     try {
       const { token } = req.params;
-      const validation = await emailReengagementService.validateReturnToken(token);
+      const campaign = await storage.getEmailCampaignByToken(token);
+      const validation = { 
+        valid: campaign && campaign.expiresAt > new Date(), 
+        visitorId: campaign?.visitorId 
+      };
       
       if (validation.valid) {
         // Track email click
@@ -339,15 +343,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (format === 'csv') {
         const csvHeaders = 'ID,Lead ID,Email Hash,Status,Priority,Credit Score,Created At\n';
-        const csvData = leads.map(lead => [
-          lead.id,
-          lead.leadData.leadId,
-          lead.leadData.visitor.emailHash.substring(0, 8) + '...',
-          lead.status,
-          lead.leadData.metadata.priority,
-          lead.leadData.creditAssessment.score || 'N/A',
-          lead.createdAt.toISOString()
-        ].join(',')).join('\n');
+        const csvData = leads.map(lead => {
+          const leadData = lead.leadData as any;
+          return [
+            lead.id,
+            leadData?.leadId || 'N/A',
+            leadData?.visitor?.emailHash?.substring(0, 8) + '...' || 'N/A',
+            lead.status,
+            leadData?.metadata?.priority || 'N/A',
+            leadData?.creditAssessment?.score || 'N/A',
+            lead.createdAt.toISOString()
+          ].join(',');
+        }).join('\n');
         
         res.setHeader('Content-Type', 'text/csv');
         res.setHeader('Content-Disposition', 'attachment; filename=leads.csv');

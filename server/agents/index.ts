@@ -181,10 +181,6 @@ export class AgentOrchestrator {
 
   async shutdown(): Promise<void> {
     console.log('Shutting down agent orchestrator...');
-    
-    // Stop background services
-    visitorIdentifierService.stopAbandonmentDetection();
-    
     console.log('Agent orchestrator shutdown complete');
   }
 }
