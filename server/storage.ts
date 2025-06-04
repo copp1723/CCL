@@ -126,10 +126,7 @@ class SafeStorage {
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         );
       } catch (error) {
-        ErrorLogger.logWarning('Error retrieving leads', {
-          operation: 'storage_get_leads',
-          metadata: { error: (error as Error).message }
-        });
+        console.warn('Error retrieving leads:', (error as Error).message);
         return [];
       }
     },
