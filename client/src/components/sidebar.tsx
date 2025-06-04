@@ -1,107 +1,109 @@
+import { Link, useLocation } from "wouter";
+import { cn } from "@/lib/utils";
+import {
+  Home,
+  Mail,
+  Database,
+  Settings,
+  Bot,
+  BarChart3,
+  FileText,
+  Webhook
+} from "lucide-react";
+
+interface NavItem {
+  title: string;
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  description: string;
+}
+
+const navItems: NavItem[] = [
+  {
+    title: "Dashboard",
+    href: "/",
+    icon: Home,
+    description: "Agent status and metrics overview"
+  },
+  {
+    title: "Email Campaigns",
+    href: "/email-campaigns",
+    icon: Mail,
+    description: "Manage re-engagement email campaigns"
+  },
+  {
+    title: "Data Processing",
+    href: "/data-processing",
+    icon: Database,
+    description: "Bulk uploads and real-time lead processing"
+  },
+  {
+    title: "Agent Configuration",
+    href: "/agent-config",
+    icon: Bot,
+    description: "Configure AI agents and workflows"
+  }
+];
+
 export function Sidebar() {
+  const [location] = useLocation();
+
   return (
-    <div className="w-64 bg-slate-800 text-white flex-shrink-0">
-      <div className="p-6">
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <i className="fas fa-car text-white text-sm"></i>
+    <div className="flex h-screen w-64 flex-col border-r bg-gray-50 dark:bg-gray-900">
+      <div className="flex h-16 items-center border-b px-6">
+        <div className="flex items-center space-x-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600">
+            <BarChart3 className="h-5 w-5 text-white" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold">CCL Agents</h1>
-            <p className="text-gray-400 text-xs">v2.1.0</p>
+            <h1 className="text-lg font-semibold">CCL Agent Monitor</h1>
+            <p className="text-xs text-gray-500">Complete Car Loans</p>
           </div>
         </div>
       </div>
-      
-      <nav className="mt-8">
-        <div className="px-6 py-2">
-          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-            Overview
-          </h3>
-        </div>
-        
-        <a 
-          href="#" 
-          className="flex items-center px-6 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors bg-gray-700 text-white border-r-2 border-blue-600"
-        >
-          <i className="fas fa-tachometer-alt w-5"></i>
-          <span className="ml-3">Dashboard</span>
-        </a>
-        
-        <a 
-          href="#" 
-          className="flex items-center px-6 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
-        >
-          <i className="fas fa-robot w-5"></i>
-          <span className="ml-3">Agents</span>
-          <span className="ml-auto bg-emerald-500 text-white text-xs px-2 py-1 rounded-full">
-            5
-          </span>
-        </a>
-        
-        <a 
-          href="#" 
-          className="flex items-center px-6 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
-        >
-          <i className="fas fa-comments w-5"></i>
-          <span className="ml-3">Live Chat</span>
-          <span className="ml-auto bg-amber-500 text-white text-xs px-2 py-1 rounded-full">
-            12
-          </span>
-        </a>
-        
-        <div className="px-6 py-2 mt-6">
-          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-            Management
-          </h3>
-        </div>
-        
-        <a 
-          href="#" 
-          className="flex items-center px-6 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
-        >
-          <i className="fas fa-users w-5"></i>
-          <span className="ml-3">Leads</span>
-        </a>
-        
-        <a 
-          href="#" 
-          className="flex items-center px-6 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
-        >
-          <i className="fas fa-envelope w-5"></i>
-          <span className="ml-3">Email Campaigns</span>
-        </a>
-        
-        <a 
-          href="#" 
-          className="flex items-center px-6 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
-        >
-          <i className="fas fa-chart-line w-5"></i>
-          <span className="ml-3">Analytics</span>
-        </a>
-        
-        <div className="px-6 py-2 mt-6">
-          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wide">
-            System
-          </h3>
-        </div>
-        
-        <a 
-          href="#" 
-          className="flex items-center px-6 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
-        >
-          <i className="fas fa-cog w-5"></i>
-          <span className="ml-3">Settings</span>
-        </a>
-        
-        <a 
-          href="#" 
-          className="flex items-center px-6 py-3 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
-        >
-          <i className="fas fa-shield-alt w-5"></i>
-          <span className="ml-3">Security</span>
-        </a>
+
+      <nav className="flex-1 space-y-1 px-3 py-4">
+        {navItems.map((item) => {
+          const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
+          const Icon = item.icon;
+          
+          return (
+            <Link key={item.href} href={item.href}>
+              <a
+                className={cn(
+                  "group flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100"
+                    : "text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
+                )}
+              >
+                <Icon className="mr-3 h-5 w-5 flex-shrink-0" />
+                <div className="flex-1">
+                  <div>{item.title}</div>
+                  <div className={cn(
+                    "text-xs mt-0.5",
+                    isActive 
+                      ? "text-blue-600 dark:text-blue-200" 
+                      : "text-gray-500 dark:text-gray-400"
+                  )}>
+                    {item.description}
+                  </div>
+                </div>
+              </a>
+            </Link>
+          );
+        })}
       </nav>
+
+      <div className="border-t p-4">
+        <div className="flex items-center space-x-3">
+          <div className="h-2 w-2 rounded-full bg-green-500"></div>
+          <div className="text-sm">
+            <div className="font-medium text-gray-900 dark:text-white">System Status</div>
+            <div className="text-xs text-gray-500">All agents operational</div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

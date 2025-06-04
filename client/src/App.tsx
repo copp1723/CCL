@@ -3,18 +3,32 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Sidebar } from "@/components/sidebar";
 import Dashboard from "@/pages/dashboard";
+import EmailCampaigns from "@/pages/email-campaigns";
+import DataProcessing from "@/pages/data-processing";
+import AgentConfig from "@/pages/agent-config";
 import TestingPage from "@/pages/testing";
 import NotFound from "@/pages/not-found";
 
 function Router() {
   return (
-    <Switch>
-      <Route path="/" component={Dashboard} />
-      <Route path="/dashboard" component={Dashboard} />
-      <Route path="/testing" component={TestingPage} />
-      <Route component={NotFound} />
-    </Switch>
+    <div className="flex h-screen bg-background">
+      <Sidebar />
+      <main className="flex-1 overflow-auto">
+        <div className="container mx-auto px-6 py-8">
+          <Switch>
+            <Route path="/" component={Dashboard} />
+            <Route path="/dashboard" component={Dashboard} />
+            <Route path="/email-campaigns" component={EmailCampaigns} />
+            <Route path="/data-processing" component={DataProcessing} />
+            <Route path="/agent-config" component={AgentConfig} />
+            <Route path="/testing" component={TestingPage} />
+            <Route component={NotFound} />
+          </Switch>
+        </div>
+      </main>
+    </div>
   );
 }
 
