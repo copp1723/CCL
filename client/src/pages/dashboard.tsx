@@ -8,6 +8,7 @@ import { ChatWidget } from '@/components/chat-widget';
 import { useQuery } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
+import type { Metrics, AgentStatus, Activity, Lead } from '../../shared/types';
 
 interface User {
   name: string;
