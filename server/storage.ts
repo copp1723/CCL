@@ -1,65 +1,13 @@
-import { 
-  InsertUser, User, InsertVisitor, Visitor, InsertChatSession, ChatSession,
-  InsertEmailCampaign, EmailCampaign, InsertCreditCheck, CreditCheck,
-  InsertLead, Lead, InsertAgentActivity, AgentActivity
-} from "../shared/schema";
-
-export interface IStorage {
-  // Users
-  getUser(id: number): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
-
-  // Visitors
-  getVisitor(id: number): Promise<Visitor | undefined>;
-  getVisitorByEmailHash(emailHash: string): Promise<Visitor | undefined>;
-  getVisitorBySessionId(sessionId: string): Promise<Visitor | undefined>;
-  createVisitor(visitor: InsertVisitor): Promise<Visitor>;
-  updateVisitor(id: number, updates: Partial<InsertVisitor>): Promise<Visitor>;
-  getRecentActiveVisitors(): Promise<Visitor[]>;
-
-  // Chat Sessions
-  getChatSession(id: number): Promise<ChatSession | undefined>;
-  getChatSessionBySessionId(sessionId: string): Promise<ChatSession | undefined>;
-  getChatSessionsByVisitor(visitorId: number): Promise<ChatSession[]>;
-  createChatSession(session: InsertChatSession): Promise<ChatSession>;
-  updateChatSession(id: number, updates: Partial<InsertChatSession>): Promise<ChatSession>;
-
-  // Email Campaigns
-  getEmailCampaign(id: number): Promise<EmailCampaign | undefined>;
-  getEmailCampaignByToken(token: string): Promise<EmailCampaign | undefined>;
-  getEmailCampaignsByVisitor(visitorId: number): Promise<EmailCampaign[]>;
-  createEmailCampaign(campaign: InsertEmailCampaign): Promise<EmailCampaign>;
-  updateEmailCampaign(id: number, updates: Partial<InsertEmailCampaign>): Promise<EmailCampaign>;
-
-  // Credit Checks
-  getCreditCheck(id: number): Promise<CreditCheck | undefined>;
-  getCreditCheckByVisitorId(visitorId: number): Promise<CreditCheck | undefined>;
-  createCreditCheck(creditCheck: InsertCreditCheck): Promise<CreditCheck>;
-
-  // Leads
-  getLead(id: number): Promise<Lead | undefined>;
-  getLeadsByStatus(status: string): Promise<Lead[]>;
-  createLead(lead: InsertLead): Promise<Lead>;
-  updateLead(id: number, updates: Partial<InsertLead>): Promise<Lead>;
-
-  // Agent Activity
-  createAgentActivity(activity: InsertAgentActivity): Promise<AgentActivity>;
-  getRecentAgentActivity(limit?: number): Promise<AgentActivity[]>;
-  getAgentActivityByAgent(agentName: string, limit?: number): Promise<AgentActivity[]>;
-}
-
-// Simplified interfaces for flexible data ingestion
-interface SimpleLeadData {
+// Streamlined storage for CCL agent system
+interface LeadData {
   id: string;
   status: 'new' | 'contacted' | 'qualified' | 'closed';
   createdAt: string;
-  updatedAt: string;
   email: string;
   leadData: any;
 }
 
-interface SimpleActivity {
+interface Activity {
   id: string;
   type: string;
   timestamp: string;
@@ -68,20 +16,22 @@ interface SimpleActivity {
   metadata?: any;
 }
 
-interface SimpleAgent {
+interface Agent {
   id: string;
   name: string;
-  type: string;
   status: 'active' | 'inactive' | 'error';
-  lastActivity: string;
+  processedToday: number;
+  description: string;
+  icon: string;
+  color: string;
 }
 
-class FlexibleStorage {
+class StreamlinedStorage {
   private leadCounter = 0;
   private activityCounter = 0;
-  private leadStore: SimpleLeadData[] = [];
-  private activityStore: SimpleActivity[] = [];
-  private agentStore: SimpleAgent[] = [];
+  private leadStore: LeadData[] = [];
+  private activityStore: Activity[] = [];
+  private agentStore: Agent[] = [];
   
   private readonly maxLeads = 10000;
   private readonly maxActivities = 5000;

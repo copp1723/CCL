@@ -210,25 +210,25 @@ export function EmailCampaigns() {
                   </div>
                   <div className="text-center p-3 bg-green-50 rounded-lg">
                     <div className="text-2xl font-semibold text-green-700">
-                      {metrics.deliveryRate.toFixed(1)}%
+                      {(metrics.deliveryRate || 0).toFixed(1)}%
                     </div>
                     <div className="text-sm text-green-600">Delivery Rate</div>
                   </div>
                   <div className="text-center p-3 bg-purple-50 rounded-lg">
                     <div className="text-2xl font-semibold text-purple-700">
-                      {metrics.openRate.toFixed(1)}%
+                      {(metrics.openRate || 0).toFixed(1)}%
                     </div>
                     <div className="text-sm text-purple-600">Open Rate</div>
                   </div>
                   <div className="text-center p-3 bg-orange-50 rounded-lg">
                     <div className="text-2xl font-semibold text-orange-700">
-                      {metrics.clickRate.toFixed(1)}%
+                      {(metrics.clickRate || 0).toFixed(1)}%
                     </div>
                     <div className="text-sm text-orange-600">Click Rate</div>
                   </div>
                   <div className="text-center p-3 bg-red-50 rounded-lg">
                     <div className="text-2xl font-semibold text-red-700">
-                      {metrics.unsubscribeRate.toFixed(1)}%
+                      {(metrics.unsubscribeRate || 0).toFixed(1)}%
                     </div>
                     <div className="text-sm text-red-600">Unsubscribe Rate</div>
                   </div>
