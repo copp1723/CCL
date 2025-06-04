@@ -1,221 +1,271 @@
 import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { useWebSocket } from '@/hooks/use-websocket';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, MessageCircle, X, Send, Bot, User } from 'lucide-react';
+import { MessageCircle, Send, X, User } from 'lucide-react';
 
-export function ChatWidget() {
+interface Message {
+  id: string;
+  content: string;
+  sender: 'user' | 'agent';
+  timestamp: Date;
+}
+
+interface ChatWidgetProps {
+  className?: string;
+}
+
+export function ChatWidget({ className }: ChatWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [message, setMessage] = useState('');
-  const [sessionId] = useState(() => `sess_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
-  
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: '1',
+      content: "Hi there! I'm Cathy, your finance expert at Complete Car Loans. I specialize in helping customers like you find the best financing options, no matter your credit history. How can I help you with your auto financing today?",
+      sender: 'agent',
+      timestamp: new Date()
+    }
+  ]);
+  const [input, setInput] = useState('');
+  const [isTyping, setIsTyping] = useState(false);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const ws = useRef<WebSocket | null>(null);
+  const sessionId = useRef<string>(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
 
-  const { 
-    isConnected, 
-    isConnecting, 
-    messages, 
-    sendMessage, 
-    agentTyping 
-  } = useWebSocket({ 
-    sessionId, 
-    autoConnect: isOpen 
-  });
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  useEffect(() => {
+    if (isOpen && !ws.current) {
+      initializeWebSocket();
+    }
+    
+    return () => {
+      if (ws.current) {
+        ws.current.close();
+      }
+    };
+  }, [isOpen]);
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, agentTyping]);
+  }, [messages]);
 
-  useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [isOpen]);
-
-  const handleSendMessage = () => {
-    if (!message.trim() || !isConnected) return;
+  const initializeWebSocket = () => {
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
     
-    sendMessage(message.trim());
-    setMessage('');
+    ws.current = new WebSocket(wsUrl);
+    
+    ws.current.onopen = () => {
+      console.log('WebSocket connected');
+      // Send session initialization
+      ws.current?.send(JSON.stringify({
+        type: 'init',
+        sessionId: sessionId.current
+      }));
+    };
+    
+    ws.current.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        if (data.type === 'message') {
+          setIsTyping(false);
+          addMessage(data.content, 'agent');
+        } else if (data.type === 'typing') {
+          setIsTyping(true);
+        }
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error);
+      }
+    };
+    
+    ws.current.onerror = (error) => {
+      console.error('WebSocket error:', error);
+      setIsTyping(false);
+    };
+    
+    ws.current.onclose = () => {
+      console.log('WebSocket disconnected');
+      ws.current = null;
+    };
+  };
+
+  const addMessage = (content: string, sender: 'user' | 'agent') => {
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      content,
+      sender,
+      timestamp: new Date()
+    };
+    
+    setMessages(prev => [...prev, newMessage]);
+  };
+
+  const sendMessage = async () => {
+    if (!input.trim()) return;
+    
+    const userMessage = input.trim();
+    setInput('');
+    addMessage(userMessage, 'user');
+    setIsTyping(true);
+    
+    // Send via WebSocket if connected
+    if (ws.current?.readyState === WebSocket.OPEN) {
+      ws.current.send(JSON.stringify({
+        type: 'message',
+        content: userMessage,
+        sessionId: sessionId.current
+      }));
+    } else {
+      // Fallback to HTTP if WebSocket not available
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: userMessage,
+            sessionId: sessionId.current
+          }),
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setIsTyping(false);
+          addMessage(data.response, 'agent');
+        } else {
+          setIsTyping(false);
+          addMessage("I'm sorry, I'm having trouble connecting right now. Please try again in a moment.", 'agent');
+        }
+      } catch (error) {
+        console.error('Error sending message:', error);
+        setIsTyping(false);
+        addMessage("I'm sorry, I'm having trouble connecting right now. Please try again in a moment.", 'agent');
+      }
+    }
+  };
+
+  const scrollToBottom = () => {
+    if (scrollAreaRef.current) {
+      const scrollContainer = scrollAreaRef.current.querySelector('[data-radix-scroll-area-viewport]');
+      if (scrollContainer) {
+        scrollContainer.scrollTop = scrollContainer.scrollHeight;
+      }
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      handleSendMessage();
+      sendMessage();
     }
   };
 
-  const toggleChat = () => {
-    setIsOpen(!isOpen);
-  };
-
   return (
-    <div className="fixed bottom-6 right-6 z-50">
-      {/* Chat Button */}
-      {!isOpen && (
+    <div className={`fixed bottom-4 right-4 z-50 ${className || ''}`}>
+      {!isOpen ? (
         <Button
-          onClick={toggleChat}
-          size="lg"
-          className="h-16 w-16 rounded-full bg-blue-600 hover:bg-blue-700 shadow-lg hover:scale-110 transition-all duration-300"
+          onClick={() => setIsOpen(true)}
+          className="h-12 w-12 rounded-full shadow-lg bg-blue-600 hover:bg-blue-700"
+          size="icon"
         >
           <MessageCircle className="h-6 w-6 text-white" />
         </Button>
-      )}
-
-      {/* Chat Window */}
-      {isOpen && (
-        <Card className="w-96 h-[500px] shadow-2xl border border-gray-200 animate-fadeIn">
-          {/* Chat Header */}
-          <CardHeader className="bg-blue-600 text-white p-4 rounded-t-lg">
+      ) : (
+        <Card className="w-80 h-96 shadow-xl">
+          <CardHeader className="pb-3 bg-blue-600 text-white rounded-t-lg">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-white/20 rounded-full flex items-center justify-center">
-                  <Bot className="h-4 w-4 text-white" />
+              <div className="flex items-center space-x-2">
+                <div className="h-8 w-8 bg-blue-500 rounded-full flex items-center justify-center">
+                  <span className="text-sm font-semibold">C</span>
                 </div>
                 <div>
-                  <h4 className="font-semibold">CCL Assistant</h4>
-                  <div className="flex items-center space-x-2">
-                    <p className="text-xs text-blue-100">We're here to help!</p>
-                    {isConnected && (
-                      <Badge variant="secondary" className="bg-green-500/20 text-green-100 text-xs">
-                        Online
-                      </Badge>
-                    )}
-                    {isConnecting && (
-                      <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-100 text-xs">
-                        Connecting...
-                      </Badge>
-                    )}
-                  </div>
+                  <CardTitle className="text-sm">Cathy</CardTitle>
+                  <p className="text-xs text-blue-100">Finance Expert</p>
                 </div>
               </div>
               <Button
-                onClick={toggleChat}
+                onClick={() => setIsOpen(false)}
                 variant="ghost"
-                size="sm"
-                className="text-white/80 hover:text-white hover:bg-white/10"
+                size="icon"
+                className="h-6 w-6 text-white hover:bg-blue-500"
               >
                 <X className="h-4 w-4" />
               </Button>
             </div>
           </CardHeader>
-
-          {/* Chat Messages */}
-          <CardContent className="flex-1 p-4 h-80 overflow-y-auto chat-scrollbar">
-            {!isConnected && !isConnecting && (
-              <div className="text-center text-gray-500 text-sm mt-8">
-                <p>Click to connect and start chatting</p>
-              </div>
-            )}
-
-            {messages.length === 0 && isConnected && (
-              <div className="flex items-start space-x-3 mb-4">
-                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Bot className="h-4 w-4 text-white" />
-                </div>
-                <div className="bg-gray-100 rounded-lg p-3 max-w-xs">
-                  <p className="text-sm text-gray-900">
-                    Hi! I'm your CCL Assistant. I'm here to help you with your auto loan application. How can I assist you today?
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
-                className={`flex items-start space-x-3 mb-4 ${
-                  msg.sender === 'user' ? 'justify-end' : ''
-                }`}
-              >
-                {msg.sender === 'agent' && (
-                  <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                    <Bot className="h-4 w-4 text-white" />
+          
+          <CardContent className="p-0 flex flex-col h-80">
+            <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
+              <div className="space-y-4">
+                {messages.map((message) => (
+                  <div
+                    key={message.id}
+                    className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    <div className={`flex items-start space-x-2 max-w-[80%] ${
+                      message.sender === 'user' ? 'flex-row-reverse space-x-reverse' : ''
+                    }`}>
+                      <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-semibold ${
+                        message.sender === 'user' 
+                          ? 'bg-blue-600 text-white' 
+                          : 'bg-gray-200 text-gray-700'
+                      }`}>
+                        {message.sender === 'user' ? <User className="h-3 w-3" /> : 'C'}
+                      </div>
+                      <div className={`rounded-lg px-3 py-2 text-sm ${
+                        message.sender === 'user'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-gray-100 text-gray-900'
+                      }`}>
+                        {message.content}
+                      </div>
+                    </div>
                   </div>
-                )}
+                ))}
                 
-                <div
-                  className={`rounded-lg p-3 max-w-xs ${
-                    msg.sender === 'user'
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-100 text-gray-900'
-                  }`}
+                {isTyping && (
+                  <div className="flex justify-start">
+                    <div className="flex items-start space-x-2">
+                      <div className="h-6 w-6 bg-gray-200 rounded-full flex items-center justify-center text-xs font-semibold text-gray-700">
+                        C
+                      </div>
+                      <div className="bg-gray-100 rounded-lg px-3 py-2 text-sm">
+                        <div className="flex space-x-1">
+                          <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce"></div>
+                          <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                          <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </ScrollArea>
+            
+            <div className="p-4 border-t">
+              <div className="flex space-x-2">
+                <Input
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Type your message..."
+                  className="flex-1"
+                />
+                <Button 
+                  onClick={sendMessage}
+                  size="icon"
+                  disabled={!input.trim() || isTyping}
+                  className="bg-blue-600 hover:bg-blue-700"
                 >
-                  <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                  {msg.metadata?.latency && (
-                    <p className="text-xs opacity-70 mt-1">
-                      {msg.metadata.latency}ms
-                    </p>
-                  )}
-                </div>
-
-                {msg.sender === 'user' && (
-                  <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
-                    <User className="h-4 w-4 text-gray-600" />
-                  </div>
-                )}
-              </div>
-            ))}
-
-            {/* Agent Typing Indicator */}
-            {agentTyping && (
-              <div className="flex items-start space-x-3 mb-4">
-                <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                  <Bot className="h-4 w-4 text-white" />
-                </div>
-                <div className="bg-gray-100 rounded-lg p-3">
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            <div ref={messagesEndRef} />
-          </CardContent>
-
-          {/* Chat Input */}
-          <div className="p-4 border-t border-gray-200">
-            <div className="flex items-center space-x-2">
-              <Input
-                ref={inputRef}
-                type="text"
-                placeholder="Type your message..."
-                value={message}
-                onChange={(e) => setMessage(e.target.value)}
-                onKeyPress={handleKeyPress}
-                disabled={!isConnected}
-                className="flex-1 text-sm"
-              />
-              <Button
-                onClick={handleSendMessage}
-                disabled={!message.trim() || !isConnected}
-                size="sm"
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                {isConnecting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
                   <Send className="h-4 w-4" />
-                )}
-              </Button>
-            </div>
-            {!isConnected && (
-              <p className="text-xs text-gray-500 mt-2">
-                {isConnecting ? 'Connecting...' : 'Not connected'}
+                </Button>
+              </div>
+              <p className="text-xs text-gray-500 mt-2 text-center">
+                Powered by Complete Car Loans
               </p>
-            )}
-          </div>
+            </div>
+          </CardContent>
         </Card>
       )}
     </div>

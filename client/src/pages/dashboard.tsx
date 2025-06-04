@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
+import { ChatWidget } from '@/components/chat-widget';
 import { Users, Mail, CheckCircle, AlertCircle, Clock, Download } from 'lucide-react';
 
 // Type definitions for internal use
@@ -262,6 +263,7 @@ export default function Dashboard() {
         </Card>
 
       </div>
+      <ChatWidget />
       <Toaster />
     </div>
   );
