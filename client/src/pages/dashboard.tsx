@@ -127,7 +127,7 @@ export default function Dashboard() {
       </div>
 
       {/* Chat Widget */}
-      <ChatWidget />
+      {/* <ChatWidget /> */}
       
       {/* Toast Notifications */}
       <Toaster />

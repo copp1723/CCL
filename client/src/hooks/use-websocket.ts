@@ -66,13 +66,6 @@ export function useWebSocket({ sessionId, autoConnect = true }: UseWebSocketOpti
     };
   }, [sessionId]);
 
-  // Auto-connect if enabled
-  useEffect(() => {
-    if (autoConnect && socketRef.current) {
-      connect();
-    }
-  }, [autoConnect]);
-
   const connect = useCallback(async (): Promise<void> => {
     if (!socketRef.current) return;
     
@@ -90,6 +83,13 @@ export function useWebSocket({ sessionId, autoConnect = true }: UseWebSocketOpti
       socketRef.current.disconnect();
     }
   }, []);
+
+  // Auto-connect if enabled
+  useEffect(() => {
+    if (autoConnect && socketRef.current) {
+      connect();
+    }
+  }, [autoConnect, connect]);
 
   const sendMessage = useCallback((content: string): void => {
     if (!socketRef.current || !isConnected) {
