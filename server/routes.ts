@@ -6,6 +6,7 @@ import { initializeAgentOrchestrator, agentOrchestrator } from "./agents";
 import { emailReengagementService } from "./agents/email-reengagement";
 import { visitorIdentifierService, type AbandonmentEvent } from "./agents/visitor-identifier";
 import { generateSessionId } from "./services/token";
+import { agentConfigService } from "./services/AgentConfigService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -230,23 +231,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
       
-      // Generate Cathy's response based on message content
-      let response = "";
-      const lowerMessage = message.toLowerCase();
-      
-      if (lowerMessage.includes('credit') || lowerMessage.includes('score')) {
-        response = "I help customers with all credit situations find the right financing. Our pre-approval uses a soft credit pull with no impact on your score. Would you like to see what options are available for you?";
-      } else if (lowerMessage.includes('rate') || lowerMessage.includes('payment')) {
-        response = "I'd love to get you specific rate information! Our rates are personalized based on your unique situation. I can get you a soft credit pull pre-approval in just a few minutes with no impact to your credit score. Would you like me to get started on that?";
-      } else if (lowerMessage.includes('approve') || lowerMessage.includes('qualify')) {
-        response = "Our approval process is designed to find solutions for customers in all credit situations. I can start your pre-approval right now - it only takes a few minutes and won't affect your credit score. Shall we get started?";
-      } else if (lowerMessage.includes('help') || lowerMessage.includes('question')) {
-        response = "I'm here to help make auto financing as simple as possible for you. Whether you have questions about the process, want to know about rates, or are ready to get pre-approved, I'm here to guide you through every step. What would be most helpful right now?";
-      } else if (lowerMessage.includes('hello') || lowerMessage.includes('hi')) {
-        response = "Hello! I'm so glad you reached out. I specialize in helping customers with all credit situations find the best auto financing options. What brings you here today - are you looking for a specific vehicle or exploring your financing options?";
-      } else {
-        response = "I understand this process can feel overwhelming, but I'm here to make it as easy as possible. Every customer's situation is unique, and I specialize in finding the right solution for you. What questions can I answer to help you feel more confident moving forward?";
-      }
+      // Generate Cathy's response using dynamic configuration
+      const response = agentConfigService.generateChatResponse(message, 'chat');
       
       // Log chat activity
       await storage.createAgentActivity({
