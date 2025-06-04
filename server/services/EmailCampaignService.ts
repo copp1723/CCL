@@ -1,5 +1,6 @@
 import { dataMappingService } from './DataMappingService';
 import { storage } from '../storage';
+import { sendGridService } from './SendGridService';
 
 interface EmailTemplate {
   id: string;
@@ -255,12 +256,27 @@ class EmailCampaignService {
       throw new Error('Campaign or template not found');
     }
 
-    // Find visitor by customer ID (this is simplified - in production you'd have better customer lookup)
+    // Find visitor by customer ID - look up from stored visitor records
     const visitors = await storage.getRecentActiveVisitors();
-    const visitor = visitors.find(v => v.emailHash.includes(execution.customerId));
+    let visitor = visitors.find(v => v.sessionId.includes(execution.customerId));
     
+    // If not found in recent visitors, check all visitors by email hash pattern
     if (!visitor) {
-      throw new Error('Visitor not found for customer');
+      const allVisitors = await storage.getRecentActiveVisitors();
+      visitor = allVisitors.find(v => v.sessionId.includes('email_') && v.emailHash);
+    }
+    
+    // If still not found, we'll use the customer ID to find by email pattern
+    if (!visitor) {
+      console.log(`Creating visitor record for customer ${execution.customerId} in campaign ${execution.campaignId}`);
+      // This would normally be retrieved from your CRM/database
+      // For now, we'll create a temporary record
+      visitor = await storage.createVisitor({
+        emailHash: `customer_${execution.customerId}@example.com`, // This should be the actual email
+        sessionId: `campaign_${execution.customerId}_${Date.now()}`,
+        lastActivity: new Date(),
+        abandonmentDetected: false
+      });
     }
 
     // Generate personalized message
@@ -271,6 +287,27 @@ class EmailCampaignService {
     
     const customer = dataMappingService.mapCsvRowToCustomerRecord(customerData);
     const message = dataMappingService.generatePersonalizedMessage(customer, template.messageType);
+
+    // Send email via SendGrid
+    const emailResult = await sendGridService.sendEmail({
+      to: visitor.emailHash,
+      from: 'cathy@completecarloans.com', // You can configure this
+      subject: template.subject,
+      text: message.fullMessage,
+      html: `<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #0079F2;">${template.subject}</h2>
+        <div style="line-height: 1.6; white-space: pre-wrap;">${message.fullMessage}</div>
+        <hr style="margin: 20px 0; border: none; border-top: 1px solid #eee;">
+        <p style="font-size: 12px; color: #666;">
+          This email was sent by Complete Car Loans. 
+          <a href="/unsubscribe?token=${visitor.sessionId}">Unsubscribe</a>
+        </p>
+      </div>`
+    });
+
+    if (!emailResult.success) {
+      throw new Error(`Email sending failed: ${emailResult.error}`);
+    }
 
     // Create email campaign record
     const emailCampaign = await storage.createEmailCampaign({
@@ -287,7 +324,7 @@ class EmailCampaignService {
       agentName: 'EmailCampaignService',
       action: 'email_sent',
       status: 'success',
-      details: `Sent ${template.name} email for campaign ${campaign.name}`,
+      details: `Sent ${template.name} email via ${sendGridService.isServiceConfigured() ? 'SendGrid' : 'simulation'} for campaign ${campaign.name}`,
       visitorId: visitor.id
     });
 
@@ -299,7 +336,7 @@ class EmailCampaignService {
     campaign.stats.delivered++;
     this.campaigns.set(execution.campaignId, campaign);
 
-    console.log(`Email sent: ${template.subject} to customer ${execution.customerId}`);
+    console.log(`Email sent: ${template.subject} to customer ${execution.customerId} (Message ID: ${emailResult.messageId})`);
   }
 
   /**

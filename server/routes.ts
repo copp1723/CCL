@@ -559,6 +559,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // SendGrid configuration status
+  app.get("/api/sendgrid/status", (req, res) => {
+    try {
+      const { sendGridService } = require('./services/SendGridService');
+      const status = sendGridService.validateConfiguration();
+      res.json(status);
+    } catch (error) {
+      console.error('Error checking SendGrid status:', error);
+      res.status(500).json({ error: 'Failed to check SendGrid status' });
+    }
+  });
+
   // WebSocket connection count
   app.get("/api/websocket/stats", (req, res) => {
     res.json({
