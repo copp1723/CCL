@@ -1,18 +1,10 @@
-import { visitorIdentifierAgent, visitorIdentifierService } from './visitor-identifier';
-import { emailReengagementAgent, emailReengagementService } from './email-reengagement';
-import { realtimeChatAgent, initializeRealtimeChatService } from './realtime-chat';
-import { creditCheckAgent, creditCheckService } from './credit-check';
-import { leadPackagingAgent, leadPackagingService } from './lead-packaging';
+import { visitorIdentifierService } from './visitor-identifier';
+import { emailReengagementService } from './email-reengagement';
+import { creditCheckService } from './credit-check';
+import { leadPackagingService } from './lead-packaging';
 import { WebSocketManager } from '../services/websocket';
 
 export {
-  // Agents
-  visitorIdentifierAgent,
-  emailReengagementAgent,
-  realtimeChatAgent,
-  creditCheckAgent,
-  leadPackagingAgent,
-  
   // Services
   visitorIdentifierService,
   emailReengagementService,

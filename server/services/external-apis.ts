@@ -1,349 +1,339 @@
 /**
- * External API integrations for Complete Car Loans
- * Mock implementations that are production-ready
+ * External API Integration Services
+ * Production-ready integrations for FlexPath credit checks and Mailgun email delivery
  */
 
-export interface EmailRequest {
+export interface FlexPathCreditRequest {
+  phoneNumber: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  ipAddress?: string;
+  userAgent?: string;
+}
+
+export interface FlexPathCreditResponse {
+  success: boolean;
+  approved: boolean;
+  creditScore?: number;
+  riskTier: 'prime' | 'near-prime' | 'sub-prime' | 'deep-sub-prime';
+  maxLoanAmount?: number;
+  estimatedRate?: number;
+  externalId: string;
+  reasons?: string[];
+  error?: string;
+}
+
+export interface MailgunEmailRequest {
   to: string;
   subject: string;
   html: string;
-  text: string;
-  campaignId?: number;
-  trackingEnabled?: boolean;
+  text?: string;
+  tags?: string[];
+  customData?: Record<string, any>;
 }
 
-export interface EmailResponse {
+export interface MailgunEmailResponse {
   success: boolean;
   messageId?: string;
   error?: string;
 }
 
-/**
- * SendGrid/Mailgun Email Service
- */
-export async function sendEmail(request: EmailRequest): Promise<EmailResponse> {
-  try {
-    const apiKey = process.env.SENDGRID_API_KEY || process.env.MAILGUN_API_KEY;
+export class FlexPathService {
+  private apiKey: string;
+  private baseUrl: string;
+  private timeout: number = 10000; // 10 second timeout
+
+  constructor() {
+    this.apiKey = process.env.FLEXPATH_API_KEY || '';
+    this.baseUrl = process.env.FLEXPATH_BASE_URL || 'https://api.flexpath.com/v1';
     
-    if (!apiKey) {
-      throw new Error('Email service API key not configured');
+    if (!this.apiKey) {
+      console.warn('FlexPath API key not configured. Credit checks will use simulation mode.');
     }
-
-    // Mock implementation - replace with actual SendGrid/Mailgun call
-    console.log(`[EMAIL SERVICE] Sending email to ${request.to}`);
-    console.log(`[EMAIL SERVICE] Subject: ${request.subject}`);
-    
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Simulate occasional failures (5% failure rate)
-    if (Math.random() < 0.05) {
-      return {
-        success: false,
-        error: 'Temporary email service unavailable',
-      };
-    }
-
-    const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
-    return {
-      success: true,
-      messageId,
-    };
-
-    /* Production implementation would look like:
-    
-    // SendGrid implementation
-    const sgMail = require('@sendgrid/mail');
-    sgMail.setApiKey(process.env.SENDGRID_API_KEY);
-    
-    const msg = {
-      to: request.to,
-      from: 'noreply@completecarloans.com',
-      subject: request.subject,
-      html: request.html,
-      text: request.text,
-    };
-    
-    const [response] = await sgMail.send(msg);
-    return {
-      success: true,
-      messageId: response.headers['x-message-id'],
-    };
-    
-    */
-
-  } catch (error) {
-    console.error('Email service error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown email error',
-    };
   }
-}
 
-export interface FlexPathCreditRequest {
-  phone: string;
-  firstName?: string;
-  lastName?: string;
-  ssn?: string;
-}
-
-export interface FlexPathCreditResponse {
-  success: boolean;
-  data?: {
-    id: string;
-    creditScore: number;
-    riskTier: string;
-    maxApprovedAmount: number;
-    recommendedRate: number;
-    bureauResponse: any;
-  };
-  error?: string;
-  statusCode?: number;
-}
-
-/**
- * FlexPath Credit Check API
- */
-export async function performFlexPathCreditCheck(phone: string): Promise<FlexPathCreditResponse> {
-  try {
-    const apiToken = process.env.FLEXPATH_TOKEN || process.env.FLEXPATH_API_KEY;
-    
-    if (!apiToken) {
-      throw new Error('FlexPath API token not configured');
+  async performCreditCheck(request: FlexPathCreditRequest): Promise<FlexPathCreditResponse> {
+    if (!this.apiKey) {
+      return this.simulateCreditCheck(request);
     }
 
-    console.log(`[FLEXPATH API] Performing credit check for ${phone}`);
-    
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 1200));
-    
-    // Simulate occasional API errors (2% error rate)
-    if (Math.random() < 0.02) {
-      return {
-        success: false,
-        error: 'Credit bureau temporarily unavailable',
-        statusCode: 503,
-      };
-    }
-    
-    // Generate realistic credit score distribution
-    const creditScore = generateRealisticCreditScore();
-    const riskTier = getCreditRiskTier(creditScore);
-    
-    return {
-      success: true,
-      data: {
-        id: `fp_${Date.now()}_${Math.random().toString(36).substr(2, 8)}`,
-        creditScore,
-        riskTier,
-        maxApprovedAmount: getMaxApprovedAmount(creditScore),
-        recommendedRate: getRecommendedRate(creditScore),
-        bureauResponse: {
-          bureau: 'Experian',
-          score: creditScore,
-          factors: generateCreditFactors(creditScore),
+    try {
+      const response = await fetch(`${this.baseUrl}/credit-check`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+          'User-Agent': 'CCL-Agent-System/1.0'
         },
-      },
-    };
+        body: JSON.stringify({
+          phone: request.phoneNumber,
+          first_name: request.firstName,
+          last_name: request.lastName,
+          email: request.email,
+          ip_address: request.ipAddress,
+          user_agent: request.userAgent,
+          soft_pull: true, // For pre-qualification
+          purpose: 'auto_loan',
+          loan_amount_requested: 25000 // Default amount
+        }),
+        signal: AbortSignal.timeout(this.timeout)
+      });
 
-    /* Production implementation would look like:
-    
-    const response = await fetch('https://api.flexpath.com/v1/credit-check', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        phone,
-        softPull: true,
-        source: 'complete_car_loans',
-      }),
-    });
-    
-    if (!response.ok) {
+      if (!response.ok) {
+        throw new Error(`FlexPath API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      return {
+        success: true,
+        approved: data.approved,
+        creditScore: data.credit_score,
+        riskTier: this.mapRiskTier(data.credit_score),
+        maxLoanAmount: data.max_loan_amount,
+        estimatedRate: data.estimated_rate,
+        externalId: data.reference_id,
+        reasons: data.decline_reasons || []
+      };
+
+    } catch (error) {
+      console.error('FlexPath credit check failed:', error);
+      
       return {
         success: false,
-        error: `API error: ${response.statusText}`,
-        statusCode: response.status,
+        approved: false,
+        riskTier: 'deep-sub-prime',
+        externalId: `sim_${Date.now()}`,
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
-    
-    const data = await response.json();
-    return { success: true, data };
-    
-    */
-
-  } catch (error) {
-    console.error('FlexPath API error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown FlexPath error',
-      statusCode: 500,
-    };
   }
-}
 
-export interface DealerCRMRequest {
-  leadId: string;
-  visitor: any;
-  engagement: any;
-  creditAssessment: any;
-  application: any;
-  metadata: any;
-}
-
-export interface DealerCRMResponse {
-  success: boolean;
-  data?: {
-    dealerLeadId: string;
-    status: string;
-    assignedTo?: string;
-    estimatedContactTime?: string;
-  };
-  error?: string;
-  statusCode?: number;
-}
-
-/**
- * Dealer CRM Webhook Submission
- */
-export async function submitToDealerCRM(leadData: any): Promise<DealerCRMResponse> {
-  try {
-    const webhookUrl = process.env.DEALER_CRM_WEBHOOK_URL || 'https://crm.dealership.com/api/leads';
-    const webhookSecret = process.env.DEALER_CRM_SECRET;
+  private simulateCreditCheck(request: FlexPathCreditRequest): Promise<FlexPathCreditResponse> {
+    // Deterministic simulation based on phone number for consistent testing
+    const phoneHash = this.hashString(request.phoneNumber);
+    const scoreVariation = phoneHash % 300;
+    const baseScore = 580 + scoreVariation;
     
-    console.log(`[DEALER CRM] Submitting lead ${leadData.leadId}`);
+    const approved = baseScore >= 620;
+    const riskTier = this.mapRiskTier(baseScore);
     
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Simulate different response scenarios
-    const rand = Math.random();
-    
-    if (rand < 0.02) {
-      // 2% 5xx server errors (should retry)
-      return {
-        success: false,
-        error: 'Dealer CRM temporarily unavailable',
-        statusCode: 503,
-      };
-    } else if (rand < 0.03) {
-      // 1% 4xx client errors (should not retry)
-      return {
-        success: false,
-        error: 'Invalid lead data format',
-        statusCode: 400,
-      };
-    }
-    
-    // 97% success rate
-    const dealerLeadId = `DLR_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
-    
-    return {
+    return Promise.resolve({
       success: true,
-      data: {
-        dealerLeadId,
-        status: 'accepted',
-        assignedTo: 'John Smith',
-        estimatedContactTime: '2-4 hours',
-      },
-    };
-
-    /* Production implementation would look like:
-    
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Webhook-Signature': createWebhookSignature(JSON.stringify(leadData), webhookSecret),
-      },
-      body: JSON.stringify(leadData),
-      timeout: 10000, // 10 second timeout
+      approved,
+      creditScore: baseScore,
+      riskTier,
+      maxLoanAmount: approved ? Math.min(50000, baseScore * 100) : undefined,
+      estimatedRate: approved ? Math.max(3.5, 15 - (baseScore - 620) / 20) : undefined,
+      externalId: `sim_${Date.now()}_${phoneHash}`,
+      reasons: !approved ? ['Insufficient credit history', 'Income verification required'] : []
     });
-    
-    if (!response.ok) {
+  }
+
+  private mapRiskTier(creditScore: number): 'prime' | 'near-prime' | 'sub-prime' | 'deep-sub-prime' {
+    if (creditScore >= 740) return 'prime';
+    if (creditScore >= 670) return 'near-prime';
+    if (creditScore >= 580) return 'sub-prime';
+    return 'deep-sub-prime';
+  }
+
+  private hashString(str: string): number {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+      const char = str.charCodeAt(i);
+      hash = ((hash << 5) - hash) + char;
+      hash = hash & hash; // Convert to 32-bit integer
+    }
+    return Math.abs(hash);
+  }
+}
+
+export class MailgunService {
+  private apiKey: string;
+  private domain: string;
+  private baseUrl: string;
+  private fromEmail: string;
+
+  constructor() {
+    this.apiKey = process.env.MAILGUN_API_KEY || '';
+    this.domain = process.env.MAILGUN_DOMAIN || '';
+    this.baseUrl = process.env.MAILGUN_BASE_URL || 'https://api.mailgun.net/v3';
+    this.fromEmail = process.env.MAILGUN_FROM_EMAIL || 'noreply@completecarloan.com';
+
+    if (!this.apiKey || !this.domain) {
+      console.warn('Mailgun credentials not configured. Emails will use simulation mode.');
+    }
+  }
+
+  async sendEmail(request: MailgunEmailRequest): Promise<MailgunEmailResponse> {
+    if (!this.apiKey || !this.domain) {
+      return this.simulateEmailSend(request);
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append('from', this.fromEmail);
+      formData.append('to', request.to);
+      formData.append('subject', request.subject);
+      formData.append('html', request.html);
+      
+      if (request.text) {
+        formData.append('text', request.text);
+      }
+      
+      if (request.tags) {
+        request.tags.forEach(tag => formData.append('o:tag', tag));
+      }
+      
+      if (request.customData) {
+        Object.entries(request.customData).forEach(([key, value]) => {
+          formData.append(`v:${key}`, String(value));
+        });
+      }
+
+      const response = await fetch(`${this.baseUrl}/${this.domain}/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Basic ${Buffer.from(`api:${this.apiKey}`).toString('base64')}`
+        },
+        body: formData,
+        signal: AbortSignal.timeout(15000) // 15 second timeout for email
+      });
+
+      if (!response.ok) {
+        throw new Error(`Mailgun API error: ${response.status} ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      
+      return {
+        success: true,
+        messageId: data.id
+      };
+
+    } catch (error) {
+      console.error('Mailgun email send failed:', error);
+      
       return {
         success: false,
-        error: `HTTP ${response.status}: ${response.statusText}`,
-        statusCode: response.status,
+        error: error instanceof Error ? error.message : 'Unknown error'
       };
     }
+  }
+
+  private simulateEmailSend(request: MailgunEmailRequest): Promise<MailgunEmailResponse> {
+    // Simulate email delivery with realistic timing
+    return new Promise((resolve) => {
+      setTimeout(() => {
+        // Simulate 95% delivery success rate
+        const success = Math.random() > 0.05;
+        
+        resolve({
+          success,
+          messageId: success ? `sim_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` : undefined,
+          error: !success ? 'Simulated delivery failure' : undefined
+        });
+      }, 100); // Simulate network delay
+    });
+  }
+
+  async validateEmail(email: string): Promise<{ valid: boolean; reason?: string }> {
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     
-    const data = await response.json();
-    return { success: true, data };
+    if (!emailRegex.test(email)) {
+      return { valid: false, reason: 'Invalid email format' };
+    }
+
+    // Check for common disposable email domains
+    const disposableDomains = [
+      '10minutemail.com', 'tempmail.org', 'guerrillamail.com', 'mailinator.com'
+    ];
     
-    */
+    const domain = email.split('@')[1]?.toLowerCase();
+    if (disposableDomains.includes(domain)) {
+      return { valid: false, reason: 'Disposable email domain not allowed' };
+    }
 
-  } catch (error) {
-    console.error('Dealer CRM submission error:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown CRM error',
-      statusCode: 500,
-    };
+    return { valid: true };
   }
 }
 
-// Helper functions for realistic mock data
+export class PIIProtectionService {
+  private ssnPattern = /\b\d{3}-?\d{2}-?\d{4}\b/g;
+  private phonePattern = /\b\d{3}-?\d{3}-?\d{4}\b/g;
+  private creditCardPattern = /\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b/g;
+  private dobPattern = /\b\d{1,2}\/\d{1,2}\/\d{4}\b/g;
 
-function generateRealisticCreditScore(): number {
-  // Generate credit scores with realistic distribution
-  // 20% excellent (740+), 25% good (670-739), 21% fair (580-669), 34% poor (<580)
-  const rand = Math.random();
-  
-  if (rand < 0.20) {
-    // Excellent: 740-850
-    return Math.floor(Math.random() * 110) + 740;
-  } else if (rand < 0.45) {
-    // Good: 670-739
-    return Math.floor(Math.random() * 70) + 670;
-  } else if (rand < 0.66) {
-    // Fair: 580-669
-    return Math.floor(Math.random() * 90) + 580;
-  } else {
-    // Poor: 300-579
-    return Math.floor(Math.random() * 280) + 300;
+  async validateEmail(email: string): Promise<{ valid: boolean; reason?: string }> {
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    
+    if (!emailRegex.test(email)) {
+      return { valid: false, reason: 'Invalid email format' };
+    }
+
+    // Check for common disposable email domains
+    const disposableDomains = [
+      '10minutemail.com', 'tempmail.org', 'guerrillamail.com', 'mailinator.com'
+    ];
+    
+    const domain = email.split('@')[1]?.toLowerCase();
+    if (disposableDomains.includes(domain)) {
+      return { valid: false, reason: 'Disposable email domain not allowed' };
+    }
+
+    return { valid: true };
+  }
+
+  sanitizeContent(content: string): { sanitized: string; piiDetected: boolean; violations: string[] } {
+    let sanitized = content;
+    const violations: string[] = [];
+    let piiDetected = false;
+
+    // Redact SSN
+    if (this.ssnPattern.test(content)) {
+      sanitized = sanitized.replace(this.ssnPattern, 'XXX-XX-XXXX');
+      violations.push('SSN detected and redacted');
+      piiDetected = true;
+    }
+
+    // Redact credit card numbers
+    if (this.creditCardPattern.test(content)) {
+      sanitized = sanitized.replace(this.creditCardPattern, 'XXXX-XXXX-XXXX-XXXX');
+      violations.push('Credit card number detected and redacted');
+      piiDetected = true;
+    }
+
+    // Redact dates of birth
+    if (this.dobPattern.test(content)) {
+      sanitized = sanitized.replace(this.dobPattern, 'XX/XX/XXXX');
+      violations.push('Date of birth detected and redacted');
+      piiDetected = true;
+    }
+
+    return { sanitized, piiDetected, violations };
+  }
+
+  validatePhoneNumber(phone: string): { valid: boolean; formatted?: string; error?: string } {
+    // Remove all non-digits
+    const digits = phone.replace(/\D/g, '');
+    
+    // Check for valid US phone number length
+    if (digits.length === 10) {
+      const formatted = `+1${digits}`;
+      return { valid: true, formatted };
+    } else if (digits.length === 11 && digits.startsWith('1')) {
+      const formatted = `+${digits}`;
+      return { valid: true, formatted };
+    } else {
+      return { valid: false, error: 'Invalid phone number format. Must be 10 or 11 digits.' };
+    }
   }
 }
 
-function getCreditRiskTier(score: number): string {
-  if (score >= 740) return 'prime';
-  if (score >= 670) return 'near-prime';
-  if (score >= 580) return 'sub-prime';
-  return 'deep-sub-prime';
-}
-
-function getMaxApprovedAmount(score: number): number {
-  if (score >= 740) return 80000;
-  if (score >= 670) return 60000;
-  if (score >= 580) return 40000;
-  if (score >= 500) return 25000;
-  return 15000;
-}
-
-function getRecommendedRate(score: number): number {
-  if (score >= 740) return 3.9;
-  if (score >= 670) return 5.9;
-  if (score >= 580) return 8.9;
-  if (score >= 500) return 12.9;
-  return 16.9;
-}
-
-function generateCreditFactors(score: number): string[] {
-  const factors = [];
-  
-  if (score >= 740) {
-    factors.push('Excellent payment history', 'Low credit utilization', 'Long credit history');
-  } else if (score >= 670) {
-    factors.push('Good payment history', 'Moderate credit utilization');
-  } else if (score >= 580) {
-    factors.push('Some late payments', 'High credit utilization');
-  } else {
-    factors.push('Frequent late payments', 'High credit utilization', 'Limited credit history');
-  }
-  
-  return factors;
-}
+// Export service instances
+export const flexPathService = new FlexPathService();
+export const mailgunService = new MailgunService();
+export const piiProtectionService = new PIIProtectionService();
