@@ -213,6 +213,154 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // Test scenarios endpoint
+  app.post("/api/test/run-scenario", async (req, res) => {
+    try {
+      const { testRunner } = await import('./test-scenarios');
+      const { scenarioName } = req.body;
+      
+      if (!scenarioName) {
+        return res.status(400).json({ error: 'Scenario name is required' });
+      }
+      
+      const result = await testRunner.runScenario(scenarioName);
+      res.json(result);
+    } catch (error) {
+      console.error('Error running test scenario:', error);
+      res.status(500).json({ error: 'Failed to run test scenario' });
+    }
+  });
+
+  // Run all test scenarios
+  app.post("/api/test/run-all", async (req, res) => {
+    try {
+      const { testRunner } = await import('./test-scenarios');
+      const results = await testRunner.runAllScenarios();
+      res.json(results);
+    } catch (error) {
+      console.error('Error running all test scenarios:', error);
+      res.status(500).json({ error: 'Failed to run test scenarios' });
+    }
+  });
+
+  // Get available test scenarios
+  app.get("/api/test/scenarios", async (req, res) => {
+    try {
+      const { testRunner } = await import('./test-scenarios');
+      const scenarios = testRunner.getScenarioNames();
+      res.json({ scenarios });
+    } catch (error) {
+      console.error('Error getting test scenarios:', error);
+      res.status(500).json({ error: 'Failed to get test scenarios' });
+    }
+  });
+
+  // Enhanced metrics with failure tracking
+  app.get("/api/metrics/detailed", async (req, res) => {
+    try {
+      const baseMetrics = await agentOrchestrator.getAgentMetrics();
+      const activities = await storage.getRecentAgentActivity(100);
+      const leads = await storage.getLeadsByStatus('failed');
+      
+      // Calculate failure rates
+      const errorActivities = activities.filter(a => a.status === 'error');
+      const emailActivities = activities.filter(a => a.agentName === 'EmailReengagementAgent');
+      const creditActivities = activities.filter(a => a.agentName === 'CreditCheckAgent');
+      
+      const detailedMetrics = {
+        ...baseMetrics,
+        failureRates: {
+          overallErrorRate: activities.length > 0 ? (errorActivities.length / activities.length) * 100 : 0,
+          emailFailureRate: emailActivities.length > 0 ? 
+            (emailActivities.filter(a => a.action.includes('error')).length / emailActivities.length) * 100 : 0,
+          creditCheckFailureRate: creditActivities.length > 0 ? 
+            (creditActivities.filter(a => a.action.includes('error')).length / creditActivities.length) * 100 : 0,
+          leadSubmissionFailureRate: leads.length
+        },
+        latencyMetrics: {
+          avgChatResponseTime: baseMetrics.avgResponseTime,
+          p95ResponseTime: baseMetrics.avgResponseTime * 1.5, // Simulated p95
+          emailDeliveryTime: 2.3, // Simulated email delivery time
+          creditCheckTime: 1.8 // Simulated credit check time
+        },
+        throughput: {
+          visitorEventsPerHour: activities.filter(a => a.agentName === 'VisitorIdentifierAgent').length,
+          emailsSentPerHour: emailActivities.filter(a => a.action === 'email_sent').length,
+          leadsGeneratedPerHour: activities.filter(a => a.action === 'lead_submitted').length
+        }
+      };
+      
+      res.json(detailedMetrics);
+    } catch (error) {
+      console.error('Error getting detailed metrics:', error);
+      res.status(500).json({ error: 'Failed to get detailed metrics' });
+    }
+  });
+
+  // Create sample test data for demonstration
+  app.post("/api/test/generate-sample-data", async (req, res) => {
+    try {
+      const { count = 10 } = req.body;
+      
+      const sampleData = [];
+      
+      for (let i = 0; i < count; i++) {
+        const email = `testuser${i}@example.com`;
+        const sessionId = `sess_${Date.now()}_${i}`;
+        
+        // Create abandonment event
+        await visitorIdentifierService.processAbandonmentEvent({
+          sessionId,
+          email,
+          step: Math.floor(Math.random() * 5) + 1,
+          timestamp: new Date(Date.now() - Math.random() * 24 * 60 * 60 * 1000), // Random time in last 24h
+          userAgent: 'Mozilla/5.0 Test Browser',
+          ip: `192.168.1.${100 + i}`,
+        });
+        
+        sampleData.push({ email, sessionId, step: i + 1 });
+      }
+      
+      res.json({ 
+        message: `Generated ${count} sample visitor records`,
+        data: sampleData 
+      });
+    } catch (error) {
+      console.error('Error generating sample data:', error);
+      res.status(500).json({ error: 'Failed to generate sample data' });
+    }
+  });
+
+  // Export data endpoints
+  app.get("/api/export/leads", async (req, res) => {
+    try {
+      const { format = 'json' } = req.query;
+      const leads = await storage.getLeadsByStatus('submitted');
+      
+      if (format === 'csv') {
+        const csvHeaders = 'ID,Lead ID,Email Hash,Status,Priority,Credit Score,Created At\n';
+        const csvData = leads.map(lead => [
+          lead.id,
+          lead.leadData.leadId,
+          lead.leadData.visitor.emailHash.substring(0, 8) + '...',
+          lead.status,
+          lead.leadData.metadata.priority,
+          lead.leadData.creditAssessment.score || 'N/A',
+          lead.createdAt.toISOString()
+        ].join(',')).join('\n');
+        
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', 'attachment; filename=leads.csv');
+        res.send(csvHeaders + csvData);
+      } else {
+        res.json(leads);
+      }
+    } catch (error) {
+      console.error('Error exporting leads:', error);
+      res.status(500).json({ error: 'Failed to export leads' });
+    }
+  });
+
   // Health check
   app.get("/api/health", (req, res) => {
     res.json({

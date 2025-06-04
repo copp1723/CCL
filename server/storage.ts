@@ -100,8 +100,10 @@ export class MemStorage implements IStorage {
   async createVisitor(insertVisitor: InsertVisitor): Promise<Visitor> {
     const id = this.currentVisitorId++;
     const visitor: Visitor = { 
-      ...insertVisitor, 
+      ...insertVisitor,
       id,
+      lastActivity: insertVisitor.lastActivity || new Date(),
+      abandonmentDetected: insertVisitor.abandonmentDetected || false,
       createdAt: new Date(),
     };
     this.visitors.set(id, visitor);
@@ -144,6 +146,9 @@ export class MemStorage implements IStorage {
     const session: ChatSession = {
       ...insertSession,
       id,
+      visitorId: insertSession.visitorId || null,
+      isActive: insertSession.isActive ?? true,
+      messages: insertSession.messages || [],
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -184,6 +189,9 @@ export class MemStorage implements IStorage {
     const campaign: EmailCampaign = {
       ...insertCampaign,
       id,
+      emailSent: insertCampaign.emailSent ?? false,
+      emailOpened: insertCampaign.emailOpened ?? false,
+      clicked: insertCampaign.clicked ?? false,
       createdAt: new Date(),
     };
     this.emailCampaigns.set(id, campaign);
@@ -216,6 +224,9 @@ export class MemStorage implements IStorage {
     const creditCheck: CreditCheck = {
       ...insertCreditCheck,
       id,
+      creditScore: insertCreditCheck.creditScore || null,
+      approved: insertCreditCheck.approved ?? false,
+      externalId: insertCreditCheck.externalId || null,
       createdAt: new Date(),
     };
     this.creditChecks.set(id, creditCheck);
@@ -236,6 +247,10 @@ export class MemStorage implements IStorage {
     const lead: Lead = {
       ...insertLead,
       id,
+      status: insertLead.status || 'pending',
+      creditCheckId: insertLead.creditCheckId || null,
+      dealerResponse: insertLead.dealerResponse || null,
+      submittedAt: insertLead.submittedAt || null,
       createdAt: new Date(),
     };
     this.leadStorage.set(id, lead);
@@ -259,6 +274,9 @@ export class MemStorage implements IStorage {
     const activity: AgentActivity = {
       ...insertActivity,
       id,
+      visitorId: insertActivity.visitorId || null,
+      details: insertActivity.details || null,
+      leadId: insertActivity.leadId || null,
       createdAt: new Date(),
     };
     this.agentActivities.set(id, activity);
