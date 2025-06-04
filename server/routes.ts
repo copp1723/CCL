@@ -250,6 +250,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Agent configuration endpoints
+  app.get("/api/agent-configs", (req, res) => {
+    try {
+      const configs = agentConfigService.getAllConfigs();
+      res.json(configs);
+    } catch (error) {
+      console.error('Error getting agent configs:', error);
+      res.status(500).json({ error: 'Failed to get agent configurations' });
+    }
+  });
+
+  app.post("/api/agent-configs", (req, res) => {
+    try {
+      const newConfigs = req.body;
+      agentConfigService.updateConfigs(newConfigs);
+      res.json({ success: true, message: 'Agent configurations updated successfully' });
+    } catch (error) {
+      console.error('Error updating agent configs:', error);
+      res.status(500).json({ error: 'Failed to update agent configurations' });
+    }
+  });
+
   // WebSocket connection count
   app.get("/api/websocket/stats", (req, res) => {
     res.json({

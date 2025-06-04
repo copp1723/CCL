@@ -7,7 +7,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
 import { ChatWidget } from '@/components/chat-widget';
-import { Users, Mail, CheckCircle, AlertCircle, Clock, Download } from 'lucide-react';
+import { AgentConfigEditor } from '@/components/agent-config-editor';
+import { Users, Mail, CheckCircle, AlertCircle, Clock, Download, Settings } from 'lucide-react';
 
 // Type definitions for internal use
 interface Metrics {
@@ -263,6 +264,20 @@ export default function Dashboard() {
         </Card>
 
       </div>
+
+      {/* Agent Configuration Section */}
+      <div className="mt-8">
+        <div className="mb-4">
+          <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+            <Settings className="h-5 w-5" />
+            Agent Configuration
+          </h2>
+          <p className="text-gray-600">Customize agent instructions and personality to align outputs with your needs</p>
+        </div>
+        
+        <AgentConfigEditor />
+      </div>
+
       <ChatWidget />
       <Toaster />
     </div>
