@@ -1,27 +1,107 @@
-import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatDistanceToNow } from "date-fns";
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { formatDistanceToNow } from 'date-fns';
 
-export function ActivityFeed() {
-  const { data: activities, isLoading } = useQuery({
-    queryKey: ["/api/activities"],
-    refetchInterval: 5000, // Refresh every 5 seconds
-  });
+interface Activity {
+  id: number;
+  agentName: string;
+  action: string;
+  details: string;
+  status: string;
+  createdAt: string;
+}
 
+interface ActivityFeedProps {
+  activities?: Activity[];
+  isLoading: boolean;
+}
+
+function getActivityIcon(action: string): React.ReactNode {
+  const iconClass = "w-2 h-2 rounded-full mt-2 flex-shrink-0";
+  
+  switch (action) {
+    case 'lead_qualified':
+    case 'approved_event_emitted':
+    case 'lead_submitted':
+      return <div className={`${iconClass} bg-green-500`}></div>;
+    case 'email_sent':
+    case 'email_opened':
+      return <div className={`${iconClass} bg-blue-600`}></div>;
+    case 'chat_session_started':
+    case 'handoff_to_credit_check':
+      return <div className={`${iconClass} bg-amber-500`}></div>;
+    case 'abandonment_detected':
+      return <div className={`${iconClass} bg-green-500`}></div>;
+    case 'lead_submission_failed':
+    case 'credit_check_error':
+      return <div className={`${iconClass} bg-red-500`}></div>;
+    default:
+      return <div className={`${iconClass} bg-gray-400`}></div>;
+  }
+}
+
+function formatActivityMessage(activity: Activity): { title: string; description: string } {
+  switch (activity.action) {
+    case 'abandonment_detected':
+      return {
+        title: 'Abandonment detected',
+        description: activity.details || 'Visitor left application',
+      };
+    case 'email_sent':
+      return {
+        title: 'Email sent',
+        description: activity.details || 'Re-engagement email sent',
+      };
+    case 'email_opened':
+      return {
+        title: 'Email opened',
+        description: activity.details || 'Re-engagement email opened',
+      };
+    case 'chat_session_started':
+      return {
+        title: 'Chat session started',
+        description: activity.details || 'New visitor chat session',
+      };
+    case 'credit_check_completed':
+      return {
+        title: 'Credit check completed',
+        description: activity.details || 'Credit assessment finished',
+      };
+    case 'lead_submitted':
+      return {
+        title: 'Lead submitted',
+        description: activity.details || 'Lead sent to dealer CRM',
+      };
+    case 'lead_submission_failed':
+      return {
+        title: 'Lead submission failed',
+        description: activity.details || 'Dealer CRM submission failed',
+      };
+    default:
+      return {
+        title: activity.action.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        description: activity.details || 'Agent action completed',
+      };
+  }
+}
+
+export function ActivityFeed({ activities, isLoading }: ActivityFeedProps) {
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Live Activity</CardTitle>
+      <Card className="bg-white border border-gray-200">
+        <CardHeader className="border-b border-gray-200">
+          <CardTitle className="text-lg font-semibold text-gray-900">Live Activity</CardTitle>
+          <p className="text-sm text-gray-600 mt-1">Recent agent actions</p>
         </CardHeader>
-        <CardContent>
-          <div className="animate-pulse space-y-4">
-            {[1, 2, 3, 4, 5].map((i) => (
+        <CardContent className="p-6">
+          <div className="space-y-4">
+            {[...Array(5)].map((_, i) => (
               <div key={i} className="flex items-start space-x-3">
-                <div className="w-2 h-2 bg-gray-300 rounded-full mt-2"></div>
-                <div className="flex-1 space-y-1">
-                  <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-                  <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                <Skeleton className="w-2 h-2 rounded-full mt-2 flex-shrink-0" />
+                <div className="min-w-0 flex-1 space-y-1">
+                  <Skeleton className="h-4 w-32" />
+                  <Skeleton className="h-3 w-48" />
+                  <Skeleton className="h-3 w-20" />
                 </div>
               </div>
             ))}
@@ -31,77 +111,47 @@ export function ActivityFeed() {
     );
   }
 
-  const getActivityColor = (type: string) => {
-    switch (type) {
-      case 'lead_qualified':
-      case 'credit_approved':
-      case 'lead_submitted':
-        return 'bg-emerald-500';
-      case 'email_sent':
-      case 'email_reengagement':
-        return 'bg-blue-600';
-      case 'chat_session_started':
-      case 'chat_message_processed':
-        return 'bg-amber-500';
-      case 'abandonment_detected':
-        return 'bg-purple-500';
-      case 'lead_submission_failed':
-      case 'credit_declined':
-        return 'bg-red-500';
-      default:
-        return 'bg-gray-400';
-    }
-  };
-
-  const getActivityTitle = (activity: any) => {
-    switch (activity.type) {
-      case 'lead_qualified':
-        return 'Lead qualified';
-      case 'email_sent':
-        return 'Email sent';
-      case 'chat_session_started':
-        return 'Chat session started';
-      case 'abandonment_detected':
-        return 'Abandonment detected';
-      case 'lead_submission_failed':
-        return 'Lead submission failed';
-      case 'credit_approved':
-        return 'Credit approved';
-      case 'credit_declined':
-        return 'Credit declined';
-      case 'lead_submitted':
-        return 'Lead submitted';
-      default:
-        return activity.type.replace(/_/g, ' ').replace(/\b\w/g, (l: string) => l.toUpperCase());
-    }
-  };
+  if (!activities || activities.length === 0) {
+    return (
+      <Card className="bg-white border border-gray-200">
+        <CardHeader className="border-b border-gray-200">
+          <CardTitle className="text-lg font-semibold text-gray-900">Live Activity</CardTitle>
+          <p className="text-sm text-gray-600 mt-1">Recent agent actions</p>
+        </CardHeader>
+        <CardContent className="p-6">
+          <div className="text-center text-gray-500">
+            <p>No recent activity</p>
+            <p className="text-xs mt-1">Agent actions will appear here</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Live Activity</CardTitle>
-        <p className="text-sm text-gray-600">Recent agent actions</p>
+    <Card className="bg-white border border-gray-200">
+      <CardHeader className="border-b border-gray-200">
+        <CardTitle className="text-lg font-semibold text-gray-900">Live Activity</CardTitle>
+        <p className="text-sm text-gray-600 mt-1">Recent agent actions</p>
       </CardHeader>
-      <CardContent>
+      <CardContent className="p-6">
         <div className="space-y-4">
-          {activities?.length === 0 ? (
-            <p className="text-sm text-gray-500 text-center py-4">No recent activities</p>
-          ) : (
-            activities?.map((activity: any) => (
+          {activities.map((activity) => {
+            const { title, description } = formatActivityMessage(activity);
+            
+            return (
               <div key={activity.id} className="flex items-start space-x-3">
-                <div className={`w-2 h-2 ${getActivityColor(activity.type)} rounded-full mt-2 flex-shrink-0`}></div>
+                {getActivityIcon(activity.action)}
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-gray-900 font-medium">
-                    {getActivityTitle(activity)}
-                  </p>
-                  <p className="text-xs text-gray-500">{activity.description}</p>
+                  <p className="text-sm text-gray-900 font-medium">{title}</p>
+                  <p className="text-xs text-gray-500">{description}</p>
                   <p className="text-xs text-gray-400 mt-1">
                     {formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true })}
                   </p>
                 </div>
               </div>
-            ))
-          )}
+            );
+          })}
         </div>
       </CardContent>
     </Card>

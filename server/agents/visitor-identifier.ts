@@ -1,254 +1,150 @@
 import { Agent } from '@openai/agents';
 import { storage } from '../storage';
-import { hashEmail } from '../utils/pii';
-import { generateSessionId } from '../utils/tokens';
-import type { AbandonmentEvent, LeadReadyEvent } from '@shared/schema';
-import EventEmitter from 'events';
+import { generateEmailHash } from '../services/token';
 
-export class VisitorIdentifierAgent extends EventEmitter {
-  private agent: Agent;
-  private abandonmentCheckInterval: NodeJS.Timeout | null = null;
+export interface AbandonmentEvent {
+  sessionId: string;
+  email: string;
+  step: number;
+  timestamp: Date;
+  userAgent?: string;
+  ip?: string;
+}
 
-  constructor() {
-    super();
+export const visitorIdentifierAgent = new Agent({
+  name: 'VisitorIdentifierAgent',
+  instructions: `
+    You are responsible for detecting abandonment events and managing visitor data.
     
-    this.agent = new Agent({
-      name: 'VisitorIdentifierAgent',
-      instructions: `
-        You are the Visitor Identifier Agent responsible for detecting abandonment events 
-        in auto-loan applications. Your role is to:
-        
-        1. Monitor visitor sessions for abandonment patterns
-        2. Process abandonment events from SQS queue
-        3. Store visitor data with PII protection (email hashing)
-        4. Emit lead_ready events for qualified abandoned visitors
-        5. Ensure data sanitization and guardrails compliance
-        
-        Key Guidelines:
-        - Strip PII beyond email hash for data protection
-        - Detect abandonment after 60 seconds of inactivity
-        - Only emit lead_ready for visitors with complete contact information
-        - Log all actions for observability
-      `,
-    });
+    Key responsibilities:
+    1. Process AbandonmentEvent data received via SQS
+    2. Detect when users abandon their auto-loan application
+    3. Store visitor information securely (email hashed for PII protection)
+    4. Emit lead_ready events when visitors qualify for re-engagement
+    
+    Guardrails:
+    - Always hash email addresses before storage
+    - Strip any PII beyond email hash
+    - Validate all input data before processing
+    - Log all activities for audit trail
+    
+    Process:
+    1. Receive abandonment event
+    2. Hash the email address
+    3. Check if visitor already exists
+    4. Update or create visitor record
+    5. Mark abandonment detected
+    6. Emit lead_ready event if qualified
+  `,
+});
 
-    this.startAbandonmentDetection();
-  }
+export class VisitorIdentifierService {
+  private detectionInterval: NodeJS.Timeout | null = null;
 
-  /**
-   * Process abandonment event from SQS
-   */
   async processAbandonmentEvent(event: AbandonmentEvent): Promise<void> {
     try {
-      console.log(`[VisitorIdentifierAgent] Processing abandonment event for visitor ${event.visitorId}`);
-
-      // Log agent activity
-      await storage.createAgentActivity({
-        agentName: 'VisitorIdentifierAgent',
-        action: 'process_abandonment',
-        entityId: event.visitorId.toString(),
-        entityType: 'visitor',
-        status: 'processing',
-        metadata: { 
-          sessionId: event.sessionId,
-          abandonmentStep: event.abandonmentStep 
-        }
-      });
-
-      // Get or create visitor
-      let visitor = await storage.getVisitor(event.visitorId);
+      // Hash email for PII protection
+      const emailHash = generateEmailHash(event.email);
+      
+      // Check if visitor exists
+      let visitor = await storage.getVisitorByEmailHash(emailHash);
       
       if (!visitor) {
-        // Create new visitor with PII protection
+        // Create new visitor
         visitor = await storage.createVisitor({
-          emailHash: event.emailHash,
+          emailHash,
           sessionId: event.sessionId,
-          abandonmentStep: event.abandonmentStep,
-          isAbandoned: true,
           lastActivity: new Date(),
-          metadata: event.metadata
+          abandonmentDetected: true,
         });
-        
-        console.log(`[VisitorIdentifierAgent] Created new visitor ${visitor.id}`);
       } else {
         // Update existing visitor
-        visitor = await storage.updateVisitor(event.visitorId, {
-          abandonmentStep: event.abandonmentStep,
-          isAbandoned: true,
+        visitor = await storage.updateVisitor(visitor.id, {
+          sessionId: event.sessionId,
           lastActivity: new Date(),
-          metadata: { ...visitor.metadata, ...event.metadata }
+          abandonmentDetected: true,
         });
-        
-        console.log(`[VisitorIdentifierAgent] Updated visitor ${visitor.id}`);
       }
 
-      if (!visitor) {
-        throw new Error('Failed to create or update visitor');
-      }
-
-      // Emit lead_ready event if visitor qualifies
-      if (this.shouldEmitLeadReady(visitor)) {
-        const leadReadyEvent: LeadReadyEvent = {
-          visitorId: visitor.id,
-          source: 'abandonment'
-        };
-        
-        this.emit('lead_ready', leadReadyEvent);
-        
-        await storage.createAgentActivity({
-          agentName: 'VisitorIdentifierAgent',
-          action: 'emit_lead_ready',
-          entityId: visitor.id.toString(),
-          entityType: 'visitor',
-          status: 'completed',
-          metadata: { source: 'abandonment' }
-        });
-        
-        console.log(`[VisitorIdentifierAgent] Emitted lead_ready for visitor ${visitor.id}`);
-      }
-
+      // Log activity
       await storage.createAgentActivity({
         agentName: 'VisitorIdentifierAgent',
-        action: 'process_abandonment',
-        entityId: visitor.id.toString(),
-        entityType: 'visitor',
-        status: 'completed'
+        action: 'abandonment_detected',
+        details: `Step ${event.step} abandonment for session ${event.sessionId}`,
+        visitorId: visitor.id,
+        status: 'success',
       });
 
+      // Check if visitor qualifies for re-engagement
+      if (this.qualifiesForReengagement(visitor, event)) {
+        await this.emitLeadReady(visitor);
+      }
+
     } catch (error) {
-      console.error('[VisitorIdentifierAgent] Error processing abandonment event:', error);
-      
+      console.error('Error processing abandonment event:', error);
       await storage.createAgentActivity({
         agentName: 'VisitorIdentifierAgent',
-        action: 'process_abandonment',
-        entityId: event.visitorId.toString(),
-        entityType: 'visitor',
-        status: 'failed',
-        metadata: { error: error instanceof Error ? error.message : 'Unknown error' }
+        action: 'abandonment_processing_error',
+        details: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        status: 'error',
       });
     }
   }
 
-  /**
-   * Start periodic abandonment detection (every 60 seconds)
-   */
-  private startAbandonmentDetection(): void {
-    this.abandonmentCheckInterval = setInterval(async () => {
-      await this.detectAbandonment();
-    }, 60000); // 60 seconds
-
-    console.log('[VisitorIdentifierAgent] Started abandonment detection (60s interval)');
+  private qualifiesForReengagement(visitor: any, event: AbandonmentEvent): boolean {
+    // Qualification logic - visitor abandoned at step 3 or later
+    return event.step >= 3 && !visitor.emailCampaignSent;
   }
 
-  /**
-   * Detect abandonment based on inactivity
-   */
-  private async detectAbandonment(): Promise<void> {
-    try {
-      // This would normally check active sessions from a session store
-      // For now, we'll simulate by checking recent visitor activity
-      const cutoffTime = new Date(Date.now() - 60000); // 60 seconds ago
-      
-      console.log('[VisitorIdentifierAgent] Checking for abandoned sessions...');
-      
-      await storage.createAgentActivity({
-        agentName: 'VisitorIdentifierAgent',
-        action: 'detect_abandonment',
-        entityType: 'system',
-        status: 'completed',
-        metadata: { cutoffTime: cutoffTime.toISOString() }
-      });
-      
-    } catch (error) {
-      console.error('[VisitorIdentifierAgent] Error in abandonment detection:', error);
-    }
-  }
-
-  /**
-   * Check if visitor qualifies for lead_ready event
-   */
-  private shouldEmitLeadReady(visitor: any): boolean {
-    // Emit lead_ready if:
-    // 1. Visitor is marked as abandoned
-    // 2. Has sufficient metadata (indicates engagement)
-    // 3. Abandoned at a meaningful step (not immediate bounce)
+  private async emitLeadReady(visitor: any): Promise<void> {
+    // Create lead ready event (in a real system, this would publish to SQS/EventBridge)
+    console.log(`Lead ready event emitted for visitor ${visitor.id}`);
     
-    return visitor.isAbandoned && 
-           visitor.abandonmentStep > 1 && 
-           visitor.metadata && 
-           Object.keys(visitor.metadata).length > 0;
+    await storage.createAgentActivity({
+      agentName: 'VisitorIdentifierAgent',
+      action: 'lead_ready_emitted',
+      details: `Lead ready for visitor ${visitor.id}`,
+      visitorId: visitor.id,
+      status: 'success',
+    });
   }
 
-  /**
-   * Register visitor session
-   */
-  async registerVisitorSession(emailHash: string, metadata?: any): Promise<number> {
+  startAbandonmentDetection(): void {
+    // Check for abandonment every 60 seconds
+    this.detectionInterval = setInterval(async () => {
+      await this.detectAbandonmentBatch();
+    }, 60000);
+  }
+
+  stopAbandonmentDetection(): void {
+    if (this.detectionInterval) {
+      clearInterval(this.detectionInterval);
+      this.detectionInterval = null;
+    }
+  }
+
+  private async detectAbandonmentBatch(): Promise<void> {
     try {
-      const sessionId = generateSessionId();
+      // Get visitors with recent activity but no completion
+      const recentVisitors = await storage.getRecentActiveVisitors();
       
-      const visitor = await storage.createVisitor({
-        emailHash,
-        sessionId,
-        isAbandoned: false,
-        lastActivity: new Date(),
-        metadata
-      });
-
-      console.log(`[VisitorIdentifierAgent] Registered visitor session ${visitor.id}`);
-
-      await storage.createAgentActivity({
-        agentName: 'VisitorIdentifierAgent',
-        action: 'register_session',
-        entityId: visitor.id.toString(),
-        entityType: 'visitor',
-        status: 'completed',
-        metadata: { sessionId }
-      });
-
-      return visitor.id;
-    } catch (error) {
-      console.error('[VisitorIdentifierAgent] Error registering visitor session:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Update visitor activity
-   */
-  async updateVisitorActivity(visitorId: number, step?: number, metadata?: any): Promise<void> {
-    try {
-      const updates: any = {
-        lastActivity: new Date(),
-        isAbandoned: false
-      };
-
-      if (step !== undefined) {
-        updates.abandonmentStep = step;
+      for (const visitor of recentVisitors) {
+        const timeSinceActivity = Date.now() - visitor.lastActivity.getTime();
+        
+        // If more than 5 minutes since last activity, consider abandoned
+        if (timeSinceActivity > 5 * 60 * 1000 && !visitor.abandonmentDetected) {
+          await this.processAbandonmentEvent({
+            sessionId: visitor.sessionId,
+            email: '', // We only have hash, so simulate with empty
+            step: 2, // Assume step 2 for batch detection
+            timestamp: new Date(),
+          });
+        }
       }
-
-      if (metadata) {
-        const visitor = await storage.getVisitor(visitorId);
-        updates.metadata = { ...visitor?.metadata, ...metadata };
-      }
-
-      await storage.updateVisitor(visitorId, updates);
-
-      console.log(`[VisitorIdentifierAgent] Updated activity for visitor ${visitorId}`);
     } catch (error) {
-      console.error('[VisitorIdentifierAgent] Error updating visitor activity:', error);
-    }
-  }
-
-  /**
-   * Stop abandonment detection
-   */
-  stop(): void {
-    if (this.abandonmentCheckInterval) {
-      clearInterval(this.abandonmentCheckInterval);
-      this.abandonmentCheckInterval = null;
-      console.log('[VisitorIdentifierAgent] Stopped abandonment detection');
+      console.error('Error in abandonment detection batch:', error);
     }
   }
 }
 
-export const visitorIdentifierAgent = new VisitorIdentifierAgent();
+export const visitorIdentifierService = new VisitorIdentifierService();

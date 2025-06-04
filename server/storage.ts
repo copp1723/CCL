@@ -1,11 +1,8 @@
 import { 
-  users, visitors, leads, chatSessions, chatMessages, emailCampaigns, agentActivity,
-  type User, type InsertUser,
-  type Visitor, type InsertVisitor,
-  type Lead, type InsertLead,
-  type ChatSession, type InsertChatSession,
-  type ChatMessage, type InsertChatMessage,
-  type EmailCampaign, type InsertEmailCampaign,
+  users, visitors, chatSessions, emailCampaigns, creditChecks, leads, agentActivity,
+  type User, type InsertUser, type Visitor, type InsertVisitor,
+  type ChatSession, type InsertChatSession, type EmailCampaign, type InsertEmailCampaign,
+  type CreditCheck, type InsertCreditCheck, type Lead, type InsertLead,
   type AgentActivity, type InsertAgentActivity
 } from "@shared/schema";
 
@@ -14,74 +11,62 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-
+  
   // Visitors
   getVisitor(id: number): Promise<Visitor | undefined>;
   getVisitorByEmailHash(emailHash: string): Promise<Visitor | undefined>;
   getVisitorBySessionId(sessionId: string): Promise<Visitor | undefined>;
   createVisitor(visitor: InsertVisitor): Promise<Visitor>;
-  updateVisitor(id: number, updates: Partial<Visitor>): Promise<Visitor | undefined>;
-  getAbandonedVisitors(): Promise<Visitor[]>;
-
+  updateVisitor(id: number, updates: Partial<InsertVisitor>): Promise<Visitor>;
+  getRecentActiveVisitors(): Promise<Visitor[]>;
+  
+  // Chat Sessions
+  getChatSession(id: number): Promise<ChatSession | undefined>;
+  getChatSessionBySessionId(sessionId: string): Promise<ChatSession | undefined>;
+  getChatSessionsByVisitor(visitorId: number): Promise<ChatSession[]>;
+  createChatSession(session: InsertChatSession): Promise<ChatSession>;
+  updateChatSession(id: number, updates: Partial<InsertChatSession>): Promise<ChatSession>;
+  
+  // Email Campaigns
+  getEmailCampaign(id: number): Promise<EmailCampaign | undefined>;
+  getEmailCampaignByToken(token: string): Promise<EmailCampaign | undefined>;
+  getEmailCampaignsByVisitor(visitorId: number): Promise<EmailCampaign[]>;
+  createEmailCampaign(campaign: InsertEmailCampaign): Promise<EmailCampaign>;
+  updateEmailCampaign(id: number, updates: Partial<InsertEmailCampaign>): Promise<EmailCampaign>;
+  
+  // Credit Checks
+  getCreditCheck(id: number): Promise<CreditCheck | undefined>;
+  getCreditCheckByVisitorId(visitorId: number): Promise<CreditCheck | undefined>;
+  createCreditCheck(creditCheck: InsertCreditCheck): Promise<CreditCheck>;
+  
   // Leads
   getLead(id: number): Promise<Lead | undefined>;
   getLeadsByStatus(status: string): Promise<Lead[]>;
   createLead(lead: InsertLead): Promise<Lead>;
-  updateLead(id: number, updates: Partial<Lead>): Promise<Lead | undefined>;
-  getRecentLeads(limit?: number): Promise<Lead[]>;
-
-  // Chat Sessions
-  getChatSession(sessionId: string): Promise<ChatSession | undefined>;
-  createChatSession(session: InsertChatSession): Promise<ChatSession>;
-  updateChatSession(sessionId: string, updates: Partial<ChatSession>): Promise<ChatSession | undefined>;
-  getActiveChatSessions(): Promise<ChatSession[]>;
-
-  // Chat Messages
-  getChatMessages(sessionId: string): Promise<ChatMessage[]>;
-  createChatMessage(message: InsertChatMessage): Promise<ChatMessage>;
-
-  // Email Campaigns
-  getEmailCampaign(id: number): Promise<EmailCampaign | undefined>;
-  getEmailCampaignByToken(token: string): Promise<EmailCampaign | undefined>;
-  createEmailCampaign(campaign: InsertEmailCampaign): Promise<EmailCampaign>;
-  updateEmailCampaign(id: number, updates: Partial<EmailCampaign>): Promise<EmailCampaign | undefined>;
-
+  updateLead(id: number, updates: Partial<InsertLead>): Promise<Lead>;
+  
   // Agent Activity
   createAgentActivity(activity: InsertAgentActivity): Promise<AgentActivity>;
   getRecentAgentActivity(limit?: number): Promise<AgentActivity[]>;
-  getAgentActivityByType(agentName: string): Promise<AgentActivity[]>;
+  getAgentActivityByAgent(agentName: string, limit?: number): Promise<AgentActivity[]>;
 }
 
 export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private visitors: Map<number, Visitor>;
-  private leads: Map<number, Lead>;
-  private chatSessions: Map<string, ChatSession>;
-  private chatMessages: Map<string, ChatMessage[]>;
-  private emailCampaigns: Map<number, EmailCampaign>;
-  private agentActivities: AgentActivity[];
-  private currentUserId: number;
-  private currentVisitorId: number;
-  private currentLeadId: number;
-  private currentChatMessageId: number;
-  private currentEmailCampaignId: number;
-  private currentAgentActivityId: number;
-
-  constructor() {
-    this.users = new Map();
-    this.visitors = new Map();
-    this.leads = new Map();
-    this.chatSessions = new Map();
-    this.chatMessages = new Map();
-    this.emailCampaigns = new Map();
-    this.agentActivities = [];
-    this.currentUserId = 1;
-    this.currentVisitorId = 1;
-    this.currentLeadId = 1;
-    this.currentChatMessageId = 1;
-    this.currentEmailCampaignId = 1;
-    this.currentAgentActivityId = 1;
-  }
+  private users: Map<number, User> = new Map();
+  private visitors: Map<number, Visitor> = new Map();
+  private chatSessions: Map<number, ChatSession> = new Map();
+  private emailCampaigns: Map<number, EmailCampaign> = new Map();
+  private creditChecks: Map<number, CreditCheck> = new Map();
+  private leadStorage: Map<number, Lead> = new Map();
+  private agentActivities: Map<number, AgentActivity> = new Map();
+  
+  private currentUserId = 1;
+  private currentVisitorId = 1;
+  private currentChatSessionId = 1;
+  private currentEmailCampaignId = 1;
+  private currentCreditCheckId = 1;
+  private currentLeadId = 1;
+  private currentAgentActivityId = 1;
 
   // Users
   async getUser(id: number): Promise<User | undefined> {
@@ -117,114 +102,68 @@ export class MemStorage implements IStorage {
     const visitor: Visitor = { 
       ...insertVisitor, 
       id,
-      createdAt: new Date()
+      createdAt: new Date(),
     };
     this.visitors.set(id, visitor);
     return visitor;
   }
 
-  async updateVisitor(id: number, updates: Partial<Visitor>): Promise<Visitor | undefined> {
+  async updateVisitor(id: number, updates: Partial<InsertVisitor>): Promise<Visitor> {
     const visitor = this.visitors.get(id);
-    if (!visitor) return undefined;
+    if (!visitor) {
+      throw new Error(`Visitor ${id} not found`);
+    }
     
-    const updatedVisitor = { ...visitor, ...updates };
+    const updatedVisitor: Visitor = { ...visitor, ...updates };
     this.visitors.set(id, updatedVisitor);
     return updatedVisitor;
   }
 
-  async getAbandonedVisitors(): Promise<Visitor[]> {
-    return Array.from(this.visitors.values()).filter(visitor => visitor.isAbandoned);
-  }
-
-  // Leads
-  async getLead(id: number): Promise<Lead | undefined> {
-    return this.leads.get(id);
-  }
-
-  async getLeadsByStatus(status: string): Promise<Lead[]> {
-    return Array.from(this.leads.values()).filter(lead => lead.status === status);
-  }
-
-  async createLead(insertLead: InsertLead): Promise<Lead> {
-    const id = this.currentLeadId++;
-    const lead: Lead = { 
-      ...insertLead, 
-      id,
-      createdAt: new Date()
-    };
-    this.leads.set(id, lead);
-    return lead;
-  }
-
-  async updateLead(id: number, updates: Partial<Lead>): Promise<Lead | undefined> {
-    const lead = this.leads.get(id);
-    if (!lead) return undefined;
-    
-    const updatedLead = { ...lead, ...updates };
-    this.leads.set(id, updatedLead);
-    return updatedLead;
-  }
-
-  async getRecentLeads(limit: number = 10): Promise<Lead[]> {
-    return Array.from(this.leads.values())
-      .sort((a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0))
-      .slice(0, limit);
+  async getRecentActiveVisitors(): Promise<Visitor[]> {
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    return Array.from(this.visitors.values())
+      .filter(visitor => visitor.lastActivity > oneHourAgo)
+      .sort((a, b) => b.lastActivity.getTime() - a.lastActivity.getTime());
   }
 
   // Chat Sessions
-  async getChatSession(sessionId: string): Promise<ChatSession | undefined> {
-    return this.chatSessions.get(sessionId);
+  async getChatSession(id: number): Promise<ChatSession | undefined> {
+    return this.chatSessions.get(id);
+  }
+
+  async getChatSessionBySessionId(sessionId: string): Promise<ChatSession | undefined> {
+    return Array.from(this.chatSessions.values()).find(session => session.sessionId === sessionId);
+  }
+
+  async getChatSessionsByVisitor(visitorId: number): Promise<ChatSession[]> {
+    return Array.from(this.chatSessions.values()).filter(session => session.visitorId === visitorId);
   }
 
   async createChatSession(insertSession: InsertChatSession): Promise<ChatSession> {
-    const id = Math.floor(Math.random() * 100000);
-    const session: ChatSession = { 
-      ...insertSession, 
+    const id = this.currentChatSessionId++;
+    const session: ChatSession = {
+      ...insertSession,
       id,
-      createdAt: new Date()
+      createdAt: new Date(),
+      updatedAt: new Date(),
     };
-    this.chatSessions.set(insertSession.sessionId, session);
-    this.chatMessages.set(insertSession.sessionId, []);
+    this.chatSessions.set(id, session);
     return session;
   }
 
-  async updateChatSession(sessionId: string, updates: Partial<ChatSession>): Promise<ChatSession | undefined> {
-    const session = this.chatSessions.get(sessionId);
-    if (!session) return undefined;
-    
-    const updatedSession = { ...session, ...updates };
-    this.chatSessions.set(sessionId, updatedSession);
-    return updatedSession;
-  }
-
-  async getActiveChatSessions(): Promise<ChatSession[]> {
-    return Array.from(this.chatSessions.values()).filter(session => session.isActive);
-  }
-
-  // Chat Messages
-  async getChatMessages(sessionId: string): Promise<ChatMessage[]> {
-    return this.chatMessages.get(sessionId) || [];
-  }
-
-  async createChatMessage(insertMessage: InsertChatMessage): Promise<ChatMessage> {
-    const id = this.currentChatMessageId++;
-    const message: ChatMessage = { 
-      ...insertMessage, 
-      id,
-      timestamp: new Date()
-    };
-    
-    const messages = this.chatMessages.get(insertMessage.sessionId) || [];
-    messages.push(message);
-    this.chatMessages.set(insertMessage.sessionId, messages);
-    
-    // Update session last message time
-    const session = this.chatSessions.get(insertMessage.sessionId);
-    if (session) {
-      await this.updateChatSession(insertMessage.sessionId, { lastMessageAt: new Date() });
+  async updateChatSession(id: number, updates: Partial<InsertChatSession>): Promise<ChatSession> {
+    const session = this.chatSessions.get(id);
+    if (!session) {
+      throw new Error(`Chat session ${id} not found`);
     }
     
-    return message;
+    const updatedSession: ChatSession = { 
+      ...session, 
+      ...updates,
+      updatedAt: new Date(),
+    };
+    this.chatSessions.set(id, updatedSession);
+    return updatedSession;
   }
 
   // Email Campaigns
@@ -236,44 +175,107 @@ export class MemStorage implements IStorage {
     return Array.from(this.emailCampaigns.values()).find(campaign => campaign.returnToken === token);
   }
 
+  async getEmailCampaignsByVisitor(visitorId: number): Promise<EmailCampaign[]> {
+    return Array.from(this.emailCampaigns.values()).filter(campaign => campaign.visitorId === visitorId);
+  }
+
   async createEmailCampaign(insertCampaign: InsertEmailCampaign): Promise<EmailCampaign> {
     const id = this.currentEmailCampaignId++;
-    const campaign: EmailCampaign = { 
-      ...insertCampaign, 
+    const campaign: EmailCampaign = {
+      ...insertCampaign,
       id,
-      createdAt: new Date()
+      createdAt: new Date(),
     };
     this.emailCampaigns.set(id, campaign);
     return campaign;
   }
 
-  async updateEmailCampaign(id: number, updates: Partial<EmailCampaign>): Promise<EmailCampaign | undefined> {
+  async updateEmailCampaign(id: number, updates: Partial<InsertEmailCampaign>): Promise<EmailCampaign> {
     const campaign = this.emailCampaigns.get(id);
-    if (!campaign) return undefined;
+    if (!campaign) {
+      throw new Error(`Email campaign ${id} not found`);
+    }
     
-    const updatedCampaign = { ...campaign, ...updates };
+    const updatedCampaign: EmailCampaign = { ...campaign, ...updates };
     this.emailCampaigns.set(id, updatedCampaign);
     return updatedCampaign;
+  }
+
+  // Credit Checks
+  async getCreditCheck(id: number): Promise<CreditCheck | undefined> {
+    return this.creditChecks.get(id);
+  }
+
+  async getCreditCheckByVisitorId(visitorId: number): Promise<CreditCheck | undefined> {
+    return Array.from(this.creditChecks.values())
+      .find(check => check.visitorId === visitorId);
+  }
+
+  async createCreditCheck(insertCreditCheck: InsertCreditCheck): Promise<CreditCheck> {
+    const id = this.currentCreditCheckId++;
+    const creditCheck: CreditCheck = {
+      ...insertCreditCheck,
+      id,
+      createdAt: new Date(),
+    };
+    this.creditChecks.set(id, creditCheck);
+    return creditCheck;
+  }
+
+  // Leads
+  async getLead(id: number): Promise<Lead | undefined> {
+    return this.leadStorage.get(id);
+  }
+
+  async getLeadsByStatus(status: string): Promise<Lead[]> {
+    return Array.from(this.leadStorage.values()).filter(lead => lead.status === status);
+  }
+
+  async createLead(insertLead: InsertLead): Promise<Lead> {
+    const id = this.currentLeadId++;
+    const lead: Lead = {
+      ...insertLead,
+      id,
+      createdAt: new Date(),
+    };
+    this.leadStorage.set(id, lead);
+    return lead;
+  }
+
+  async updateLead(id: number, updates: Partial<InsertLead>): Promise<Lead> {
+    const lead = this.leadStorage.get(id);
+    if (!lead) {
+      throw new Error(`Lead ${id} not found`);
+    }
+    
+    const updatedLead: Lead = { ...lead, ...updates };
+    this.leadStorage.set(id, updatedLead);
+    return updatedLead;
   }
 
   // Agent Activity
   async createAgentActivity(insertActivity: InsertAgentActivity): Promise<AgentActivity> {
     const id = this.currentAgentActivityId++;
-    const activity: AgentActivity = { 
-      ...insertActivity, 
+    const activity: AgentActivity = {
+      ...insertActivity,
       id,
-      timestamp: new Date()
+      createdAt: new Date(),
     };
-    this.agentActivities.unshift(activity); // Add to beginning for recent first
+    this.agentActivities.set(id, activity);
     return activity;
   }
 
-  async getRecentAgentActivity(limit: number = 20): Promise<AgentActivity[]> {
-    return this.agentActivities.slice(0, limit);
+  async getRecentAgentActivity(limit: number = 50): Promise<AgentActivity[]> {
+    return Array.from(this.agentActivities.values())
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(0, limit);
   }
 
-  async getAgentActivityByType(agentName: string): Promise<AgentActivity[]> {
-    return this.agentActivities.filter(activity => activity.agentName === agentName);
+  async getAgentActivityByAgent(agentName: string, limit: number = 50): Promise<AgentActivity[]> {
+    return Array.from(this.agentActivities.values())
+      .filter(activity => activity.agentName === agentName)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+      .slice(0, limit);
   }
 }
 

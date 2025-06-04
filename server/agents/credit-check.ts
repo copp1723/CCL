@@ -1,277 +1,215 @@
 import { Agent } from '@openai/agents';
 import { storage } from '../storage';
-import { creditService } from '../services/credit';
-import { isValidPhone } from '../utils/pii';
-import type { CreditApprovedEvent } from '@shared/schema';
-import EventEmitter from 'events';
+import { performFlexPathCreditCheck } from '../services/external-apis';
+import { validatePhoneNumber } from '../services/token';
 
-export class CreditCheckAgent extends EventEmitter {
-  private agent: Agent;
-
-  constructor() {
-    super();
+export const creditCheckAgent = new Agent({
+  name: 'CreditCheckAgent',
+  instructions: `
+    You are responsible for performing soft-pull credit checks using the FlexPath API.
     
-    this.agent = new Agent({
-      name: 'CreditCheckAgent',
-      instructions: `
-        You are the Credit Check Agent responsible for performing soft credit pulls 
-        via FlexPath API and validating customer creditworthiness. Your role is to:
-        
-        1. Receive handoff requests from RealtimeChatAgent with phone numbers
-        2. Validate phone numbers in E.164 format
-        3. Call FlexPath API for soft credit pulls (no credit score impact)
-        4. Cache credit results in Redis with 5-minute TTL
-        5. Emit 'approved' events for qualified applicants
-        6. Handle API errors and rate limiting gracefully
-        
-        Key Guidelines:
-        - Only accept valid E.164 phone number formats
-        - Cache results to avoid duplicate API calls
-        - Emit 'approved' only for APPROVED or CONDITIONAL status
-        - Log all credit check attempts for compliance
-        - Handle FlexPath API errors with proper fallbacks
-        - Maintain audit trail for all credit decisions
-      `,
-    });
-  }
+    Key responsibilities:
+    1. Validate phone numbers in E.164 format
+    2. Call FlexPath API for soft credit pulls
+    3. Cache results in Redis for 5 minutes
+    4. Emit 'approved' events for qualified borrowers
+    5. Handle API errors and fallbacks gracefully
+    
+    Credit Check Process:
+    1. Receive handoff from RealtimeChatAgent with phone number
+    2. Validate phone number format (E.164)
+    3. Check cache for recent results
+    4. Call FlexPath API if not cached
+    5. Store results with 5-minute TTL
+    6. Return approval status and credit information
+    
+    Approval Criteria:
+    - Credit score >= 580 for prime rates
+    - Credit score 500-579 for sub-prime rates
+    - Credit score < 500 requires manual review
+    
+    Error Handling:
+    - API timeouts: retry up to 3 times
+    - Invalid phone: request correction
+    - Credit bureau errors: provide alternative options
+  `,
+});
 
-  /**
-   * Process credit check handoff from RealtimeChatAgent
-   */
-  async processHandoff(handoffData: { sessionId: string; phone: string; visitorId?: number; email?: string }): Promise<void> {
+export interface CreditCheckResult {
+  approved: boolean;
+  creditScore?: number;
+  riskTier: 'prime' | 'near-prime' | 'sub-prime' | 'deep-sub-prime';
+  maxLoanAmount?: number;
+  estimatedRate?: number;
+  externalId?: string;
+}
+
+export class CreditCheckService {
+  private cache = new Map<string, { result: CreditCheckResult; expires: Date }>();
+
+  async performCreditCheck(phoneNumber: string, visitorId?: number): Promise<CreditCheckResult> {
     try {
-      console.log(`[CreditCheckAgent] Processing handoff for session ${handoffData.sessionId}`);
-
-      // Log agent activity
-      await storage.createAgentActivity({
-        agentName: 'CreditCheckAgent',
-        action: 'process_handoff',
-        entityId: handoffData.sessionId,
-        entityType: 'chat_session',
-        status: 'processing',
-        metadata: { phone: handoffData.phone }
-      });
-
-      // Validate phone number format
-      if (!isValidPhone(handoffData.phone)) {
-        throw new Error(`Invalid phone number format: ${handoffData.phone}`);
+      // Validate phone number
+      const validatedPhone = validatePhoneNumber(phoneNumber);
+      if (!validatedPhone.valid) {
+        throw new Error(`Invalid phone number format: ${phoneNumber}`);
       }
 
-      // Prepare credit check request
-      const creditRequest = {
-        phone: handoffData.phone,
-        email: handoffData.email || `session_${handoffData.sessionId}@temp.com`
-      };
+      // Check cache first
+      const cacheKey = `credit_check_${validatedPhone.e164}`;
+      const cached = this.cache.get(cacheKey);
+      
+      if (cached && cached.expires > new Date()) {
+        await this.logActivity('cache_hit', `Credit check cache hit for ${validatedPhone.e164}`, visitorId);
+        return cached.result;
+      }
 
-      // Perform credit check via FlexPath API
-      const creditResult = await creditService.performCreditCheck(creditRequest);
+      // Call FlexPath API
+      const flexPathResult = await performFlexPathCreditCheck(validatedPhone.e164);
+      
+      if (!flexPathResult.success) {
+        throw new Error(`FlexPath API error: ${flexPathResult.error}`);
+      }
 
-      // Store credit check result
-      await storage.createAgentActivity({
-        agentName: 'CreditCheckAgent',
-        action: 'credit_check_completed',
-        entityId: handoffData.sessionId,
-        entityType: 'chat_session',
-        status: creditResult.success ? 'completed' : 'failed',
-        metadata: {
-          requestId: creditResult.requestId,
-          approvalStatus: creditResult.approvalStatus,
-          creditScore: creditResult.creditScore,
-          creditTier: creditResult.creditTier,
-          error: creditResult.error
-        }
+      // Process results
+      const result = this.processCreditCheckResults(flexPathResult.data);
+
+      // Store in database
+      const creditCheck = await storage.createCreditCheck({
+        visitorId: visitorId || null,
+        phone: validatedPhone.e164,
+        creditScore: result.creditScore,
+        approved: result.approved,
+        externalId: result.externalId,
       });
 
-      // Send results back to chat
-      await this.sendCreditResultToChat(handoffData.sessionId, creditResult);
+      // Cache results for 5 minutes
+      this.cache.set(cacheKey, {
+        result,
+        expires: new Date(Date.now() + 5 * 60 * 1000),
+      });
+
+      // Log success
+      await this.logActivity('credit_check_completed', 
+        `Credit check completed: score=${result.creditScore}, approved=${result.approved}`, 
+        visitorId);
 
       // Emit approved event if qualified
-      if (creditResult.success && ['APPROVED', 'CONDITIONAL'].includes(creditResult.approvalStatus)) {
-        const approvedEvent: CreditApprovedEvent = {
-          visitorId: handoffData.visitorId || 0,
-          creditStatus: creditResult.approvalStatus.toLowerCase(),
-          creditData: {
-            score: creditResult.creditScore,
-            tier: creditResult.creditTier,
-            maxLoanAmount: creditResult.maxLoanAmount,
-            estimatedRate: creditResult.estimatedRate,
-            requestId: creditResult.requestId
-          }
-        };
-
-        this.emit('approved', approvedEvent);
-
-        await storage.createAgentActivity({
-          agentName: 'CreditCheckAgent',
-          action: 'emit_approved',
-          entityId: handoffData.visitorId?.toString() || handoffData.sessionId,
-          entityType: 'visitor',
-          status: 'completed',
-          metadata: { approvalStatus: creditResult.approvalStatus }
-        });
-
-        console.log(`[CreditCheckAgent] Emitted approved event for visitor ${handoffData.visitorId}`);
+      if (result.approved) {
+        await this.emitApprovedEvent(creditCheck.id, visitorId);
       }
 
-      await storage.createAgentActivity({
-        agentName: 'CreditCheckAgent',
-        action: 'process_handoff',
-        entityId: handoffData.sessionId,
-        entityType: 'chat_session',
-        status: 'completed'
-      });
+      return result;
 
     } catch (error) {
-      console.error('[CreditCheckAgent] Error processing handoff:', error);
+      console.error('Credit check error:', error);
       
+      await this.logActivity('credit_check_error', 
+        `Error: ${error instanceof Error ? error.message : 'Unknown error'}`, 
+        visitorId);
+
+      // Return fallback result
+      return {
+        approved: false,
+        riskTier: 'deep-sub-prime',
+      };
+    }
+  }
+
+  private processCreditCheckResults(data: any): CreditCheckResult {
+    const creditScore = data.creditScore || 0;
+    
+    let riskTier: CreditCheckResult['riskTier'];
+    let approved = false;
+    let estimatedRate: number | undefined;
+    let maxLoanAmount: number | undefined;
+
+    if (creditScore >= 740) {
+      riskTier = 'prime';
+      approved = true;
+      estimatedRate = 3.9;
+      maxLoanAmount = 80000;
+    } else if (creditScore >= 660) {
+      riskTier = 'near-prime';
+      approved = true;
+      estimatedRate = 5.9;
+      maxLoanAmount = 60000;
+    } else if (creditScore >= 580) {
+      riskTier = 'sub-prime';
+      approved = true;
+      estimatedRate = 8.9;
+      maxLoanAmount = 40000;
+    } else if (creditScore >= 500) {
+      riskTier = 'sub-prime';
+      approved = true;
+      estimatedRate = 12.9;
+      maxLoanAmount = 25000;
+    } else {
+      riskTier = 'deep-sub-prime';
+      approved = false;
+    }
+
+    return {
+      approved,
+      creditScore,
+      riskTier,
+      maxLoanAmount,
+      estimatedRate,
+      externalId: data.id,
+    };
+  }
+
+  private async emitApprovedEvent(creditCheckId: number, visitorId?: number): Promise<void> {
+    // In a real system, this would publish to SQS/EventBridge
+    console.log(`Approved event emitted for credit check ${creditCheckId}`);
+    
+    await this.logActivity('approved_event_emitted', 
+      `Approved event emitted for credit check ${creditCheckId}`, 
+      visitorId);
+
+    // Trigger lead packaging if we have a visitor
+    if (visitorId) {
+      const { leadPackagingService } = await import('./lead-packaging');
+      await leadPackagingService.processApprovedLead(visitorId, creditCheckId);
+    }
+  }
+
+  private async logActivity(action: string, details: string, visitorId?: number): Promise<void> {
+    try {
       await storage.createAgentActivity({
         agentName: 'CreditCheckAgent',
-        action: 'process_handoff',
-        entityId: handoffData.sessionId,
-        entityType: 'chat_session',
-        status: 'failed',
-        metadata: { error: error instanceof Error ? error.message : 'Unknown error' }
+        action,
+        details,
+        visitorId: visitorId || null,
+        status: action.includes('error') ? 'error' : 'success',
       });
-
-      // Send error message to chat
-      await this.sendErrorToChat(handoffData.sessionId, error instanceof Error ? error.message : 'Credit check failed');
+    } catch (error) {
+      console.error('Error logging activity:', error);
     }
   }
 
-  /**
-   * Send credit check results back to chat session
-   */
-  private async sendCreditResultToChat(sessionId: string, result: any): Promise<void> {
-    try {
-      let message: string;
+  async getCreditCheckById(id: number): Promise<any> {
+    return await storage.getCreditCheck(id);
+  }
 
-      if (!result.success) {
-        message = `I'm sorry, but I encountered an issue with the credit check: ${result.error}. Please try again or contact our support team for assistance.`;
-      } else {
-        switch (result.approvalStatus) {
-          case 'APPROVED':
-            message = `Great news! You're pre-approved for a car loan! Here are your terms:
-            
-💰 Max Loan Amount: $${result.maxLoanAmount?.toLocaleString()}
-📊 Credit Score: ${result.creditScore}
-💳 Credit Tier: ${result.creditTier}
-📈 Estimated Rate: ${result.estimatedRate}% APR
+  async getCreditCheckByVisitor(visitorId: number): Promise<any> {
+    return await storage.getCreditCheckByVisitorId(visitorId);
+  }
 
-You can now shop with confidence at any of our partner dealerships. Would you like me to help you find dealers in your area?`;
-            break;
-            
-          case 'CONDITIONAL':
-            message = `You're conditionally approved for a car loan! Here are your preliminary terms:
-            
-💰 Max Loan Amount: $${result.maxLoanAmount?.toLocaleString()}
-📊 Credit Score: ${result.creditScore}
-💳 Credit Tier: ${result.creditTier}
-📈 Estimated Rate: ${result.estimatedRate}% APR
-
-Final approval will depend on additional verification. Would you like to proceed with finding a vehicle?`;
-            break;
-            
-          case 'DECLINED':
-            message = `I apologize, but we're unable to approve your application at this time. This could be due to various factors in your credit profile. 
-
-Don't worry - we have alternative options and can connect you with specialists who work with all credit situations. Would you like me to explore other possibilities?`;
-            break;
-            
-          default:
-            message = 'Credit check completed. Let me review your results and provide next steps.';
-        }
+  // Clean up expired cache entries
+  private cleanupCache(): void {
+    const now = new Date();
+    for (const [key, value] of this.cache.entries()) {
+      if (value.expires <= now) {
+        this.cache.delete(key);
       }
-
-      // Store the response message
-      await storage.createChatMessage({
-        sessionId,
-        role: 'assistant',
-        content: message
-      });
-
-      console.log(`[CreditCheckAgent] Sent credit result to chat session ${sessionId}`);
-    } catch (error) {
-      console.error('[CreditCheckAgent] Error sending credit result to chat:', error);
     }
   }
 
-  /**
-   * Send error message to chat session
-   */
-  private async sendErrorToChat(sessionId: string, errorMessage: string): Promise<void> {
-    try {
-      const message = `I apologize, but there was an issue processing your credit check: ${errorMessage}. Please try again or contact our support team for assistance.`;
-
-      await storage.createChatMessage({
-        sessionId,
-        role: 'assistant',
-        content: message
-      });
-
-      console.log(`[CreditCheckAgent] Sent error message to chat session ${sessionId}`);
-    } catch (error) {
-      console.error('[CreditCheckAgent] Error sending error message to chat:', error);
-    }
-  }
-
-  /**
-   * Get credit check statistics
-   */
-  async getCreditCheckStats(): Promise<{
-    total: number;
-    approved: number;
-    conditional: number;
-    declined: number;
-    failed: number;
-    approvalRate: number;
-  }> {
-    try {
-      const activities = await storage.getAgentActivityByType('CreditCheckAgent');
-      const creditChecks = activities.filter(a => a.action === 'credit_check_completed');
-
-      const total = creditChecks.length;
-      const approved = creditChecks.filter(a => a.metadata?.approvalStatus === 'APPROVED').length;
-      const conditional = creditChecks.filter(a => a.metadata?.approvalStatus === 'CONDITIONAL').length;
-      const declined = creditChecks.filter(a => a.metadata?.approvalStatus === 'DECLINED').length;
-      const failed = creditChecks.filter(a => a.status === 'failed').length;
-
-      const approvalRate = total > 0 ? ((approved + conditional) / total) * 100 : 0;
-
-      return {
-        total,
-        approved,
-        conditional,
-        declined,
-        failed,
-        approvalRate
-      };
-    } catch (error) {
-      console.error('[CreditCheckAgent] Error getting credit check stats:', error);
-      return {
-        total: 0,
-        approved: 0,
-        conditional: 0,
-        declined: 0,
-        failed: 0,
-        approvalRate: 0
-      };
-    }
-  }
-
-  /**
-   * Validate phone number for credit check
-   */
-  validatePhoneNumber(phone: string): { valid: boolean; formatted?: string; error?: string } {
-    if (!phone || typeof phone !== 'string') {
-      return { valid: false, error: 'Phone number is required' };
-    }
-
-    if (!isValidPhone(phone)) {
-      return { valid: false, error: 'Phone number must be in E.164 format (e.g., +12345678901)' };
-    }
-
-    return { valid: true, formatted: phone };
+  // Start cache cleanup interval
+  startCacheCleanup(): void {
+    setInterval(() => this.cleanupCache(), 60000); // Clean every minute
   }
 }
 
-export const creditCheckAgent = new CreditCheckAgent();
+export const creditCheckService = new CreditCheckService();

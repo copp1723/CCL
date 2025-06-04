@@ -1,161 +1,169 @@
 import { Agent } from '@openai/agents';
 import { storage } from '../storage';
-import { emailService } from '../services/email';
-import { generateReturnToken, generateTokenExpiry } from '../utils/tokens';
-import type { LeadReadyEvent, EmailSentEvent } from '@shared/schema';
-import EventEmitter from 'events';
+import { generateReturnToken } from '../services/token';
+import { sendEmail } from '../services/external-apis';
 
-export class EmailReengagementAgent extends EventEmitter {
-  private agent: Agent;
-
-  constructor() {
-    super();
+export const emailReengagementAgent = new Agent({
+  name: 'EmailReengagementAgent',
+  instructions: `
+    You are responsible for sending personalized re-engagement emails to visitors who abandoned their auto-loan applications.
     
-    this.agent = new Agent({
-      name: 'EmailReengagementAgent',
-      instructions: `
-        You are the Email Reengagement Agent responsible for sending personalized 
-        re-engagement emails to abandoned auto-loan applicants. Your role is to:
-        
-        1. Process lead_ready events from VisitorIdentifierAgent
-        2. Generate secure return tokens with 24-hour TTL
-        3. Send personalized emails via SendGrid API
-        4. Store email campaign data and track delivery
-        5. Emit email_sent events for downstream processing
-        
-        Key Guidelines:
-        - Generate unique return tokens (GUID format) for each email
-        - Set 24-hour expiration on all return tokens
-        - Personalize email content based on abandonment step
-        - Track email delivery rates for observability
-        - Handle email bounces and failures gracefully
-        - Ensure high inbox delivery rate (≥95% target)
-      `,
-    });
-  }
+    Key responsibilities:
+    1. Generate personalized email content for abandoned visitors
+    2. Create secure return tokens with 24-hour TTL
+    3. Send emails via SendGrid integration
+    4. Track email delivery and engagement metrics
+    5. Store email templates and manage campaigns
+    
+    Email Strategy:
+    - Use personalized subject lines and content
+    - Include clear call-to-action with return token
+    - Emphasize benefits: quick approval, competitive rates
+    - Create urgency with limited-time offers
+    
+    Token Security:
+    - Generate cryptographically secure return tokens
+    - 24-hour expiration for security
+    - One-time use validation
+    - Associate with specific visitor and session
+  `,
+});
 
-  /**
-   * Process lead_ready event and send re-engagement email
-   */
-  async processLeadReady(event: LeadReadyEvent): Promise<void> {
+export class EmailReengagementService {
+  async processLeadReady(visitorId: number): Promise<void> {
     try {
-      console.log(`[EmailReengagementAgent] Processing lead_ready for visitor ${event.visitorId}`);
-
-      // Log agent activity
-      await storage.createAgentActivity({
-        agentName: 'EmailReengagementAgent',
-        action: 'process_lead_ready',
-        entityId: event.visitorId.toString(),
-        entityType: 'visitor',
-        status: 'processing',
-        metadata: { source: event.source }
-      });
-
-      // Get visitor data
-      const visitor = await storage.getVisitor(event.visitorId);
+      const visitor = await storage.getVisitor(visitorId);
       if (!visitor) {
-        throw new Error(`Visitor ${event.visitorId} not found`);
+        throw new Error(`Visitor ${visitorId} not found`);
       }
 
-      // Check if we already sent an email to this visitor recently (avoid spam)
-      const recentCampaigns = await this.getRecentCampaigns(visitor.id);
-      if (recentCampaigns.length > 0) {
-        console.log(`[EmailReengagementAgent] Skipping - recent email already sent to visitor ${visitor.id}`);
-        return;
-      }
-
-      // Generate return token
+      // Generate return token with 24h TTL
       const returnToken = generateReturnToken();
-      const tokenExpiry = generateTokenExpiry();
+      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
       // Create email campaign record
       const campaign = await storage.createEmailCampaign({
         visitorId: visitor.id,
-        emailType: 'reengagement',
         returnToken,
-        tokenExpiry,
-        sent: false
+        expiresAt,
       });
 
-      // Determine email content based on abandonment step
-      const abandonmentStep = visitor.abandonmentStep || 1;
-      
-      // Send email via email service
-      const emailResult = await emailService.sendReengagementEmail(
-        { email: this.getEmailFromHash(visitor.emailHash) }, // In production, need actual email
-        returnToken,
-        abandonmentStep
-      );
+      // Generate personalized email content
+      const emailContent = await this.generateEmailContent(visitor, returnToken);
+
+      // Send email via SendGrid
+      const emailResult = await sendEmail({
+        to: visitor.emailHash, // In real implementation, this would be the actual email
+        subject: emailContent.subject,
+        html: emailContent.html,
+        text: emailContent.text,
+      });
 
       if (emailResult.success) {
         // Update campaign as sent
         await storage.updateEmailCampaign(campaign.id, {
-          sent: true,
-          sentAt: new Date()
+          emailSent: true,
         });
 
-        // Emit email_sent event
-        const emailSentEvent: EmailSentEvent = {
-          campaignId: campaign.id,
-          visitorId: visitor.id,
-          returnToken
-        };
-
-        this.emit('email_sent', emailSentEvent);
-
+        // Log success activity
         await storage.createAgentActivity({
           agentName: 'EmailReengagementAgent',
           action: 'email_sent',
-          entityId: campaign.id.toString(),
-          entityType: 'email_campaign',
-          status: 'completed',
-          metadata: { 
-            messageId: emailResult.messageId,
-            abandonmentStep,
-            returnToken 
-          }
+          details: `Re-engagement email sent with token ${returnToken}`,
+          visitorId: visitor.id,
+          status: 'success',
         });
 
-        console.log(`[EmailReengagementAgent] Email sent successfully to visitor ${visitor.id}`);
+        // Emit email_sent trace event
+        console.log(`Email sent trace: visitor=${visitor.id}, token=${returnToken}`);
       } else {
-        await storage.createAgentActivity({
-          agentName: 'EmailReengagementAgent',
-          action: 'email_failed',
-          entityId: campaign.id.toString(),
-          entityType: 'email_campaign',
-          status: 'failed',
-          metadata: { error: emailResult.error }
-        });
-
-        console.error(`[EmailReengagementAgent] Email failed for visitor ${visitor.id}:`, emailResult.error);
+        throw new Error(`Email delivery failed: ${emailResult.error}`);
       }
 
-      await storage.createAgentActivity({
-        agentName: 'EmailReengagementAgent',
-        action: 'process_lead_ready',
-        entityId: event.visitorId.toString(),
-        entityType: 'visitor',
-        status: 'completed'
-      });
-
     } catch (error) {
-      console.error('[EmailReengagementAgent] Error processing lead_ready:', error);
-      
+      console.error('Error sending re-engagement email:', error);
       await storage.createAgentActivity({
         agentName: 'EmailReengagementAgent',
-        action: 'process_lead_ready',
-        entityId: event.visitorId.toString(),
-        entityType: 'visitor',
-        status: 'failed',
-        metadata: { error: error instanceof Error ? error.message : 'Unknown error' }
+        action: 'email_send_error',
+        details: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        visitorId,
+        status: 'error',
       });
     }
   }
 
-  /**
-   * Handle return token validation
-   */
-  async validateReturnToken(token: string): Promise<{ valid: boolean; visitorId?: number; campaignId?: number }> {
+  private async generateEmailContent(visitor: any, returnToken: string): Promise<{
+    subject: string;
+    html: string;
+    text: string;
+  }> {
+    // In a real implementation, this would use the OpenAI Agents SDK to generate personalized content
+    const baseUrl = process.env.APP_URL || 'https://app.completecarloans.com';
+    const returnUrl = `${baseUrl}/continue?token=${returnToken}`;
+
+    return {
+      subject: "Complete Your Auto Loan Application - Pre-Approved Offer Inside!",
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <div style="background: #0066CC; color: white; padding: 20px; text-align: center;">
+            <h1>Complete Car Loans</h1>
+            <h2>Your Pre-Approval is Waiting!</h2>
+          </div>
+          
+          <div style="padding: 30px;">
+            <p>Hi there,</p>
+            
+            <p>You were so close to completing your auto loan application! We noticed you started the process but didn't finish - don't worry, we saved your progress.</p>
+            
+            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h3 style="color: #0066CC; margin-top: 0;">Why Complete Your Application?</h3>
+              <ul>
+                <li>✅ Competitive rates starting at 3.9% APR</li>
+                <li>✅ Quick approval - decisions in minutes</li>
+                <li>✅ No hidden fees or prepayment penalties</li>
+                <li>✅ Work with trusted dealerships nationwide</li>
+              </ul>
+            </div>
+            
+            <p style="text-align: center;">
+              <a href="${returnUrl}" style="background: #10B981; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
+                Continue My Application
+              </a>
+            </p>
+            
+            <p style="color: #666; font-size: 14px;">This link expires in 24 hours for your security.</p>
+            
+            <hr style="margin: 30px 0; border: none; border-top: 1px solid #eee;">
+            
+            <p style="font-size: 12px; color: #999;">
+              If you no longer wish to receive these emails, <a href="#">unsubscribe here</a>.
+            </p>
+          </div>
+        </div>
+      `,
+      text: `
+Complete Car Loans - Your Pre-Approval is Waiting!
+
+Hi there,
+
+You were so close to completing your auto loan application! We noticed you started the process but didn't finish - don't worry, we saved your progress.
+
+Why Complete Your Application?
+• Competitive rates starting at 3.9% APR
+• Quick approval - decisions in minutes
+• No hidden fees or prepayment penalties
+• Work with trusted dealerships nationwide
+
+Continue your application: ${returnUrl}
+
+This link expires in 24 hours for your security.
+
+Complete Car Loans Team
+      `,
+    };
+  }
+
+  async validateReturnToken(token: string): Promise<{ valid: boolean; visitorId?: number }> {
     try {
       const campaign = await storage.getEmailCampaignByToken(token);
       
@@ -164,112 +172,42 @@ export class EmailReengagementAgent extends EventEmitter {
       }
 
       // Check if token is expired
-      if (new Date() > campaign.tokenExpiry) {
-        console.log(`[EmailReengagementAgent] Token expired: ${token}`);
+      if (new Date() > campaign.expiresAt) {
         return { valid: false };
       }
 
-      // Update campaign as clicked
-      await storage.updateEmailCampaign(campaign.id, {
-        clicked: true
-      });
+      // Check if already used (you might want to add a 'used' field to the schema)
+      return { valid: true, visitorId: campaign.visitorId };
 
-      await storage.createAgentActivity({
-        agentName: 'EmailReengagementAgent',
-        action: 'token_validated',
-        entityId: campaign.id.toString(),
-        entityType: 'email_campaign',
-        status: 'completed',
-        metadata: { returnToken: token }
-      });
-
-      console.log(`[EmailReengagementAgent] Valid return token for visitor ${campaign.visitorId}`);
-      
-      return { 
-        valid: true, 
-        visitorId: campaign.visitorId || undefined,
-        campaignId: campaign.id 
-      };
     } catch (error) {
-      console.error('[EmailReengagementAgent] Error validating return token:', error);
+      console.error('Error validating return token:', error);
       return { valid: false };
     }
   }
 
-  /**
-   * Track email opens
-   */
-  async trackEmailOpen(messageId: string): Promise<void> {
+  async handleEmailEngagement(token: string, action: 'opened' | 'clicked'): Promise<void> {
     try {
-      // In production, would correlate messageId with campaign
+      const campaign = await storage.getEmailCampaignByToken(token);
+      if (!campaign) return;
+
+      const updateData: any = {};
+      if (action === 'opened') updateData.emailOpened = true;
+      if (action === 'clicked') updateData.clicked = true;
+
+      await storage.updateEmailCampaign(campaign.id, updateData);
+
       await storage.createAgentActivity({
         agentName: 'EmailReengagementAgent',
-        action: 'email_opened',
-        entityId: messageId,
-        entityType: 'email_message',
-        status: 'completed'
+        action: `email_${action}`,
+        details: `Email ${action} for campaign ${campaign.id}`,
+        visitorId: campaign.visitorId,
+        status: 'success',
       });
 
-      console.log(`[EmailReengagementAgent] Email opened: ${messageId}`);
     } catch (error) {
-      console.error('[EmailReengagementAgent] Error tracking email open:', error);
-    }
-  }
-
-  /**
-   * Get recent campaigns for a visitor (last 24 hours)
-   */
-  private async getRecentCampaigns(visitorId: number): Promise<any[]> {
-    // In production, this would be a proper database query
-    // For now, we'll simulate by checking if any campaigns exist
-    return [];
-  }
-
-  /**
-   * Get email from hash (placeholder - in production would need lookup table)
-   */
-  private getEmailFromHash(emailHash: string): string {
-    // In production, this would require a secure lookup mechanism
-    // For demo purposes, we'll use a placeholder
-    return `user_${emailHash.substring(0, 8)}@example.com`;
-  }
-
-  /**
-   * Get email delivery metrics
-   */
-  async getDeliveryMetrics(): Promise<{
-    sent: number;
-    delivered: number;
-    opened: number;
-    clicked: number;
-    deliveryRate: number;
-  }> {
-    try {
-      // In production, this would query actual campaign data
-      // For now, return mock metrics that meet our ≥95% target
-      const sent = 100;
-      const delivered = 97;
-      const opened = 45;
-      const clicked = 12;
-
-      return {
-        sent,
-        delivered,
-        opened,
-        clicked,
-        deliveryRate: (delivered / sent) * 100
-      };
-    } catch (error) {
-      console.error('[EmailReengagementAgent] Error getting delivery metrics:', error);
-      return {
-        sent: 0,
-        delivered: 0,
-        opened: 0,
-        clicked: 0,
-        deliveryRate: 0
-      };
+      console.error(`Error handling email ${action}:`, error);
     }
   }
 }
 
-export const emailReengagementAgent = new EmailReengagementAgent();
+export const emailReengagementService = new EmailReengagementService();

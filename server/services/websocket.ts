@@ -1,209 +1,276 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { Server } from 'http';
-import { agentOrchestrator } from '../agents';
+import { parse as parseUrl } from 'url';
 import { storage } from '../storage';
 
-interface WebSocketClient {
-  ws: WebSocket;
-  sessionId: string;
-  isAlive: boolean;
+export interface WebSocketMessage {
+  type: string;
+  data: any;
+  timestamp?: Date;
 }
 
-export class WebSocketService {
+export interface ChatClient {
+  ws: WebSocket;
+  sessionId: string;
+  visitorId?: number;
+  lastPing: Date;
+}
+
+export class WebSocketManager {
   private wss: WebSocketServer;
-  private clients: Map<string, WebSocketClient> = new Map();
+  private clients = new Map<string, ChatClient>();
+  private pingInterval: NodeJS.Timeout;
 
   constructor(server: Server) {
-    this.wss = new WebSocketServer({ 
+    this.wss = new WebSocketServer({
       server,
-      path: '/ws'
+      path: '/ws',
     });
 
     this.setupWebSocketServer();
-    this.startHeartbeat();
+    this.startPingInterval();
   }
 
-  private setupWebSocketServer() {
-    this.wss.on('connection', (ws: WebSocket, req) => {
-      const url = new URL(req.url!, `http://${req.headers.host}`);
-      const sessionId = url.searchParams.get('sessionId') || this.generateSessionId();
-      const returnToken = url.searchParams.get('returnToken') || undefined;
+  private setupWebSocketServer(): void {
+    this.wss.on('connection', (ws: WebSocket, request) => {
+      this.handleConnection(ws, request);
+    });
+  }
 
-      const client: WebSocketClient = {
+  private async handleConnection(ws: WebSocket, request: any): Promise<void> {
+    try {
+      const url = parseUrl(request.url, true);
+      const sessionId = url.query.sessionId as string;
+
+      if (!sessionId) {
+        ws.close(1008, 'Session ID required');
+        return;
+      }
+
+      // Check if visitor exists for this session
+      const visitor = await storage.getVisitorBySessionId(sessionId);
+
+      const client: ChatClient = {
         ws,
         sessionId,
-        isAlive: true,
+        visitorId: visitor?.id,
+        lastPing: new Date(),
       };
 
       this.clients.set(sessionId, client);
 
-      // Set up heartbeat
+      console.log(`WebSocket connected: ${sessionId} (visitor: ${visitor?.id || 'new'})`);
+
+      // Send connection confirmation
+      this.sendToClient(client, {
+        type: 'connection_established',
+        data: {
+          sessionId,
+          visitorId: visitor?.id,
+          timestamp: new Date(),
+        },
+      });
+
+      // Initialize chat session
+      const { realtimeChatService } = await import('../agents/realtime-chat');
+      await realtimeChatService.handleNewChatSession(sessionId, visitor?.id);
+
+      // Setup message handlers
+      ws.on('message', (data) => this.handleMessage(client, data));
+      ws.on('close', () => this.handleDisconnection(client));
+      ws.on('error', (error) => this.handleError(client, error));
       ws.on('pong', () => {
-        client.isAlive = true;
+        client.lastPing = new Date();
       });
 
-      // Handle incoming messages
-      ws.on('message', async (data) => {
-        try {
-          const message = JSON.parse(data.toString());
-          await this.handleMessage(sessionId, message, returnToken);
-        } catch (error) {
-          console.error('Error handling WebSocket message:', error);
-          this.sendError(ws, 'Failed to process message');
-        }
-      });
-
-      // Handle client disconnect
-      ws.on('close', () => {
-        this.clients.delete(sessionId);
-        this.markSessionInactive(sessionId);
-      });
-
-      // Send welcome message
-      this.sendMessage(ws, {
-        type: 'welcome',
-        sessionId,
-        message: 'Connected to CCL Assistant',
-      });
-    });
+    } catch (error) {
+      console.error('Error handling WebSocket connection:', error);
+      ws.close(1011, 'Internal server error');
+    }
   }
 
-  private async handleMessage(sessionId: string, message: any, returnToken?: string) {
-    const client = this.clients.get(sessionId);
-    if (!client) return;
-
-    const startTime = Date.now();
-
+  private async handleMessage(client: ChatClient, data: Buffer): Promise<void> {
     try {
-      if (message.type === 'chat') {
-        // Process with RealtimeChatAgent
-        const result = await agentOrchestrator.handleChatMessage(
-          sessionId, 
-          message.content, 
-          returnToken
-        );
-
-        const responseTime = Date.now() - startTime;
-
-        // Send response
-        this.sendMessage(client.ws, {
-          type: 'chat_response',
-          content: result.response,
-          sessionId,
-          responseTime,
-        });
-
-        // Handle handoffs
-        if (result.shouldHandoff && result.handoffType === 'credit_check') {
-          // Extract phone from message and perform credit check
-          const phoneRegex = /(\+?1?[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/;
-          const phoneMatch = message.content.match(phoneRegex);
-          
-          if (phoneMatch) {
-            const phone = phoneMatch[0];
-            const session = await storage.getChatSession(sessionId);
-            
-            if (session?.visitorId) {
-              try {
-                const creditResult = await agentOrchestrator.performCreditCheck(phone, session.visitorId);
-                
-                // Send credit check result
-                this.sendMessage(client.ws, {
-                  type: 'credit_result',
-                  approved: creditResult.approved,
-                  creditScore: creditResult.creditScore,
-                  approvedAmount: creditResult.approvedAmount,
-                  interestRate: creditResult.interestRate,
-                  sessionId,
-                });
-
-                // Package and submit lead if approved
-                if (creditResult.approved) {
-                  await agentOrchestrator.packageAndSubmitLead(session.visitorId, true);
-                  
-                  this.sendMessage(client.ws, {
-                    type: 'lead_submitted',
-                    message: 'Congratulations! Your application has been submitted to our dealer network.',
-                    sessionId,
-                  });
-                }
-              } catch (error) {
-                this.sendMessage(client.ws, {
-                  type: 'error',
-                  message: 'Unable to complete credit check at this time. Please try again.',
-                  sessionId,
-                });
-              }
-            }
-          }
-        }
-
-        // Log performance metrics
-        if (responseTime > 1000) {
-          console.warn(`Slow response time: ${responseTime}ms for session ${sessionId}`);
-        }
-
-      } else if (message.type === 'ping') {
-        this.sendMessage(client.ws, {
-          type: 'pong',
-          sessionId,
-        });
+      const message = JSON.parse(data.toString()) as WebSocketMessage;
+      
+      switch (message.type) {
+        case 'chat_message':
+          await this.handleChatMessage(client, message.data);
+          break;
+        
+        case 'typing_start':
+          this.broadcastToSession(client.sessionId, {
+            type: 'user_typing',
+            data: { sessionId: client.sessionId },
+          }, client.sessionId);
+          break;
+        
+        case 'typing_stop':
+          this.broadcastToSession(client.sessionId, {
+            type: 'user_stopped_typing',
+            data: { sessionId: client.sessionId },
+          }, client.sessionId);
+          break;
+        
+        case 'ping':
+          client.lastPing = new Date();
+          this.sendToClient(client, { type: 'pong', data: {} });
+          break;
+        
+        default:
+          console.warn(`Unknown message type: ${message.type}`);
       }
     } catch (error) {
-      console.error('Error processing message:', error);
-      this.sendError(client.ws, 'Failed to process your message');
+      console.error('Error handling WebSocket message:', error);
+      this.sendToClient(client, {
+        type: 'error',
+        data: { message: 'Invalid message format' },
+      });
     }
   }
 
-  private sendMessage(ws: WebSocket, message: any) {
-    if (ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify(message));
+  private async handleChatMessage(client: ChatClient, data: any): Promise<void> {
+    try {
+      if (!data.content || typeof data.content !== 'string') {
+        throw new Error('Invalid message content');
+      }
+
+      // Rate limiting - simple implementation
+      if (!this.checkRateLimit(client.sessionId)) {
+        this.sendToClient(client, {
+          type: 'rate_limit_exceeded',
+          data: { message: 'Too many messages. Please wait.' },
+        });
+        return;
+      }
+
+      // Send typing indicator
+      this.sendToClient(client, {
+        type: 'agent_typing',
+        data: { sessionId: client.sessionId },
+      });
+
+      // Process message with chat agent
+      const { realtimeChatService } = await import('../agents/realtime-chat');
+      await realtimeChatService.handleUserMessage(client.sessionId, data.content);
+
+    } catch (error) {
+      console.error('Error handling chat message:', error);
+      this.sendToClient(client, {
+        type: 'error',
+        data: { message: 'Failed to process message' },
+      });
     }
   }
 
-  private sendError(ws: WebSocket, error: string) {
-    this.sendMessage(ws, {
-      type: 'error',
-      error,
+  private async handleDisconnection(client: ChatClient): Promise<void> {
+    try {
+      console.log(`WebSocket disconnected: ${client.sessionId}`);
+      
+      this.clients.delete(client.sessionId);
+
+      // End chat session
+      const { realtimeChatService } = await import('../agents/realtime-chat');
+      await realtimeChatService.endChatSession(client.sessionId);
+
+    } catch (error) {
+      console.error('Error handling WebSocket disconnection:', error);
+    }
+  }
+
+  private handleError(client: ChatClient, error: Error): void {
+    console.error(`WebSocket error for ${client.sessionId}:`, error);
+  }
+
+  public sendToSession(sessionId: string, message: WebSocketMessage): void {
+    const client = this.clients.get(sessionId);
+    if (client) {
+      this.sendToClient(client, message);
+    }
+  }
+
+  public sendToClient(client: ChatClient, message: WebSocketMessage): void {
+    if (client.ws.readyState === WebSocket.OPEN) {
+      try {
+        const messageWithTimestamp = {
+          ...message,
+          timestamp: message.timestamp || new Date(),
+        };
+        client.ws.send(JSON.stringify(messageWithTimestamp));
+      } catch (error) {
+        console.error('Error sending WebSocket message:', error);
+      }
+    }
+  }
+
+  public broadcastToSession(sessionId: string, message: WebSocketMessage, excludeSessionId?: string): void {
+    this.clients.forEach((client, id) => {
+      if (id !== excludeSessionId && client.sessionId === sessionId) {
+        this.sendToClient(client, message);
+      }
     });
   }
 
-  private generateSessionId(): string {
-    return 'session_' + Math.random().toString(36).substr(2, 9);
+  public broadcast(message: WebSocketMessage): void {
+    this.clients.forEach((client) => {
+      this.sendToClient(client, message);
+    });
   }
 
-  private async markSessionInactive(sessionId: string) {
-    await storage.updateChatSession(sessionId, { isActive: false });
+  // Simple rate limiting - 10 messages per minute per session
+  private rateLimitMap = new Map<string, { count: number; resetTime: number }>();
+
+  private checkRateLimit(sessionId: string): boolean {
+    const now = Date.now();
+    const limit = this.rateLimitMap.get(sessionId);
+
+    if (!limit || now > limit.resetTime) {
+      this.rateLimitMap.set(sessionId, { count: 1, resetTime: now + 60000 });
+      return true;
+    }
+
+    if (limit.count >= 10) {
+      return false;
+    }
+
+    limit.count++;
+    return true;
   }
 
-  private startHeartbeat() {
-    setInterval(() => {
+  private startPingInterval(): void {
+    this.pingInterval = setInterval(() => {
+      const now = new Date();
+      const timeout = 30000; // 30 seconds
+
       this.clients.forEach((client, sessionId) => {
-        if (!client.isAlive) {
+        if (now.getTime() - client.lastPing.getTime() > timeout) {
+          console.log(`Removing stale WebSocket connection: ${sessionId}`);
           client.ws.terminate();
           this.clients.delete(sessionId);
-          this.markSessionInactive(sessionId);
-          return;
+        } else if (client.ws.readyState === WebSocket.OPEN) {
+          client.ws.ping();
         }
-
-        client.isAlive = false;
-        client.ws.ping();
       });
-    }, 30000); // 30 seconds
+    }, 15000); // Check every 15 seconds
   }
 
-  public getActiveConnections(): number {
+  public getConnectedSessions(): string[] {
+    return Array.from(this.clients.keys());
+  }
+
+  public getClientCount(): number {
     return this.clients.size;
   }
 
-  public broadcastMetrics(metrics: any) {
-    const message = {
-      type: 'metrics_update',
-      metrics,
-    };
+  public shutdown(): void {
+    if (this.pingInterval) {
+      clearInterval(this.pingInterval);
+    }
 
     this.clients.forEach((client) => {
-      this.sendMessage(client.ws, message);
+      client.ws.close(1001, 'Server shutting down');
     });
+
+    this.wss.close();
   }
 }
