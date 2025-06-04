@@ -32,154 +32,113 @@ class StreamlinedStorage {
   private leadStore: LeadData[] = [];
   private activityStore: Activity[] = [];
   private agentStore: Agent[] = [];
-  
-  private readonly maxLeads = 10000;
-  private readonly maxActivities = 5000;
 
   constructor() {
-    this.initializeSampleData();
+    this.initializeAgents();
+    this.createActivity("system_startup", "CCL Agent System initialized with Mailgun integration", "System");
+    this.createActivity("api_ready", "Three data ingestion APIs activated", "System");
   }
 
-  private initializeSampleData() {
-    // Initialize with active agent statuses
+  private initializeAgents() {
     this.agentStore = [
       {
         id: "agent_1",
         name: "VisitorIdentifierAgent",
-        type: "identifier",
         status: "active",
-        lastActivity: new Date().toISOString()
+        processedToday: 0,
+        description: "Detects abandoned applications",
+        icon: "Users",
+        color: "text-blue-600"
       },
       {
         id: "agent_2", 
         name: "RealtimeChatAgent",
-        type: "chat",
         status: "active",
-        lastActivity: new Date().toISOString()
+        processedToday: 0,
+        description: "Handles live customer chat",
+        icon: "MessageCircle",
+        color: "text-green-600"
       },
       {
         id: "agent_3",
         name: "EmailReengagementAgent", 
-        type: "email",
         status: "active",
-        lastActivity: new Date().toISOString()
+        processedToday: 0,
+        description: "Sends personalized email campaigns",
+        icon: "Mail",
+        color: "text-purple-600"
       },
       {
         id: "agent_4",
         name: "CreditCheckAgent",
-        type: "credit", 
-        status: "active",
-        lastActivity: new Date().toISOString()
+        status: "active", 
+        processedToday: 0,
+        description: "Processes credit applications",
+        icon: "CreditCard",
+        color: "text-orange-600"
       },
       {
         id: "agent_5",
         name: "LeadPackagingAgent",
-        type: "packaging",
-        status: "active", 
-        lastActivity: new Date().toISOString()
+        status: "active",
+        processedToday: 0, 
+        description: "Packages leads for dealer CRM",
+        icon: "Package",
+        color: "text-indigo-600"
       }
     ];
-
-    // Add some sample activities
-    this.createActivity({
-      type: "system_startup",
-      description: "CCL Agent System initialized with Mailgun integration",
-      agentType: "System"
-    });
-
-    this.createActivity({
-      type: "api_ready", 
-      description: "Three data ingestion APIs activated",
-      agentType: "System"
-    });
   }
 
-  // Lead methods for flexible data ingestion
-  leads = {
-    getAll: (): SimpleLeadData[] => {
-      return [...this.leadStore].sort((a, b) => 
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      );
-    },
+  // Leads
+  createLead(leadData: Omit<LeadData, 'id' | 'createdAt'>): LeadData {
+    this.leadCounter++;
+    const newLead: LeadData = {
+      id: `lead_${this.leadCounter}_${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      ...leadData
+    };
+    this.leadStore.unshift(newLead);
+    return newLead;
+  }
 
-    getById: (id: string): SimpleLeadData | null => {
-      return this.leadStore.find(lead => lead.id === id) || null;
-    },
+  getLeads(): LeadData[] {
+    return this.leadStore;
+  }
 
-    create: (leadData: Omit<SimpleLeadData, 'id' | 'createdAt' | 'updatedAt'>): SimpleLeadData => {
-      if (this.leadStore.length >= this.maxLeads) {
-        this.leadStore = this.leadStore.slice(-5000); // Keep latest 5000
-      }
-
-      const newLead: SimpleLeadData = {
-        id: `lead_${++this.leadCounter}_${Date.now()}`,
-        ...leadData,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
-
-      this.leadStore.push(newLead);
-      return newLead;
-    },
-
-    update: (id: string, updates: Partial<SimpleLeadData>): SimpleLeadData | null => {
-      const index = this.leadStore.findIndex(lead => lead.id === id);
-      if (index === -1) return null;
-
-      this.leadStore[index] = {
-        ...this.leadStore[index],
-        ...updates,
-        id: this.leadStore[index].id, // Preserve ID
-        createdAt: this.leadStore[index].createdAt, // Preserve creation date
-        updatedAt: new Date().toISOString()
-      };
-
-      return this.leadStore[index];
-    }
-  };
-
-  // Activity methods for tracking data ingestion
-  activities = {
-    getAll: (): SimpleActivity[] => {
-      return [...this.activityStore].sort((a, b) => 
-        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-      );
-    },
-
-    create: (activityData: Omit<SimpleActivity, 'id' | 'timestamp'>): SimpleActivity => {
-      if (this.activityStore.length >= this.maxActivities) {
-        this.activityStore = this.activityStore.slice(-2000); // Keep latest 2000
-      }
-
-      const newActivity: SimpleActivity = {
-        id: `activity_${++this.activityCounter}_${Date.now()}`,
-        ...activityData,
-        timestamp: new Date().toISOString()
-      };
-
-      this.activityStore.push(newActivity);
-      return newActivity;
-    }
-  };
-
-  private createActivity = this.activities.create;
-
-  // Agent status methods
-  agents = {
-    getAll: (): SimpleAgent[] => {
-      return [...this.agentStore];
-    },
-
-    updateStatus: (agentName: string, status: 'active' | 'inactive' | 'error') => {
-      const agent = this.agentStore.find(a => a.name === agentName);
+  // Activities  
+  createActivity(type: string, description: string, agentType?: string, metadata?: any): Activity {
+    this.activityCounter++;
+    const newActivity: Activity = {
+      id: `activity_${this.activityCounter}_${Date.now()}`,
+      type,
+      description,
+      agentType,
+      metadata,
+      timestamp: new Date().toISOString()
+    };
+    this.activityStore.unshift(newActivity);
+    
+    // Update agent processed count
+    if (agentType && agentType !== 'System') {
+      const agent = this.agentStore.find(a => a.name === agentType);
       if (agent) {
-        agent.status = status;
-        agent.lastActivity = new Date().toISOString();
+        agent.processedToday++;
       }
     }
-  };
+    
+    return newActivity;
+  }
 
-  // System statistics
+  getActivities(): Activity[] {
+    return this.activityStore;
+  }
+
+  // Agents
+  getAgents(): Agent[] {
+    return this.agentStore;
+  }
+
+  // Stats
   getStats() {
     return {
       leads: this.leadStore.length,
@@ -190,36 +149,9 @@ class StreamlinedStorage {
       timestamp: new Date().toISOString()
     };
   }
-
-  // Cleanup methods
-  cleanup = {
-    removeOldLeads: (daysOld: number = 30) => {
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-      
-      const originalCount = this.leadStore.length;
-      this.leadStore = this.leadStore.filter(lead => 
-        new Date(lead.createdAt) > cutoffDate
-      );
-      
-      return originalCount - this.leadStore.length;
-    },
-
-    removeOldActivities: (daysOld: number = 7) => {
-      const cutoffDate = new Date();
-      cutoffDate.setDate(cutoffDate.getDate() - daysOld);
-      
-      const originalCount = this.activityStore.length;
-      this.activityStore = this.activityStore.filter(activity => 
-        new Date(activity.timestamp) > cutoffDate
-      );
-      
-      return originalCount - this.activityStore.length;
-    }
-  };
 }
 
-export const storage = new FlexibleStorage();
+export const storage = new StreamlinedStorage();
 
-console.log("Flexible storage system initialized for data ingestion APIs");
+console.log("Streamlined storage system initialized for data ingestion APIs");
 console.log(`Initial stats: ${JSON.stringify(storage.getStats(), null, 2)}`);

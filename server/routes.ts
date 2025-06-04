@@ -78,8 +78,7 @@ export async function registerRoutes(app: express.Express) {
   // Activity Feed API
   app.get("/api/activity", async (_req: Request, res: Response) => {
     try {
-      const activities = storage.activities.getAll()
-        .sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      const activities = storage.getActivities()
         .slice(0, 50);
       res.json(activities);
     } catch (error) {
@@ -91,8 +90,7 @@ export async function registerRoutes(app: express.Express) {
   // Leads API
   app.get("/api/leads", async (_req: Request, res: Response) => {
     try {
-      const leads = storage.leads.getAll()
-        .sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      const leads = storage.getLeads();
       res.json(leads);
     } catch (error) {
       console.error("Error fetching leads:", error);
