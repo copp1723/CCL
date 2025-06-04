@@ -78,17 +78,7 @@ export function Sidebar() {
                 )}
               >
                 <Icon className="mr-3 h-5 w-5 flex-shrink-0" />
-                <div className="flex-1">
-                  <div>{item.title}</div>
-                  <div className={cn(
-                    "text-xs mt-0.5",
-                    isActive 
-                      ? "text-blue-600 dark:text-blue-200" 
-                      : "text-gray-500 dark:text-gray-400"
-                  )}>
-                    {item.description}
-                  </div>
-                </div>
+                <span>{item.title}</span>
               </a>
             </Link>
           );

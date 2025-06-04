@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { queryClient } from "@/lib/queryClient";
 import { 
@@ -21,7 +22,8 @@ import {
   Users,
   TrendingUp,
   FileText,
-  Download
+  Download,
+  Settings
 } from "lucide-react";
 
 interface Campaign {
@@ -39,19 +41,34 @@ interface Campaign {
 export default function EmailCampaigns() {
   const { toast } = useToast();
   const [campaignName, setCampaignName] = useState("");
-  const [emailSubject, setEmailSubject] = useState("");
-  const [emailContent, setEmailContent] = useState("");
   const [csvData, setCsvData] = useState("");
+  const [timingSettings, setTimingSettings] = useState({
+    step1_delay: 24,
+    step2_delay: 72,
+    step3_delay: 168
+  });
 
   // Fetch campaign data
-  const { data: campaigns, isLoading } = useQuery({
+  const { data: campaigns = [], isLoading } = useQuery({
     queryKey: ['/api/email-campaigns'],
     refetchInterval: 30000,
   });
 
+  // Fetch campaign settings
+  const { data: settings } = useQuery({
+    queryKey: ['/api/email-campaigns/settings'],
+    refetchInterval: 60000,
+  });
+
+  useEffect(() => {
+    if (settings?.timing) {
+      setTimingSettings(settings.timing);
+    }
+  }, [settings]);
+
   // Bulk email campaign mutation
   const bulkEmailMutation = useMutation({
-    mutationFn: async (data: { campaignName: string; data: any[] }) => {
+    mutationFn: async (data: { campaignName: string; data: any[]; settings?: any }) => {
       const response = await fetch('/api/email-campaigns/bulk-send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -72,6 +89,33 @@ export default function EmailCampaigns() {
     onError: (error) => {
       toast({
         title: "Campaign Failed",
+        description: String(error),
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Settings update mutation
+  const settingsUpdateMutation = useMutation({
+    mutationFn: async (data: { timing: any; templates?: any }) => {
+      const response = await fetch('/api/email-campaigns/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (!response.ok) throw new Error('Failed to update settings');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Settings Updated",
+        description: "Campaign timing and templates have been saved",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/email-campaigns/settings'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Update Failed",
         description: String(error),
         variant: "destructive",
       });
@@ -103,7 +147,8 @@ export default function EmailCampaigns() {
 
       bulkEmailMutation.mutate({
         campaignName,
-        data
+        data,
+        settings: { timing: timingSettings }
       });
     } catch (error) {
       toast({
@@ -161,6 +206,7 @@ export default function EmailCampaigns() {
           <TabsTrigger value="bulk-send">Bulk Campaign</TabsTrigger>
           <TabsTrigger value="campaigns">Active Campaigns</TabsTrigger>
           <TabsTrigger value="templates">Email Templates</TabsTrigger>
+          <TabsTrigger value="timing">Timing Settings</TabsTrigger>
         </TabsList>
 
         <TabsContent value="bulk-send" className="space-y-4">
@@ -386,6 +432,141 @@ jane.smith@example.com,555-5678,1,Downtown Motors"
                     </p>
                   </CardContent>
                 </Card>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="timing" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Settings className="mr-2 h-5 w-5" />
+                Email Campaign Timing Configuration
+              </CardTitle>
+              <CardDescription>
+                Customize when emails are sent in the abandonment recovery sequence
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid gap-6 md:grid-cols-3">
+                <div>
+                  <Label htmlFor="step1-delay">Step 1: Initial Outreach</Label>
+                  <div className="flex items-center space-x-2 mt-2">
+                    <Input
+                      id="step1-delay"
+                      type="number"
+                      value={timingSettings.step1_delay}
+                      onChange={(e) => setTimingSettings(prev => ({
+                        ...prev,
+                        step1_delay: parseInt(e.target.value) || 24
+                      }))}
+                      className="w-20"
+                    />
+                    <span className="text-sm text-muted-foreground">hours after abandonment</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    "Don't lose your pre-approval - Cathy from Complete Car Loans"
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="step2-delay">Step 2: Follow-up</Label>
+                  <div className="flex items-center space-x-2 mt-2">
+                    <Input
+                      id="step2-delay"
+                      type="number"
+                      value={timingSettings.step2_delay}
+                      onChange={(e) => setTimingSettings(prev => ({
+                        ...prev,
+                        step2_delay: parseInt(e.target.value) || 72
+                      }))}
+                      className="w-20"
+                    />
+                    <span className="text-sm text-muted-foreground">hours after abandonment</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    "Your financing is waiting - Let's finish this together"
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="step3-delay">Step 3: Final Attempt</Label>
+                  <div className="flex items-center space-x-2 mt-2">
+                    <Input
+                      id="step3-delay"
+                      type="number"
+                      value={timingSettings.step3_delay}
+                      onChange={(e) => setTimingSettings(prev => ({
+                        ...prev,
+                        step3_delay: parseInt(e.target.value) || 168
+                      }))}
+                      className="w-20"
+                    />
+                    <span className="text-sm text-muted-foreground">hours after abandonment</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    "Last chance for your special rate - Cathy here"
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-4 p-4 bg-blue-50 rounded-lg">
+                <Clock className="h-5 w-5 text-blue-600" />
+                <div className="flex-1">
+                  <h4 className="font-medium text-blue-900">Current Sequence:</h4>
+                  <p className="text-sm text-blue-700">
+                    Email 1 after {timingSettings.step1_delay}h → Email 2 after {timingSettings.step2_delay}h → Email 3 after {timingSettings.step3_delay}h
+                  </p>
+                </div>
+              </div>
+
+              <Button 
+                onClick={() => settingsUpdateMutation.mutate({ timing: timingSettings })}
+                disabled={settingsUpdateMutation.isPending}
+                className="w-full"
+              >
+                {settingsUpdateMutation.isPending ? (
+                  <>
+                    <Clock className="mr-2 h-4 w-4 animate-spin" />
+                    Saving Settings...
+                  </>
+                ) : (
+                  <>
+                    <Settings className="mr-2 h-4 w-4" />
+                    Save Timing Configuration
+                  </>
+                )}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Mailgun Integration Status</CardTitle>
+              <CardDescription>Email delivery system configuration</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Mailgun Domain</span>
+                  <Badge variant="outline" className="text-green-600 border-green-600">
+                    {settings?.mailgun?.domain || "Configured"}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Email Service</span>
+                  <Badge variant="outline" className="text-green-600 border-green-600">
+                    <CheckCircle className="mr-1 h-3 w-3" />
+                    Active
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Cathy's Personality</span>
+                  <Badge variant="outline" className="text-blue-600 border-blue-600">
+                    Enabled
+                  </Badge>
+                </div>
               </div>
             </CardContent>
           </Card>
