@@ -488,6 +488,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Bulk dataset processing API - Most reliable for automated systems
   app.post("/api/email-campaigns/bulk-send", async (req, res) => {
     try {
       const { campaignId, csvData, messageType, scheduleDelay } = req.body;
@@ -507,6 +508,118 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error processing bulk email campaign:', error);
       res.status(500).json({ error: 'Failed to process bulk email campaign' });
+    }
+  });
+
+  // Direct API for CCL systems to send individual leads
+  app.post("/api/leads/process", async (req, res) => {
+    try {
+      const leadData = req.body;
+      
+      // Validate required fields
+      if (!leadData.email || !leadData.firstName || !leadData.lastName) {
+        return res.status(400).json({ error: 'Email, firstName, and lastName are required' });
+      }
+
+      // Process lead through agent system
+      const sessionId = generateSessionId();
+      const emailHash = leadData.email;
+      
+      // Create visitor record
+      const visitor = await storage.createVisitor({
+        emailHash,
+        sessionId,
+        lastActivity: new Date(),
+        abandonmentDetected: false
+      });
+
+      // Trigger abandonment processing if specified
+      if (leadData.triggerAbandonmentFlow !== false) {
+        const abandonmentEvent: AbandonmentEvent = {
+          visitorId: visitor.id,
+          sessionId,
+          step: leadData.abandonmentStep || 3,
+          timestamp: new Date(),
+          metadata: {
+            source: leadData.source || 'api',
+            dealerName: leadData.dealer,
+            leadStatus: leadData.status
+          }
+        };
+
+        await visitorIdentifierService.processAbandonment(abandonmentEvent);
+      }
+
+      // Log activity
+      await storage.createAgentActivity({
+        agentName: 'API',
+        action: 'lead_processed',
+        status: 'success',
+        details: `Processed lead from ${leadData.source || 'API'} for ${leadData.firstName} ${leadData.lastName}`,
+        visitorId: visitor.id
+      });
+
+      res.json({
+        success: true,
+        visitorId: visitor.id,
+        sessionId,
+        message: 'Lead processed successfully'
+      });
+    } catch (error) {
+      console.error('Error processing lead:', error);
+      res.status(500).json({ error: 'Failed to process lead' });
+    }
+  });
+
+  // Webhook endpoint for real-time dealer feeds
+  app.post("/api/webhook/dealer-leads", async (req, res) => {
+    try {
+      const { dealerKey, leads } = req.body;
+      
+      if (!dealerKey || !leads || !Array.isArray(leads)) {
+        return res.status(400).json({ error: 'Dealer key and leads array required' });
+      }
+
+      // Validate dealer key (in production, verify against authorized dealers)
+      const processedLeads = [];
+      const errors = [];
+
+      for (const lead of leads) {
+        try {
+          // Map dealer data format to CCL format
+          const mappedLead = dataMappingService.mapCsvRowToCustomerRecord(lead);
+          
+          // Process through lead API
+          const response = await fetch(`${req.protocol}://${req.get('host')}/api/leads/process`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              ...mappedLead,
+              source: `dealer_webhook_${dealerKey}`,
+              triggerAbandonmentFlow: true
+            })
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            processedLeads.push(result);
+          } else {
+            errors.push(`Failed to process lead: ${lead.email || 'unknown'}`);
+          }
+        } catch (error) {
+          errors.push(`Error processing lead: ${error.message}`);
+        }
+      }
+
+      res.json({
+        success: true,
+        processed: processedLeads.length,
+        errors: errors.length,
+        details: { processedLeads, errors }
+      });
+    } catch (error) {
+      console.error('Error processing dealer webhook:', error);
+      res.status(500).json({ error: 'Failed to process dealer leads' });
     }
   });
 
