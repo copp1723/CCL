@@ -1,0 +1,223 @@
+ Live Data Handoff & Error-Proofing Guide
+
+1. Column-to-Agent Mapping
+CSV Field
+Agent Variable
+Safe for Prompt?
+How to Use in Conversation
+First Name / Last Name
+{customer_details}
+Yes
+Personalize greeting (“Hi [First Name],”)
+Email
+(never show)
+No
+Use only for internal delivery, not in text
+Phone Number
+(never show)
+No
+Use only for credit check trigger, not in chat/email
+Dealer
+{dealer}
+Yes (if present)
+“You recently connected with [Dealer]”
+City / State
+{customer_details}
+Yes
+“in [City, State]” to localize, if present
+Lead Source / External Source
+{lead_source}
+Yes
+“You reached us through [Lead Source]”
+Lead Status
+{lead_status}
+Yes (adapt)
+If “Waiting for prospect response,” try “Just checking in…”
+Appointment Status
+{appt_status}
+Yes (if present)
+“If you want to schedule a time, let me know!” (if not blank)
+Vehicle (Year, Make, Model)
+{vehicle_interest}
+Yes (if present)
+“about your interest in a [Year] [Make] [Model]”
+Postal Code / Address
+(never show)
+No
+Never include in prompts (privacy risk)
+
+
+2. Input Sanity & Fallback Rules
+Always check:
+If First Name is blank, fallback to “there” (e.g., “Hi there,”).
+
+
+If Dealer or Vehicle is missing, skip mention entirely—never say “about your interest in a .”
+
+
+If Lead Source is unknown or generic (“Web”, “Import”), use a neutral open: “I wanted to follow up on your interest in car financing.”
+
+
+Never output Email, Phone, Address, or full Postal Code in messages.
+
+
+
+3. 
+Prompt Adaptation Logic (Credit Cathy Style)
+
+Re-engagement (Leads Without Engagement)
+If “Lead Status” is “Waiting for prospect response” or “Did not respond”:
+“Hi [First Name], just checking in to help move things forward for you. Sometimes life gets busy—are there any questions I can answer, or can I help you take the next step toward your new vehicle? You’re making real progress.”
+
+In-Market Shoppers (3rd Party)
+Always explain the connection, and affirm progress:
+“Hi [First Name], you recently inquired about car financing and I’m here to help you review your options with Complete Car Loans. Every step brings you closer to approval—let’s find the right fit together.”
+
+Dealer Context
+If Dealer is present:
+“Hi [First Name], I see you connected with [Dealer] recently. Is there anything I can clarify or assist with? You’re almost at the finish line.”
+
+Vehicle Context
+If Make/Model/Year is present:
+“Hi [First Name], I noticed your interest in a [Year] [Make] [Model]. Would you like to keep exploring options or get your personalized numbers? You’re one step closer to driving it home.”
+
+Yes/No Response Framing
+If the answer is “Yes”:
+
+
+ “Yes, we can absolutely help with that! Here’s what happens next: [provide next step/context]. You’re moving forward.”
+
+
+
+If the answer is “No”:
+
+
+ “Based on your details, here’s what I found: [provide context]. So for now, the answer is no—but let’s look at alternative paths together. We’re still working to get you approved.”
+
+
+
+
+Progress Affirmation (All Scenarios)
+Sprinkle throughout conversations, especially after any action:
+“You’re making real progress.”
+
+
+“You’re one step closer to approval.”
+
+
+“I’m working on your personalized options now.”
+
+
+“Every answer brings us closer to your next vehicle.”
+
+
+“Great job—let’s keep going!”
+
+
+
+Fallback for Missing Data
+If key details are missing (name, dealer, vehicle):
+“Hi there, I wanted to follow up on your interest in car financing. Let me know what questions you have—I’m here to help you move forward.”
+
+Compassion & Affirmation (All Scenarios)
+Always respond with understanding and encouragement.
+
+
+Examples:
+
+
+“No worries if you’ve been busy—your goals are important and I’m here when you’re ready.”
+
+
+“Everyone’s journey is unique—let’s find your best path together.”
+
+
+“I’m here to make the process easy and support you every step of the way.”
+
+
+
+Summary Table for Reference
+Scenario
+Example Response
+Re-engagement
+“Just checking in—are there questions I can answer, or can I help with your next step? You’re making progress.”
+In-Market Shopper
+“You recently inquired about car financing. Each step brings you closer to approval—let’s review your options.”
+Dealer Context
+“You connected with [Dealer] recently. Anything I can clarify? You’re almost at the finish line.”
+Vehicle Context
+“Interested in a [Year] [Make] [Model]? Want to get your numbers or keep exploring? You’re nearly there.”
+Yes Response
+“Yes, we can help! Here’s what’s next: [context]. You’re moving forward.”
+No Response
+“Here’s what I found: [context]. So for now, no—but let’s look at other paths together. We’re not done yet.”
+Progress Affirmation
+“You’re one step closer to approval.”
+Fallback (Missing Data)
+“I wanted to follow up on your car financing interest. How can I help you move forward?”
+
+
+
+4. QA Checklist for Live Data
+Before Launching a Campaign or Batch:
+Field Audit: Verify that “First Name,” “Dealer,” “Vehicle,” “Lead Status,” etc., are populated or set to fallback/defaults.
+
+
+Privacy Sweep: Confirm that Email, Phone, Address, or Postal Code are not included in any message templates.
+
+
+Test Run: Sample 10 records from each cohort—inspect generated messages. Are they all grammatically correct and human-sounding, with no blanks?
+
+
+Error Handling: For any record where a key field is missing (e.g., both First and Last Name blank), verify the agent defaults to a safe generic greeting (“Hi there,”).
+
+
+Edge-Case Handling: Test at least one record with each edge-case scenario:
+
+
+No Dealer
+
+
+No Vehicle info
+
+
+No Lead Status
+
+
+Non-standard characters or odd capitalization (e.g., “mIcHeLLe”)
+
+
+Agent Log Review: Check logs for records skipped due to critical missing data (optional but best practice).
+
+
+
+5. Sample Data Field/Prompt Mapping Table
+Field Example
+Sample Prompt Output
+All fields present
+“Hi Sharon, you recently connected with Kunes Ford of Antioch about your interest in a 2022 Ford F-150. I wanted to see if you had any questions or if I could help with next steps.”
+Missing dealer
+“Hi Sharon, I wanted to follow up on your car financing inquiry. Anything I can help with?”
+Missing name
+“Hi there, just checking in about your recent car financing inquiry. Let me know if I can help.”
+No vehicle info
+“Hi Sharon, you recently connected with Kunes Ford of Antioch. Any questions or next steps I can help with?”
+All context missing
+“Hi there, I wanted to follow up on your interest in car financing. Let me know if you have questions.”
+
+
+6. Final Developer Instructions
+Map CSV column names to agent variables exactly as outlined.
+
+
+Sanitize all outputs per rules above before any email/chat/SMS send.
+
+
+Log and skip any record that can’t be safely messaged (i.e., all personalization fields missing).
+
+
+Provide sample output messages for each campaign/segment in the dashboard for QA before launch.
+
+
+
+ 

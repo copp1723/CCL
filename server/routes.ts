@@ -8,6 +8,7 @@ import { visitorIdentifierService, type AbandonmentEvent } from "./agents/visito
 import { generateSessionId } from "./services/token";
 import { agentConfigService } from "./services/AgentConfigService";
 import { flexPathService } from "./services/FlexPathService";
+import { dataMappingService } from "./services/DataMappingService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -350,6 +351,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error checking FlexPath status:', error);
       res.status(500).json({ error: 'Failed to check FlexPath status' });
+    }
+  });
+
+  // Data mapping and CSV processing endpoints
+  app.post("/api/data-mapping/process-csv", (req, res) => {
+    try {
+      const { csvData, messageType } = req.body;
+      
+      if (!csvData || !Array.isArray(csvData)) {
+        return res.status(400).json({ error: 'CSV data must be an array of records' });
+      }
+      
+      const result = dataMappingService.processBatch(csvData);
+      
+      res.json({
+        success: true,
+        totalRecords: csvData.length,
+        processedCount: result.processed.length,
+        errorCount: result.errors.length,
+        processed: result.processed,
+        errors: result.errors
+      });
+    } catch (error) {
+      console.error('Error processing CSV data:', error);
+      res.status(500).json({ error: 'Failed to process CSV data' });
+    }
+  });
+
+  app.post("/api/data-mapping/generate-message", (req, res) => {
+    try {
+      const { customerData, messageType } = req.body;
+      
+      if (!customerData) {
+        return res.status(400).json({ error: 'Customer data required' });
+      }
+      
+      const customer = dataMappingService.mapCsvRowToCustomerRecord(customerData);
+      const validation = dataMappingService.validateCustomerRecord(customer);
+      
+      if (!validation.valid) {
+        return res.status(400).json({ 
+          error: 'Invalid customer data', 
+          issues: validation.issues 
+        });
+      }
+      
+      const message = dataMappingService.generatePersonalizedMessage(
+        customer, 
+        messageType || 'reengagement'
+      );
+      
+      res.json({
+        success: true,
+        customer,
+        message,
+        validation
+      });
+    } catch (error) {
+      console.error('Error generating message:', error);
+      res.status(500).json({ error: 'Failed to generate message' });
+    }
+  });
+
+  app.get("/api/data-mapping/test-message", (req, res) => {
+    try {
+      const testMessage = dataMappingService.generateTestMessage({
+        firstName: 'Sharon',
+        lastName: 'Martin',
+        dealer: 'Kunes Ford of Antioch',
+        city: 'Hammond',
+        state: 'IN',
+        leadSource: 'Conquest Werks',
+        leadStatus: 'Waiting for prospect response',
+        vehicleYear: '2023',
+        vehicleMake: 'Ford',
+        vehicleModel: 'F-150'
+      });
+      
+      res.json({
+        success: true,
+        message: testMessage
+      });
+    } catch (error) {
+      console.error('Error generating test message:', error);
+      res.status(500).json({ error: 'Failed to generate test message' });
     }
   });
 

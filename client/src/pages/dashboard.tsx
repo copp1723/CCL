@@ -8,7 +8,8 @@ import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
 import { ChatWidget } from '@/components/chat-widget';
 import { AgentConfigEditor } from '@/components/agent-config-editor';
-import { Users, Mail, CheckCircle, AlertCircle, Clock, Download, Settings } from 'lucide-react';
+import { CSVProcessor } from '@/components/csv-processor';
+import { Users, Mail, CheckCircle, AlertCircle, Clock, Download, Settings, FileText } from 'lucide-react';
 
 // Type definitions for internal use
 interface Metrics {
@@ -276,6 +277,19 @@ export default function Dashboard() {
         </div>
         
         <AgentConfigEditor />
+      </div>
+
+      {/* CSV Data Processing Section */}
+      <div className="mt-8">
+        <div className="mb-4">
+          <h2 className="text-xl font-semibold text-gray-900 flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            Live Data Processing
+          </h2>
+          <p className="text-gray-600">Process dealer CSV files and generate personalized Complete Car Loans messages</p>
+        </div>
+        
+        <CSVProcessor />
       </div>
 
       <ChatWidget />
