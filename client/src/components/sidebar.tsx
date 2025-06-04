@@ -66,21 +66,19 @@ export function Sidebar() {
         {navItems.map((item) => {
           const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
           const Icon = item.icon;
-          
+
           return (
-            <Link key={item.href} href={item.href}>
-              <a
-                className={cn(
+            
+              <Link key={item.href} href={item.href} className={cn(
                   "group flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors",
                   isActive
                     ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100"
                     : "text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
-                )}
-              >
+                )}>
                 <Icon className="mr-3 h-5 w-5 flex-shrink-0" />
                 <span>{item.title}</span>
-              </a>
-            </Link>
+              </Link>
+           
           );
         })}
       </nav>

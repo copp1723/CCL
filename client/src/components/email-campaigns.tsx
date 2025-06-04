@@ -113,7 +113,7 @@ export function EmailCampaigns() {
     try {
       const lines = csvData.trim().split('\n');
       const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
-      
+
       const parsedData = lines.slice(1).map(line => {
         const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
         const record: any = {};
@@ -124,7 +124,7 @@ export function EmailCampaigns() {
       });
 
       const campaign = campaignsQuery.data?.find((c: Campaign) => c.id === selectedCampaign);
-      
+
       bulkSendMutation.mutate({
         campaignId: selectedCampaign,
         csvData: parsedData,
