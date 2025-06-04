@@ -107,74 +107,28 @@ export async function registerRoutes(app: express.Express) {
   // **1. BULK DATASET API (Most Reliable)**
   app.post("/api/email-campaigns/bulk-send", async (req: Request, res: Response) => {
     try {
-      const { data, campaignName = "Bulk Email Campaign" } = req.body;
+      const { campaignId = "reengagement-001", csvData, messageType = "reengagement", scheduleDelay = 0 } = req.body;
       
-      if (!data || !Array.isArray(data)) {
+      if (!csvData || !Array.isArray(csvData)) {
         return res.status(400).json({ 
           success: false, 
-          message: "Data array is required" 
+          message: "csvData array is required" 
         });
       }
 
-      console.log(`Processing bulk email campaign: ${campaignName} with ${data.length} records`);
+      console.log(`Processing bulk email campaign: ${campaignId} with ${csvData.length} records`);
       
-      const results = {
-        processed: 0,
-        successful: 0,
-        failed: 0,
-        errors: [] as string[]
-      };
-
-      for (const record of data) {
-        results.processed++;
-        
-        try {
-          // Map common CSV fields to our system
-          const emailHash = record.email_hash || record.emailHash || record.Email || record.email;
-          const phone = record.phone || record.Phone || record.phone_number;
-          const abandonmentStep = record.abandonment_step || record.step || 1;
-          
-          if (!emailHash) {
-            results.failed++;
-            results.errors.push(`Record ${results.processed}: Missing email hash`);
-            continue;
-          }
-
-          // Create visitor record
-          const newLead = storage.leads.create({
-            status: 'new',
-            email: emailHash,
-            leadData: {
-              source: 'bulk_upload',
-              campaignName,
-              originalData: record,
-              phone,
-              abandonmentStep,
-              processedAt: new Date().toISOString()
-            }
-          });
-
-          // Log activity
-          storage.activities.create({
-            type: 'email_campaign',
-            description: `Bulk email queued for ${emailHash.substring(0, 8)}...`,
-            agentType: 'EmailReengagementAgent',
-            metadata: { leadId: newLead.id, campaignName }
-          });
-
-          results.successful++;
-          
-        } catch (recordError) {
-          results.failed++;
-          results.errors.push(`Record ${results.processed}: ${String(recordError)}`);
-        }
-      }
-
-      res.json({
-        success: true,
-        message: `Bulk campaign processed: ${results.successful} successful, ${results.failed} failed`,
-        results
+      // Import and use the EmailCampaignService
+      const { emailCampaignService } = await import('./services/EmailCampaignService');
+      
+      const result = await emailCampaignService.processBulkEmailCampaign({
+        campaignId,
+        csvData,
+        messageType,
+        scheduleDelay
       });
+
+      res.json(result);
 
     } catch (error) {
       console.error("Bulk email campaign error:", error);
@@ -314,6 +268,58 @@ export async function registerRoutes(app: express.Express) {
         message: "Failed to process dealer webhook",
         error: String(error)
       });
+    }
+  });
+
+  // Email Campaign API Routes
+  app.get("/api/email-campaigns", async (_req: Request, res: Response) => {
+    try {
+      // Import the email campaign service
+      const { emailCampaignService } = await import('./services/EmailCampaignService');
+      const campaigns = emailCampaignService.getCampaigns();
+      res.json(campaigns);
+    } catch (error) {
+      console.error("Error fetching email campaigns:", error);
+      res.status(500).json({ message: "Failed to fetch email campaigns" });
+    }
+  });
+
+  app.get("/api/email-campaigns/:id", async (req: Request, res: Response) => {
+    try {
+      const { emailCampaignService } = await import('./services/EmailCampaignService');
+      const campaign = emailCampaignService.getCampaign(req.params.id);
+      if (!campaign) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+      res.json(campaign);
+    } catch (error) {
+      console.error("Error fetching campaign:", error);
+      res.status(500).json({ message: "Failed to fetch campaign" });
+    }
+  });
+
+  app.get("/api/email-campaigns/:id/metrics", async (req: Request, res: Response) => {
+    try {
+      const { emailCampaignService } = await import('./services/EmailCampaignService');
+      const metrics = emailCampaignService.getCampaignMetrics(req.params.id);
+      if (!metrics) {
+        return res.status(404).json({ message: "Campaign not found" });
+      }
+      res.json(metrics);
+    } catch (error) {
+      console.error("Error fetching campaign metrics:", error);
+      res.status(500).json({ message: "Failed to fetch campaign metrics" });
+    }
+  });
+
+  app.get("/api/email-campaigns/:id/scheduled", async (req: Request, res: Response) => {
+    try {
+      const { emailCampaignService } = await import('./services/EmailCampaignService');
+      const scheduled = emailCampaignService.getScheduledExecutions(req.params.id);
+      res.json(scheduled);
+    } catch (error) {
+      console.error("Error fetching scheduled executions:", error);
+      res.status(500).json({ message: "Failed to fetch scheduled executions" });
     }
   });
 
