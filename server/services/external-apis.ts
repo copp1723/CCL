@@ -46,7 +46,7 @@ export class FlexPathService {
 
   constructor() {
     this.apiKey = process.env.FLEXPATH_API_KEY || '';
-    this.baseUrl = process.env.FLEXPATH_BASE_URL || 'https://api.flexpath.com/v1';
+    this.baseUrl = process.env.FLEXPATH_BASE_URL || 'https://sandbox.flexpath.com/api/v1';
     
     if (!this.apiKey) {
       console.warn('FlexPath API key not configured. Credit checks will use simulation mode.');
