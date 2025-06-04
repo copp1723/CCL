@@ -7,6 +7,7 @@ import { emailReengagementService } from "./agents/email-reengagement";
 import { visitorIdentifierService, type AbandonmentEvent } from "./agents/visitor-identifier";
 import { generateSessionId } from "./services/token";
 import { agentConfigService } from "./services/AgentConfigService";
+import { flexPathService } from "./services/FlexPathService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -210,10 +211,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Chat endpoint for Cathy's personality interactions
+  // Chat endpoint for Cathy's personality interactions with FlexPath integration
   app.post("/api/chat", async (req, res) => {
     try {
-      const { message, sessionId } = req.body;
+      const { message, sessionId, phone } = req.body;
       
       if (!message || !sessionId) {
         return res.status(400).json({ error: 'Message and sessionId required' });
@@ -232,7 +233,45 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Generate Cathy's response using dynamic configuration
-      const response = agentConfigService.generateChatResponse(message, 'chat');
+      let response = agentConfigService.generateChatResponse(message, 'chat', phone);
+      
+      // Check if user is requesting credit check/pre-qualification
+      const lowerMessage = message.toLowerCase();
+      const isRequestingCredit = lowerMessage.includes('pre-qual') || 
+                                lowerMessage.includes('qualify') || 
+                                lowerMessage.includes('credit check') ||
+                                lowerMessage.includes('approve') ||
+                                (lowerMessage.includes('yes') && (lowerMessage.includes('start') || lowerMessage.includes('get')));
+      
+      if (isRequestingCredit) {
+        // Generate FlexPath link for credit check handoff
+        const flexPathResult = flexPathService.generateChatLink(phone);
+        
+        if (flexPathResult.success && flexPathResult.link) {
+          response = flexPathService.getHandoffMessage(flexPathResult);
+          
+          // Log FlexPath handoff
+          await storage.createAgentActivity({
+            agentName: 'CathyChatAgent',
+            action: 'flexpath_handoff',
+            status: 'success',
+            details: `Generated FlexPath pre-qualification link for session ${sessionId}`,
+            visitorId: visitor.id
+          });
+        } else {
+          // If FlexPath link generation fails, provide helpful fallback
+          response = "I'd love to get you pre-qualified right away! Let me connect you with our secure pre-qualification system. Our team will reach out within the next few minutes to complete your application. In the meantime, do you have any questions about the financing process?";
+          
+          // Log fallback
+          await storage.createAgentActivity({
+            agentName: 'CathyChatAgent',
+            action: 'flexpath_fallback',
+            status: 'warning',
+            details: `FlexPath link generation failed: ${flexPathResult.error}`,
+            visitorId: visitor.id
+          });
+        }
+      }
       
       // Log chat activity
       await storage.createAgentActivity({
@@ -269,6 +308,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error('Error updating agent configs:', error);
       res.status(500).json({ error: 'Failed to update agent configurations' });
+    }
+  });
+
+  // FlexPath integration endpoints
+  app.post("/api/flexpath/generate-link", (req, res) => {
+    try {
+      const { phone, vehicleInfo, source } = req.body;
+      
+      let linkResult;
+      if (source === 'chat') {
+        linkResult = flexPathService.generateChatLink(phone, vehicleInfo);
+      } else if (source === 'email') {
+        linkResult = flexPathService.generateEmailLink(phone, vehicleInfo);
+      } else {
+        linkResult = flexPathService.generateHomepageLink(phone);
+      }
+      
+      if (linkResult.success) {
+        res.json({
+          success: true,
+          link: linkResult.link,
+          message: flexPathService.getHandoffMessage(linkResult, !!vehicleInfo)
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          error: linkResult.error
+        });
+      }
+    } catch (error) {
+      console.error('Error generating FlexPath link:', error);
+      res.status(500).json({ error: 'Failed to generate FlexPath link' });
+    }
+  });
+
+  app.get("/api/flexpath/status", (req, res) => {
+    try {
+      const validation = flexPathService.validateConfiguration();
+      res.json(validation);
+    } catch (error) {
+      console.error('Error checking FlexPath status:', error);
+      res.status(500).json({ error: 'Failed to check FlexPath status' });
     }
   });
 

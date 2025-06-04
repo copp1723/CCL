@@ -149,7 +149,7 @@ Present each lead as a valuable opportunity with a real person behind it.`,
   }
 
   // Generate dynamic chat responses based on current configuration
-  generateChatResponse(message: string, agentType: string = 'chat'): string {
+  generateChatResponse(message: string, agentType: string = 'chat', phone?: string): string {
     const config = this.getConfig(agentType);
     if (!config) {
       return "I understand this process can feel overwhelming, but I'm here to make it as easy as possible. Every customer's situation is unique, and I specialize in finding the right solution for you. What questions can I answer to help you feel more confident moving forward?";
@@ -164,19 +164,19 @@ Present each lead as a valuable opportunity with a real person behind it.`,
 
     if (lowerMessage.includes('credit') || lowerMessage.includes('score')) {
       if (focusOnSoftPull) {
-        return "I help customers with all credit situations find the right financing. Our pre-approval uses a soft credit pull with no impact on your score. Would you like to see what options are available for you?";
+        return "I help customers with all credit situations find the right financing. Our pre-approval uses a soft credit pull with no impact on your score. Would you like me to get you started with a secure pre-qualification right now?";
       } else {
         return "I can help you understand your credit options and find the best financing solution for your situation. Let's explore what's available for you.";
       }
     } else if (lowerMessage.includes('rate') || lowerMessage.includes('payment')) {
       if (isPersonal) {
-        return "I'd love to get you specific rate information! Our rates are personalized based on your unique situation. I can get you a soft credit pull pre-approval in just a few minutes with no impact to your credit score. Would you like me to get started on that?";
+        return "I'd love to get you specific rate information! Our rates are personalized based on your unique situation. I can get you a soft credit pull pre-approval in just a few minutes with no impact to your credit score. Would you like me to set that up for you?";
       } else {
         return "I can provide you with rate information based on your specific situation. Would you like to start the pre-approval process?";
       }
-    } else if (lowerMessage.includes('approve') || lowerMessage.includes('qualify')) {
+    } else if (lowerMessage.includes('approve') || lowerMessage.includes('qualify') || lowerMessage.includes('pre-qual') || lowerMessage.includes('yes') && (lowerMessage.includes('start') || lowerMessage.includes('get'))) {
       if (isEmpathetic) {
-        return "Our approval process is designed to find solutions for customers in all credit situations. I can start your pre-approval right now - it only takes a few minutes and won't affect your credit score. Shall we get started?";
+        return "Our approval process is designed to find solutions for customers in all credit situations. I can start your pre-approval right now - it only takes a few minutes and won't affect your credit score. Would you like me to generate your secure pre-qualification link?";
       } else {
         return "I can help you with the approval process. Would you like to begin your application?";
       }
