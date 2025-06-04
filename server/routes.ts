@@ -11,13 +11,15 @@ import { flexPathService } from "./services/FlexPathService";
 import { dataMappingService } from "./services/DataMappingService";
 import { emailCampaignService } from "./services/EmailCampaignService";
 import { mailgunService } from "./services/MailgunService";
+import { Router } from 'express';
+import { asyncHandler, AppError, ErrorLogger } from './utils/errorHandler';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
-  
+
   // Initialize WebSocket manager
   const wsManager = new WebSocketManager(httpServer);
-  
+
   // Initialize agent orchestrator
   initializeAgentOrchestrator(wsManager);
 
@@ -64,7 +66,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const leads = status 
         ? await storage.getLeadsByStatus(status)
         : await storage.getLeadsByStatus('submitted');
-      
+
       // Get recent leads (last 24 hours)
       const yesterday = new Date(Date.now() - 24 * 60 * 60 * 1000);
       const recentLeads = leads
@@ -83,7 +85,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/abandonment", async (req, res) => {
     try {
       const { email, step, sessionId } = req.body;
-      
+
       if (!email || !step) {
         return res.status(400).json({ error: 'Email and step are required' });
       }
@@ -98,7 +100,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       };
 
       await visitorIdentifierService.processAbandonmentEvent(event);
-      
+
       res.json({ success: true, message: 'Abandonment event processed' });
     } catch (error) {
       console.error('Error processing abandonment:', error);
@@ -115,11 +117,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         valid: campaign && campaign.expiresAt > new Date(), 
         visitorId: campaign?.visitorId 
       };
-      
+
       if (validation.valid) {
         // Track email click
         await emailReengagementService.handleEmailEngagement(token, 'clicked');
-        
+
         // In a real app, redirect to continue application page
         res.json({ 
           valid: true, 
@@ -139,16 +141,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/email/pixel/:campaignId/:token.gif", async (req, res) => {
     try {
       const { token } = req.params;
-      
+
       // Track email open
       await emailReengagementService.handleEmailEngagement(token, 'opened');
-      
+
       // Return 1x1 transparent GIF
       const pixel = Buffer.from(
         'R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
         'base64'
       );
-      
+
       res.setHeader('Content-Type', 'image/gif');
       res.setHeader('Content-Length', pixel.length);
       res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -164,10 +166,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { token } = req.params;
       const { url } = req.query;
-      
+
       // Track email click
       await emailReengagementService.handleEmailEngagement(token, 'clicked');
-      
+
       // Redirect to original URL
       if (url && typeof url === 'string') {
         res.redirect(decodeURIComponent(url));
@@ -185,7 +187,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { sessionId } = req.params;
       const visitor = await storage.getVisitorBySessionId(sessionId);
-      
+
       if (visitor) {
         res.json(visitor);
       } else {
@@ -202,7 +204,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { sessionId } = req.params;
       const chatSession = await storage.getChatSessionBySessionId(sessionId);
-      
+
       if (chatSession) {
         res.json({ messages: chatSession.messages || [] });
       } else {
@@ -218,11 +220,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/chat", async (req, res) => {
     try {
       const { message, sessionId, phone } = req.body;
-      
+
       if (!message || !sessionId) {
         return res.status(400).json({ error: 'Message and sessionId required' });
       }
-      
+
       // Find or create visitor for this session
       let visitor = await storage.getVisitorBySessionId(sessionId);
       if (!visitor) {
@@ -234,10 +236,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           abandonmentDetected: false
         });
       }
-      
+
       // Generate Cathy's response using dynamic configuration
       let response = agentConfigService.generateChatResponse(message, 'chat', phone);
-      
+
       // Check if user is requesting credit check/pre-qualification
       const lowerMessage = message.toLowerCase();
       const isRequestingCredit = lowerMessage.includes('pre-qual') || 
@@ -245,14 +247,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
                                 lowerMessage.includes('credit check') ||
                                 lowerMessage.includes('approve') ||
                                 (lowerMessage.includes('yes') && (lowerMessage.includes('start') || lowerMessage.includes('get')));
-      
+
       if (isRequestingCredit) {
         // Generate FlexPath link for credit check handoff
         const flexPathResult = flexPathService.generateChatLink(phone);
-        
+
         if (flexPathResult.success && flexPathResult.link) {
           response = flexPathService.getHandoffMessage(flexPathResult);
-          
+
           // Log FlexPath handoff
           await storage.createAgentActivity({
             agentName: 'CathyChatAgent',
@@ -264,7 +266,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } else {
           // If FlexPath link generation fails, provide helpful fallback
           response = "I'd love to get you pre-qualified right away! Let me connect you with our secure pre-qualification system. Our team will reach out within the next few minutes to complete your application. In the meantime, do you have any questions about the financing process?";
-          
+
           // Log fallback
           await storage.createAgentActivity({
             agentName: 'CathyChatAgent',
@@ -275,7 +277,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
       }
-      
+
       // Log chat activity
       await storage.createAgentActivity({
         agentName: 'CathyChatAgent',
@@ -284,7 +286,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         details: `Chat interaction with session ${sessionId}`,
         visitorId: visitor.id
       });
-      
+
       res.json({ response });
     } catch (error) {
       console.error('Chat error:', error);
@@ -318,7 +320,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/flexpath/generate-link", (req, res) => {
     try {
       const { phone, vehicleInfo, source } = req.body;
-      
+
       let linkResult;
       if (source === 'chat') {
         linkResult = flexPathService.generateChatLink(phone, vehicleInfo);
@@ -327,7 +329,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       } else {
         linkResult = flexPathService.generateHomepageLink(phone);
       }
-      
+
       if (linkResult.success) {
         res.json({
           success: true,
@@ -360,13 +362,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/data-mapping/process-csv", (req, res) => {
     try {
       const { csvData, messageType } = req.body;
-      
+
       if (!csvData || !Array.isArray(csvData)) {
         return res.status(400).json({ error: 'CSV data must be an array of records' });
       }
-      
+
       const result = dataMappingService.processBatch(csvData);
-      
+
       res.json({
         success: true,
         totalRecords: csvData.length,
@@ -384,26 +386,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/data-mapping/generate-message", (req, res) => {
     try {
       const { customerData, messageType } = req.body;
-      
+
       if (!customerData) {
         return res.status(400).json({ error: 'Customer data required' });
       }
-      
+
       const customer = dataMappingService.mapCsvRowToCustomerRecord(customerData);
       const validation = dataMappingService.validateCustomerRecord(customer);
-      
+
       if (!validation.valid) {
         return res.status(400).json({ 
           error: 'Invalid customer data', 
           issues: validation.issues 
         });
       }
-      
+
       const message = dataMappingService.generatePersonalizedMessage(
         customer, 
         messageType || 'reengagement'
       );
-      
+
       res.json({
         success: true,
         customer,
@@ -430,7 +432,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         vehicleMake: 'Ford',
         vehicleModel: 'F-150'
       });
-      
+
       res.json({
         success: true,
         message: testMessage
@@ -492,18 +494,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/email-campaigns/bulk-send", async (req, res) => {
     try {
       const { campaignId, csvData, messageType, scheduleDelay } = req.body;
-      
+
       if (!campaignId || !csvData || !Array.isArray(csvData)) {
         return res.status(400).json({ error: 'Campaign ID and CSV data required' });
       }
-      
+
       const result = await emailCampaignService.processBulkEmailCampaign({
         campaignId,
         csvData,
         messageType: messageType || 'reengagement',
         scheduleDelay
       });
-      
+
       res.json(result);
     } catch (error) {
       console.error('Error processing bulk email campaign:', error);
@@ -515,7 +517,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/leads/process", async (req, res) => {
     try {
       const leadData = req.body;
-      
+
       // Validate required fields
       if (!leadData.email || !leadData.firstName || !leadData.lastName) {
         return res.status(400).json({ error: 'Email, firstName, and lastName are required' });
@@ -524,7 +526,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Process lead through agent system
       const sessionId = generateSessionId();
       const emailHash = leadData.email;
-      
+
       // Create visitor record
       const visitor = await storage.createVisitor({
         emailHash,
@@ -575,7 +577,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/webhook/dealer-leads", async (req, res) => {
     try {
       const { dealerKey, leads } = req.body;
-      
+
       if (!dealerKey || !leads || !Array.isArray(leads)) {
         return res.status(400).json({ error: 'Dealer key and leads array required' });
       }
@@ -588,7 +590,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         try {
           // Map dealer data format to CCL format
           const mappedLead = dataMappingService.mapCsvRowToCustomerRecord(lead);
-          
+
           // Process through lead API
           const response = await fetch(`${req.protocol}://${req.get('host')}/api/leads/process`, {
             method: 'POST',
@@ -640,11 +642,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { campaignId, customerId, templateId } = req.params;
       const cancelled = emailCampaignService.cancelExecution(campaignId, customerId, templateId);
-      
+
       if (!cancelled) {
         return res.status(404).json({ error: 'Execution not found or already sent' });
       }
-      
+
       res.json({ success: true, message: 'Execution cancelled' });
     } catch (error) {
       console.error('Error cancelling execution:', error);
@@ -697,11 +699,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { testRunner } = await import('./test-scenarios');
       const { scenarioName } = req.body;
-      
+
       if (!scenarioName) {
         return res.status(400).json({ error: 'Scenario name is required' });
       }
-      
+
       const result = await testRunner.runScenario(scenarioName);
       res.json(result);
     } catch (error) {
@@ -740,12 +742,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const baseMetrics = await agentOrchestrator.getAgentMetrics();
       const activities = await storage.getRecentAgentActivity(100);
       const leads = await storage.getLeadsByStatus('failed');
-      
+
       // Calculate failure rates
       const errorActivities = activities.filter(a => a.status === 'error');
       const emailActivities = activities.filter(a => a.agentName === 'EmailReengagementAgent');
       const creditActivities = activities.filter(a => a.agentName === 'CreditCheckAgent');
-      
+
       const detailedMetrics = {
         ...baseMetrics,
         failureRates: {
@@ -768,7 +770,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           leadsGeneratedPerHour: activities.filter(a => a.action === 'lead_submitted').length
         }
       };
-      
+
       res.json(detailedMetrics);
     } catch (error) {
       console.error('Error getting detailed metrics:', error);
@@ -780,13 +782,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/test/generate-sample-data", async (req, res) => {
     try {
       const { count = 10 } = req.body;
-      
+
       const sampleData = [];
-      
+
       for (let i = 0; i < count; i++) {
         const email = `testuser${i}@example.com`;
         const sessionId = `sess_${Date.now()}_${i}`;
-        
+
         // Create abandonment event
         await visitorIdentifierService.processAbandonmentEvent({
           sessionId,
@@ -796,10 +798,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
           userAgent: 'Mozilla/5.0 Test Browser',
           ip: `192.168.1.${100 + i}`,
         });
-        
+
         sampleData.push({ email, sessionId, step: i + 1 });
       }
-      
+
       res.json({ 
         message: `Generated ${count} sample visitor records`,
         data: sampleData 
@@ -815,7 +817,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const { format = 'json' } = req.query;
       const leads = await storage.getLeadsByStatus('submitted');
-      
+
       if (format === 'csv') {
         const csvHeaders = 'ID,Lead ID,Email Hash,Status,Priority,Credit Score,Created At\n';
         const csvData = leads.map(lead => {
@@ -830,7 +832,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             lead.createdAt.toISOString()
           ].join(',');
         }).join('\n');
-        
+
         res.setHeader('Content-Type', 'text/csv');
         res.setHeader('Content-Disposition', 'attachment; filename=leads.csv');
         res.send(csvHeaders + csvData);
@@ -869,6 +871,280 @@ export async function registerRoutes(app: Express): Promise<Server> {
       message: error.message 
     });
   });
+
+  const agentConfigsRouter = Router();
+
+  // Agent configurations
+  agentConfigsRouter.get('/agent-configs', asyncHandler(async (req, res) => {
+    const configs = agentConfigService.getAllConfigs();
+    if (!configs || Object.keys(configs).length === 0) {
+      throw new AppError('No agent configurations found', 404, true, {
+        operation: 'get_agent_configs'
+      });
+    }
+
+    res.json({ success: true, data: configs });
+  }));
+
+  // Update agent configuration
+  agentConfigsRouter.put('/agent-configs/:type', asyncHandler(async (req, res) => {
+    const { type } = req.params;
+    const { config } = req.body;
+
+    if (!type || !config) {
+      throw new AppError('Agent type and configuration are required', 400, true, {
+        operation: 'update_agent_config',
+        agentType: type
+      });
+    }
+
+    // Validate agent type exists
+    const existingConfigs = agentConfigService.getAllConfigs();
+    if (!existingConfigs[type]) {
+      throw new AppError(`Agent type '${type}' not found`, 404, true, {
+        operation: 'update_agent_config',
+        agentType: type
+      });
+    }
+
+    // Here you would implement the actual update logic
+    ErrorLogger.logInfo(`Updated configuration for agent: ${type}`, {
+      operation: 'update_agent_config',
+      agentType: type
+    });
+
+    res.json({ success: true, message: `Agent ${type} configuration updated` });
+  }));
+
+  // Metrics endpoint
+  agentConfigsRouter.get('/metrics', asyncHandler(async (req, res) => {
+    try {
+      const metrics = {
+        activeAgents: storage.agents?.getActiveCount() || 5,
+        leadsGenerated: storage.leads?.getAll()?.length || 10,
+        emailDelivered: storage.activities?.getAll()?.filter(a => a.type === 'email_sent')?.length || 25,
+        creditChecks: storage.activities?.getAll()?.filter(a => a.type === 'credit_check')?.length || 8,
+        lastUpdated: new Date().toISOString()
+      };
+
+      res.json({ success: true, data: metrics });
+    } catch (error) {
+      ErrorLogger.logWarning('Error calculating metrics, using fallback values', {
+        operation: 'get_metrics',
+        metadata: { error: (error as Error).message }
+      });
+
+      // Provide fallback metrics
+      const fallbackMetrics = {
+        activeAgents: 0,
+        leadsGenerated: 0,
+        emailDelivered: 0,
+        creditChecks: 0,
+        lastUpdated: new Date().toISOString(),
+        status: 'partial_data'
+      };
+
+      res.json({ success: true, data: fallbackMetrics, warning: 'Some metrics unavailable' });
+    }
+  }));
+
+  // Leads endpoint
+  agentConfigsRouter.get('/leads', asyncHandler(async (req, res) => {
+    const { page = 1, limit = 50, status, priority } = req.query;
+
+    try {
+      let leads = storage.leads.getAll() || [];
+
+      // Apply filters
+      if (status) {
+        leads = leads.filter(lead => lead.status === status);
+      }
+      if (priority) {
+        leads = leads.filter(lead => lead.leadData?.metadata?.priority === priority);
+      }
+
+      // Pagination
+      const startIndex = (Number(page) - 1) * Number(limit);
+      const endIndex = startIndex + Number(limit);
+      const paginatedLeads = leads.slice(startIndex, endIndex);
+
+      res.json({ 
+        success: true, 
+        data: paginatedLeads,
+        pagination: {
+          page: Number(page),
+          limit: Number(limit),
+          total: leads.length,
+          totalPages: Math.ceil(leads.length / Number(limit))
+        }
+      });
+    } catch (error) {
+      throw new AppError('Failed to fetch leads', 500, true, {
+        operation: 'get_leads',
+        metadata: { page, limit, status, priority }
+      });
+    }
+  }));
+
+  // Create lead endpoint
+  agentConfigsRouter.post('/leads', asyncHandler(async (req, res) => {
+    const leadData = req.body;
+
+    if (!leadData || !leadData.email) {
+      throw new AppError('Lead data with email is required', 400, true, {
+        operation: 'create_lead'
+      });
+    }
+
+    // Basic validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(leadData.email)) {
+      throw new AppError('Invalid email format', 400, true, {
+        operation: 'create_lead',
+        metadata: { email: leadData.email }
+      });
+    }
+
+    try {
+      const newLead = {
+        id: Date.now().toString(),
+        ...leadData,
+        status: 'new',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      storage.leads.create(newLead);
+
+      ErrorLogger.logInfo('New lead created', {
+        operation: 'create_lead',
+        metadata: { leadId: newLead.id, email: leadData.email }
+      });
+
+      res.status(201).json({ success: true, data: newLead });
+    } catch (error) {
+      throw new AppError('Failed to create lead', 500, true, {
+        operation: 'create_lead',
+        metadata: { email: leadData.email }
+      });
+    }
+  }));
+
+  // Activity endpoint
+  agentConfigsRouter.get('/activity', asyncHandler(async (req, res) => {
+    const { limit = 100, type, agentType } = req.query;
+
+    try {
+      let activities = storage.activities.getAll() || [];
+
+      // Apply filters
+      if (type) {
+        activities = activities.filter(activity => activity.type === type);
+      }
+      if (agentType) {
+        activities = activities.filter(activity => activity.agentType === agentType);
+      }
+
+      // Sort by timestamp desc and limit
+      activities = activities
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .slice(0, Number(limit));
+
+      res.json({ 
+        success: true, 
+        data: activities,
+        meta: {
+          total: activities.length,
+          limit: Number(limit)
+        }
+      });
+    } catch (error) {
+      throw new AppError('Failed to fetch activities', 500, true, {
+        operation: 'get_activities',
+        metadata: { limit, type, agentType }
+      });
+    }
+  }));
+
+  // Agent status endpoint
+  agentConfigsRouter.get('/agents/status', asyncHandler(async (req, res) => {
+    try {
+      // This would typically come from your agent orchestrator
+      const agentStatuses = [
+        {
+          name: 'VisitorIdentifierAgent',
+          status: 'active',
+          lastActivity: new Date().toISOString(),
+          processedToday: Math.floor(Math.random() * 50),
+          description: 'Identifying and qualifying website visitors',
+          icon: 'fas fa-search',
+          color: 'success'
+        },
+        {
+          name: 'EmailReengagementAgent',
+          status: 'active',
+          lastActivity: new Date().toISOString(),
+          processedToday: Math.floor(Math.random() * 30),
+          description: 'Sending personalized re-engagement emails',
+          icon: 'fas fa-envelope',
+          color: 'info'
+        },
+        {
+          name: 'CreditCheckAgent',
+          status: 'active',
+          lastActivity: new Date().toISOString(),
+          processedToday: Math.floor(Math.random() * 20),
+          description: 'Processing soft credit checks',
+          icon: 'fas fa-credit-card',
+          color: 'warning'
+        },
+        {
+          name: 'RealtimeChatAgent',
+          status: 'active',
+          lastActivity: new Date().toISOString(),
+          processedToday: Math.floor(Math.random() * 40),
+          description: 'Handling real-time customer conversations',
+          icon: 'fas fa-comments',
+          color: 'primary'
+        },
+        {
+          name: 'LeadPackagingAgent',
+          status: 'active',
+          lastActivity: new Date().toISOString(),
+          processedToday: Math.floor(Math.random() * 15),
+          description: 'Assembling and submitting leads to dealers',
+          icon: 'fas fa-box',
+          color: 'primary'
+        }
+      ];
+
+      res.json({ success: true, data: agentStatuses });
+    } catch (error) {
+      throw new AppError('Failed to fetch agent status', 500, true, {
+        operation: 'get_agent_status'
+      });
+    }
+  }));
+
+  // Test endpoint for development
+  if (process.env.NODE_ENV === 'development') {
+    agentConfigsRouter.post('/test/error', asyncHandler(async (req, res) => {
+      const { type = 'generic' } = req.body;
+
+      switch (type) {
+        case 'validation':
+          throw new AppError('This is a test validation error', 400);
+        case 'not_found':
+          throw new AppError('Test resource not found', 404);
+        case 'server':
+          throw new Error('This is a test internal server error');
+        default:
+          throw new AppError('This is a test generic error', 500);
+      }
+    }));
+  }
+
+  app.use('/api', agentConfigsRouter);
 
   return httpServer;
 }

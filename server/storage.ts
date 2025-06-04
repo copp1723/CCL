@@ -11,7 +11,7 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  
+
   // Visitors
   getVisitor(id: number): Promise<Visitor | undefined>;
   getVisitorByEmailHash(emailHash: string): Promise<Visitor | undefined>;
@@ -19,282 +19,461 @@ export interface IStorage {
   createVisitor(visitor: InsertVisitor): Promise<Visitor>;
   updateVisitor(id: number, updates: Partial<InsertVisitor>): Promise<Visitor>;
   getRecentActiveVisitors(): Promise<Visitor[]>;
-  
+
   // Chat Sessions
   getChatSession(id: number): Promise<ChatSession | undefined>;
   getChatSessionBySessionId(sessionId: string): Promise<ChatSession | undefined>;
   getChatSessionsByVisitor(visitorId: number): Promise<ChatSession[]>;
   createChatSession(session: InsertChatSession): Promise<ChatSession>;
   updateChatSession(id: number, updates: Partial<InsertChatSession>): Promise<ChatSession>;
-  
+
   // Email Campaigns
   getEmailCampaign(id: number): Promise<EmailCampaign | undefined>;
   getEmailCampaignByToken(token: string): Promise<EmailCampaign | undefined>;
   getEmailCampaignsByVisitor(visitorId: number): Promise<EmailCampaign[]>;
   createEmailCampaign(campaign: InsertEmailCampaign): Promise<EmailCampaign>;
   updateEmailCampaign(id: number, updates: Partial<InsertEmailCampaign>): Promise<EmailCampaign>;
-  
+
   // Credit Checks
   getCreditCheck(id: number): Promise<CreditCheck | undefined>;
   getCreditCheckByVisitorId(visitorId: number): Promise<CreditCheck | undefined>;
   createCreditCheck(creditCheck: InsertCreditCheck): Promise<CreditCheck>;
-  
+
   // Leads
   getLead(id: number): Promise<Lead | undefined>;
   getLeadsByStatus(status: string): Promise<Lead[]>;
   createLead(lead: InsertLead): Promise<Lead>;
   updateLead(id: number, updates: Partial<InsertLead>): Promise<Lead>;
-  
+
   // Agent Activity
   createAgentActivity(activity: InsertAgentActivity): Promise<AgentActivity>;
   getRecentAgentActivity(limit?: number): Promise<AgentActivity[]>;
   getAgentActivityByAgent(agentName: string, limit?: number): Promise<AgentActivity[]>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User> = new Map();
-  private visitors: Map<number, Visitor> = new Map();
-  private chatSessions: Map<number, ChatSession> = new Map();
-  private emailCampaigns: Map<number, EmailCampaign> = new Map();
-  private creditChecks: Map<number, CreditCheck> = new Map();
-  private leadStorage: Map<number, Lead> = new Map();
-  private agentActivities: Map<number, AgentActivity> = new Map();
-  
-  private currentUserId = 1;
-  private currentVisitorId = 1;
-  private currentChatSessionId = 1;
-  private currentEmailCampaignId = 1;
-  private currentCreditCheckId = 1;
-  private currentLeadId = 1;
-  private currentAgentActivityId = 1;
+import { ErrorLogger, AppError } from './utils/errorHandler';
 
-  // Users
-  async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
-  }
+// In-memory storage for development
+// In production, this would be replaced with a proper database
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.username === username);
-  }
+interface Lead {
+  id: string;
+  status: 'new' | 'contacted' | 'qualified' | 'closed';
+  createdAt: string;
+  updatedAt: string;
+  email: string;
+  leadData: any;
+}
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentUserId++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
-  }
+interface Activity {
+  id: string;
+  type: string;
+  timestamp: string;
+  description: string;
+  agentType?: string;
+  metadata?: any;
+}
 
-  // Visitors
-  async getVisitor(id: number): Promise<Visitor | undefined> {
-    return this.visitors.get(id);
-  }
+interface Agent {
+  id: string;
+  name: string;
+  type: string;
+  status: 'active' | 'inactive' | 'error';
+  lastActivity: string;
+}
 
-  async getVisitorByEmailHash(emailHash: string): Promise<Visitor | undefined> {
-    return Array.from(this.visitors.values()).find(visitor => visitor.emailHash === emailHash);
-  }
+class SafeStorage {
+  private leads: Map<string, Lead> = new Map();
+  private activities: Map<string, Activity> = new Map();
+  private agents: Map<string, Agent> = new Map();
+  private maxLeads = 10000; // Prevent memory overflow
+  private maxActivities = 5000;
 
-  async getVisitorBySessionId(sessionId: string): Promise<Visitor | undefined> {
-    return Array.from(this.visitors.values()).find(visitor => visitor.sessionId === sessionId);
-  }
-
-  async createVisitor(insertVisitor: InsertVisitor): Promise<Visitor> {
-    const id = this.currentVisitorId++;
-    const visitor: Visitor = { 
-      ...insertVisitor,
-      id,
-      lastActivity: insertVisitor.lastActivity || new Date(),
-      abandonmentDetected: insertVisitor.abandonmentDetected || false,
-      createdAt: new Date(),
-    };
-    this.visitors.set(id, visitor);
-    return visitor;
-  }
-
-  async updateVisitor(id: number, updates: Partial<InsertVisitor>): Promise<Visitor> {
-    const visitor = this.visitors.get(id);
-    if (!visitor) {
-      throw new Error(`Visitor ${id} not found`);
+  // Validation helpers
+  private validateLead(lead: Partial<Lead>): void {
+    if (!lead.id || typeof lead.id !== 'string') {
+      throw new AppError('Lead ID is required and must be a string', 400);
     }
-    
-    const updatedVisitor: Visitor = { ...visitor, ...updates };
-    this.visitors.set(id, updatedVisitor);
-    return updatedVisitor;
-  }
-
-  async getRecentActiveVisitors(): Promise<Visitor[]> {
-    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-    return Array.from(this.visitors.values())
-      .filter(visitor => visitor.lastActivity > oneHourAgo)
-      .sort((a, b) => b.lastActivity.getTime() - a.lastActivity.getTime());
-  }
-
-  // Chat Sessions
-  async getChatSession(id: number): Promise<ChatSession | undefined> {
-    return this.chatSessions.get(id);
-  }
-
-  async getChatSessionBySessionId(sessionId: string): Promise<ChatSession | undefined> {
-    return Array.from(this.chatSessions.values()).find(session => session.sessionId === sessionId);
-  }
-
-  async getChatSessionsByVisitor(visitorId: number): Promise<ChatSession[]> {
-    return Array.from(this.chatSessions.values()).filter(session => session.visitorId === visitorId);
-  }
-
-  async createChatSession(insertSession: InsertChatSession): Promise<ChatSession> {
-    const id = this.currentChatSessionId++;
-    const session: ChatSession = {
-      ...insertSession,
-      id,
-      visitorId: insertSession.visitorId || null,
-      isActive: insertSession.isActive ?? true,
-      messages: insertSession.messages || [],
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
-    this.chatSessions.set(id, session);
-    return session;
-  }
-
-  async updateChatSession(id: number, updates: Partial<InsertChatSession>): Promise<ChatSession> {
-    const session = this.chatSessions.get(id);
-    if (!session) {
-      throw new Error(`Chat session ${id} not found`);
+    if (!lead.email || typeof lead.email !== 'string') {
+      throw new AppError('Lead email is required and must be a string', 400);
     }
-    
-    const updatedSession: ChatSession = { 
-      ...session, 
-      ...updates,
-      updatedAt: new Date(),
-    };
-    this.chatSessions.set(id, updatedSession);
-    return updatedSession;
-  }
-
-  // Email Campaigns
-  async getEmailCampaign(id: number): Promise<EmailCampaign | undefined> {
-    return this.emailCampaigns.get(id);
-  }
-
-  async getEmailCampaignByToken(token: string): Promise<EmailCampaign | undefined> {
-    return Array.from(this.emailCampaigns.values()).find(campaign => campaign.returnToken === token);
-  }
-
-  async getEmailCampaignsByVisitor(visitorId: number): Promise<EmailCampaign[]> {
-    return Array.from(this.emailCampaigns.values()).filter(campaign => campaign.visitorId === visitorId);
-  }
-
-  async createEmailCampaign(insertCampaign: InsertEmailCampaign): Promise<EmailCampaign> {
-    const id = this.currentEmailCampaignId++;
-    const campaign: EmailCampaign = {
-      ...insertCampaign,
-      id,
-      emailSent: insertCampaign.emailSent ?? false,
-      emailOpened: insertCampaign.emailOpened ?? false,
-      clicked: insertCampaign.clicked ?? false,
-      createdAt: new Date(),
-    };
-    this.emailCampaigns.set(id, campaign);
-    return campaign;
-  }
-
-  async updateEmailCampaign(id: number, updates: Partial<InsertEmailCampaign>): Promise<EmailCampaign> {
-    const campaign = this.emailCampaigns.get(id);
-    if (!campaign) {
-      throw new Error(`Email campaign ${id} not found`);
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(lead.email)) {
+      throw new AppError('Invalid email format', 400);
     }
-    
-    const updatedCampaign: EmailCampaign = { ...campaign, ...updates };
-    this.emailCampaigns.set(id, updatedCampaign);
-    return updatedCampaign;
-  }
-
-  // Credit Checks
-  async getCreditCheck(id: number): Promise<CreditCheck | undefined> {
-    return this.creditChecks.get(id);
-  }
-
-  async getCreditCheckByVisitorId(visitorId: number): Promise<CreditCheck | undefined> {
-    return Array.from(this.creditChecks.values())
-      .find(check => check.visitorId === visitorId);
-  }
-
-  async createCreditCheck(insertCreditCheck: InsertCreditCheck): Promise<CreditCheck> {
-    const id = this.currentCreditCheckId++;
-    const creditCheck: CreditCheck = {
-      ...insertCreditCheck,
-      id,
-      creditScore: insertCreditCheck.creditScore || null,
-      approved: insertCreditCheck.approved ?? false,
-      externalId: insertCreditCheck.externalId || null,
-      createdAt: new Date(),
-    };
-    this.creditChecks.set(id, creditCheck);
-    return creditCheck;
-  }
-
-  // Leads
-  async getLead(id: number): Promise<Lead | undefined> {
-    return this.leadStorage.get(id);
-  }
-
-  async getLeadsByStatus(status: string): Promise<Lead[]> {
-    return Array.from(this.leadStorage.values()).filter(lead => lead.status === status);
-  }
-
-  async createLead(insertLead: InsertLead): Promise<Lead> {
-    const id = this.currentLeadId++;
-    const lead: Lead = {
-      ...insertLead,
-      id,
-      status: insertLead.status || 'pending',
-      creditCheckId: insertLead.creditCheckId || null,
-      dealerResponse: insertLead.dealerResponse || null,
-      submittedAt: insertLead.submittedAt || null,
-      createdAt: new Date(),
-    };
-    this.leadStorage.set(id, lead);
-    return lead;
-  }
-
-  async updateLead(id: number, updates: Partial<InsertLead>): Promise<Lead> {
-    const lead = this.leadStorage.get(id);
-    if (!lead) {
-      throw new Error(`Lead ${id} not found`);
+    if (lead.status && !['new', 'contacted', 'qualified', 'closed'].includes(lead.status)) {
+      throw new AppError('Invalid lead status', 400);
     }
-    
-    const updatedLead: Lead = { ...lead, ...updates };
-    this.leadStorage.set(id, updatedLead);
-    return updatedLead;
   }
 
-  // Agent Activity
-  async createAgentActivity(insertActivity: InsertAgentActivity): Promise<AgentActivity> {
-    const id = this.currentAgentActivityId++;
-    const activity: AgentActivity = {
-      ...insertActivity,
-      id,
-      visitorId: insertActivity.visitorId || null,
-      details: insertActivity.details || null,
-      leadId: insertActivity.leadId || null,
-      createdAt: new Date(),
+  private validateActivity(activity: Partial<Activity>): void {
+    if (!activity.id || typeof activity.id !== 'string') {
+      throw new AppError('Activity ID is required and must be a string', 400);
+    }
+    if (!activity.type || typeof activity.type !== 'string') {
+      throw new AppError('Activity type is required and must be a string', 400);
+    }
+    if (!activity.description || typeof activity.description !== 'string') {
+      throw new AppError('Activity description is required and must be a string', 400);
+    }
+  }
+
+  // Leads methods
+  leads = {
+    getAll: (): Lead[] => {
+      try {
+        return Array.from(this.leads.values()).sort((a, b) => 
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+      } catch (error) {
+        ErrorLogger.logWarning('Error retrieving leads', {
+          operation: 'storage_get_leads',
+          metadata: { error: (error as Error).message }
+        });
+        return [];
+      }
+    },
+
+    getById: (id: string): Lead | null => {
+      try {
+        if (!id || typeof id !== 'string') {
+          throw new AppError('Lead ID is required and must be a string', 400);
+        }
+        return this.leads.get(id) || null;
+      } catch (error) {
+        ErrorLogger.logWarning(`Error retrieving lead ${id}`, {
+          operation: 'storage_get_lead_by_id',
+          metadata: { leadId: id, error: (error as Error).message }
+        });
+        return null;
+      }
+    },
+
+    create: (lead: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>): Lead => {
+      try {
+        if (this.leads.size >= this.maxLeads) {
+          // Remove oldest leads if at capacity
+          const oldestLeads = Array.from(this.leads.values())
+            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+            .slice(0, 100);
+
+          oldestLeads.forEach(oldLead => this.leads.delete(oldLead.id));
+          ErrorLogger.logWarning('Removed old leads due to capacity limit', {
+            operation: 'storage_cleanup_leads',
+            metadata: { removedCount: oldestLeads.length }
+          });
+        }
+
+        const newLead: Lead = {
+          id: `lead_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          ...lead,
+          status: lead.status || 'new',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+
+        this.validateLead(newLead);
+        this.leads.set(newLead.id, newLead);
+
+        ErrorLogger.logInfo('Lead created successfully', {
+          operation: 'storage_create_lead',
+          metadata: { leadId: newLead.id, email: newLead.email }
+        });
+
+        return newLead;
+      } catch (error) {
+        if (error instanceof AppError) throw error;
+        ErrorLogger.logError(error as Error, {
+          operation: 'storage_create_lead',
+          metadata: { email: lead.email }
+        });
+        throw new AppError('Failed to create lead', 500);
+      }
+    },
+
+    update: (id: string, updates: Partial<Lead>): Lead | null => {
+      try {
+        if (!id || typeof id !== 'string') {
+          throw new AppError('Lead ID is required and must be a string', 400);
+        }
+
+        const existingLead = this.leads.get(id);
+        if (!existingLead) {
+          throw new AppError('Lead not found', 404);
+        }
+
+        const updatedLead: Lead = {
+          ...existingLead,
+          ...updates,
+          id: existingLead.id, // Prevent ID changes
+          createdAt: existingLead.createdAt, // Prevent creation date changes
+          updatedAt: new Date().toISOString()
+        };
+
+        this.validateLead(updatedLead);
+        this.leads.set(id, updatedLead);
+
+        ErrorLogger.logInfo('Lead updated successfully', {
+          operation: 'storage_update_lead',
+          metadata: { leadId: id }
+        });
+
+        return updatedLead;
+      } catch (error) {
+        if (error instanceof AppError) throw error;
+        ErrorLogger.logError(error as Error, {
+          operation: 'storage_update_lead',
+          metadata: { leadId: id }
+        });
+        return null;
+      }
+    },
+
+    delete: (id: string): boolean => {
+      try {
+        if (!id || typeof id !== 'string') {
+          throw new AppError('Lead ID is required and must be a string', 400);
+        }
+
+        const success = this.leads.delete(id);
+        if (success) {
+          ErrorLogger.logInfo('Lead deleted successfully', {
+            operation: 'storage_delete_lead',
+            metadata: { leadId: id }
+          });
+        }
+        return success;
+      } catch (error) {
+        ErrorLogger.logError(error as Error, {
+          operation: 'storage_delete_lead',
+          metadata: { leadId: id }
+        });
+        return false;
+      }
+    }
+  };
+
+  // Activities methods
+  activities = {
+    getAll: (): Activity[] => {
+      try {
+        return Array.from(this.activities.values()).sort((a, b) => 
+          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+        );
+      } catch (error) {
+        ErrorLogger.logWarning('Error retrieving activities', {
+          operation: 'storage_get_activities',
+          metadata: { error: (error as Error).message }
+        });
+        return [];
+      }
+    },
+
+    create: (activity: Omit<Activity, 'id' | 'timestamp'>): Activity => {
+      try {
+        if (this.activities.size >= this.maxActivities) {
+          // Remove oldest activities if at capacity
+          const oldestActivities = Array.from(this.activities.values())
+            .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+            .slice(0, 500);
+
+          oldestActivities.forEach(oldActivity => this.activities.delete(oldActivity.id));
+          ErrorLogger.logInfo('Removed old activities due to capacity limit', {
+            operation: 'storage_cleanup_activities',
+            metadata: { removedCount: oldestActivities.length }
+          });
+        }
+
+        const newActivity: Activity = {
+          id: `activity_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+          ...activity,
+          timestamp: new Date().toISOString()
+        };
+
+        this.validateActivity(newActivity);
+        this.activities.set(newActivity.id, newActivity);
+
+        return newActivity;
+      } catch (error) {
+        if (error instanceof AppError) throw error;
+        ErrorLogger.logError(error as Error, {
+          operation: 'storage_create_activity',
+          metadata: { type: activity.type }
+        });
+        throw new AppError('Failed to create activity', 500);
+      }
+    }
+  };
+
+  // Agents methods
+  agents = {
+    getAll: (): Agent[] => {
+      return Array.from(this.agents.values());
+    },
+
+    getActiveCount: (): number => {
+      return Array.from(this.agents.values()).filter(agent => agent.status === 'active').length;
+    },
+
+    updateStatus: (name: string, status: Agent['status']): void => {
+      try {
+        const agent = this.agents.get(name) || {
+          id: name,
+          name,
+          type: 'unknown',
+          status: 'inactive',
+          lastActivity: new Date().toISOString()
+        };
+
+        this.agents.set(name, {
+          ...agent,
+          status,
+          lastActivity: new Date().toISOString()
+        });
+      } catch (error) {
+        ErrorLogger.logError(error as Error, {
+          operation: 'storage_update_agent_status',
+          metadata: { agentName: name, status }
+        });
+      }
+    }
+  };
+
+  // Cleanup methods
+  cleanup = {
+    old: (days: number = 30): void => {
+      try {
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - days);
+
+        // Cleanup old leads
+        const oldLeads = Array.from(this.leads.values()).filter(lead => 
+          new Date(lead.createdAt) < cutoffDate
+        );
+        oldLeads.forEach(lead => this.leads.delete(lead.id));
+
+        // Cleanup old activities
+        const oldActivities = Array.from(this.activities.values()).filter(activity => 
+          new Date(activity.timestamp) < cutoffDate
+        );
+        oldActivities.forEach(activity => this.activities.delete(activity.id));
+
+        ErrorLogger.logInfo('Cleanup completed', {
+          operation: 'storage_cleanup',
+          metadata: { 
+            removedLeads: oldLeads.length, 
+            removedActivities: oldActivities.length,
+            cutoffDays: days
+          }
+        });
+      } catch (error) {
+        ErrorLogger.logError(error as Error, {
+          operation: 'storage_cleanup',
+          metadata: { days }
+        });
+      }
+    }
+  };
+
+  // Get storage statistics
+  getStats() {
+    return {
+      leads: this.leads.size,
+      activities: this.activities.size,
+      agents: this.agents.size,
+      maxLeads: this.maxLeads,
+      maxActivities: this.maxActivities
     };
-    this.agentActivities.set(id, activity);
-    return activity;
-  }
-
-  async getRecentAgentActivity(limit: number = 50): Promise<AgentActivity[]> {
-    return Array.from(this.agentActivities.values())
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .slice(0, limit);
-  }
-
-  async getAgentActivityByAgent(agentName: string, limit: number = 50): Promise<AgentActivity[]> {
-    return Array.from(this.agentActivities.values())
-      .filter(activity => activity.agentName === agentName)
-      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
-      .slice(0, limit);
   }
 }
 
-export const storage = new MemStorage();
+// Initialize with some sample data for development
+const createSampleData = (storage: SafeStorage) => {
+  try {
+    // Create sample leads
+    const sampleLeads = [
+      {
+        email: 'john.doe@example.com',
+        leadData: {
+          firstName: 'John',
+          lastName: 'Doe',
+          phone: '555-0123',
+          creditAssessment: { approved: true, score: 720 },
+          metadata: { priority: 'high', source: 'website' }
+        }
+      },
+      {
+        email: 'jane.smith@example.com',
+        leadData: {
+          firstName: 'Jane',
+          lastName: 'Smith',
+          phone: '555-0124',
+          creditAssessment: { approved: true, score: 680 },
+          metadata: { priority: 'medium', source: 'referral' }
+        }
+      }
+    ];
+
+    sampleLeads.forEach(lead => {
+      try {
+        storage.leads.create(lead);
+      } catch (error) {
+        ErrorLogger.logWarning('Failed to create sample lead', {
+          operation: 'storage_sample_data',
+          metadata: { email: lead.email, error: (error as Error).message }
+        });
+      }
+    });
+
+    // Create sample activities
+    const sampleActivities = [
+      {
+        type: 'lead_created',
+        description: 'New lead generated from website visitor',
+        agentType: 'VisitorIdentifierAgent',
+        metadata: { source: 'website' }
+      },
+      {
+        type: 'email_sent',
+        description: 'Re-engagement email sent to qualified lead',
+        agentType: 'EmailReengagementAgent',
+        metadata: { template: 'reengagement_v1' }
+      },
+      {
+        type: 'credit_check',
+        description: 'Soft credit check completed',
+        agentType: 'CreditCheckAgent',
+        metadata: { score: 720, approved: true }
+      }
+    ];
+
+    sampleActivities.forEach(activity => {
+      try {
+        storage.activities.create(activity);
+      } catch (error) {
+        ErrorLogger.logWarning('Failed to create sample activity', {
+          operation: 'storage_sample_data',
+          metadata: { type: activity.type, error: (error as Error).message }
+        });
+      }
+    });
+
+    ErrorLogger.logInfo('Sample data created successfully');
+  } catch (error) {
+    ErrorLogger.logError(error as Error, {
+      operation: 'storage_sample_data_creation'
+    });
+  }
+};
+
+export const storage = new SafeStorage();
+
+// Initialize sample data in development
+if (process.env.NODE_ENV === 'development') {
+  createSampleData(storage);
+}
+
+// Cleanup old data every hour
+setInterval(() => {
+  storage.cleanup.old(7); // Keep data for 7 days in development
+}, 60 * 60 * 1000);
