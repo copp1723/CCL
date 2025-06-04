@@ -146,6 +146,7 @@ export function CSVProcessor() {
             value={csvText}
             onChange={(e) => setCsvText(e.target.value)}
             className="min-h-32 font-mono text-sm"
+            readOnly={false}
           />
 
           <Button 

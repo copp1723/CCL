@@ -2,6 +2,16 @@ import express, { type Request, Response } from "express";
 import { createServer } from "http";
 import { storage } from "./storage";
 
+// Enhanced error logging
+const logError = (context: string, error: any, additionalInfo?: any) => {
+  console.error(`[${context}] Error:`, {
+    message: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : undefined,
+    additionalInfo,
+    timestamp: new Date().toISOString()
+  });
+};
+
 export async function registerRoutes(app: express.Express) {
   const server = createServer(app);
 
@@ -57,8 +67,11 @@ export async function registerRoutes(app: express.Express) {
       ];
       res.json(agentStatuses);
     } catch (error) {
-      console.error("Error fetching agent status:", error);
-      res.status(500).json({ message: "Failed to fetch agent status" });
+      logError("Agent Status", error);
+      res.status(500).json({ 
+        message: "Failed to fetch agent status",
+        error: process.env.NODE_ENV === 'development' ? String(error) : undefined
+      });
     }
   });
 
@@ -414,6 +427,82 @@ export async function registerRoutes(app: express.Express) {
       res.status(500).json({ 
         success: false, 
         message: "Failed to process dealer webhook",
+        error: String(error)
+      });
+    }
+  });
+
+  // Data Mapping Service Routes
+  app.post("/api/data-mapping/process-csv", async (req: Request, res: Response) => {
+    try {
+      const { csvData, messageType } = req.body;
+      
+      if (!csvData || !Array.isArray(csvData)) {
+        return res.status(400).json({ 
+          success: false, 
+          message: "CSV data array is required" 
+        });
+      }
+
+      const { dataMappingService } = await import('./services/DataMappingService');
+      const result = dataMappingService.processBatch(csvData);
+      
+      // Store successful records as leads
+      for (const item of result.processed) {
+        const newLead = storage.leads.create({
+          status: 'new',
+          email: item.customer.email || `processed_${Date.now()}@datamapping.com`,
+          leadData: {
+            source: 'csv_processing',
+            messageType,
+            customerRecord: item.customer,
+            generatedMessage: item.message,
+            processedAt: new Date().toISOString()
+          }
+        });
+
+        // Log activity
+        storage.activities.create({
+          type: 'csv_processing',
+          description: `CSV record processed for ${item.customer.firstName || 'customer'}`,
+          agentType: 'DataMappingService',
+          metadata: { leadId: newLead.id, messageType }
+        });
+      }
+
+      res.json({
+        success: true,
+        totalRecords: csvData.length,
+        processedCount: result.processed.length,
+        errorCount: result.errors.length,
+        processed: result.processed,
+        errors: result.errors
+      });
+
+    } catch (error) {
+      console.error("CSV processing error:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to process CSV data",
+        error: String(error)
+      });
+    }
+  });
+
+  app.get("/api/data-mapping/test-message", async (_req: Request, res: Response) => {
+    try {
+      const { dataMappingService } = await import('./services/DataMappingService');
+      const testMessage = dataMappingService.generateTestMessage({});
+      
+      res.json({
+        success: true,
+        testMessage
+      });
+    } catch (error) {
+      console.error("Test message generation error:", error);
+      res.status(500).json({ 
+        success: false, 
+        message: "Failed to generate test message",
         error: String(error)
       });
     }
