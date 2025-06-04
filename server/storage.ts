@@ -1,10 +1,8 @@
 import { 
-  users, visitors, chatSessions, emailCampaigns, creditChecks, leads, agentActivity,
-  type User, type InsertUser, type Visitor, type InsertVisitor,
-  type ChatSession, type InsertChatSession, type EmailCampaign, type InsertEmailCampaign,
-  type CreditCheck, type InsertCreditCheck, type Lead, type InsertLead,
-  type AgentActivity, type InsertAgentActivity
-} from "@shared/schema";
+  InsertUser, User, InsertVisitor, Visitor, InsertChatSession, ChatSession,
+  InsertEmailCampaign, EmailCampaign, InsertCreditCheck, CreditCheck,
+  InsertLead, Lead, InsertAgentActivity, AgentActivity
+} from "../shared/schema";
 
 export interface IStorage {
   // Users
@@ -51,12 +49,8 @@ export interface IStorage {
   getAgentActivityByAgent(agentName: string, limit?: number): Promise<AgentActivity[]>;
 }
 
-import { ErrorLogger, AppError } from './utils/errorHandler';
-
-// In-memory storage for development
-// In production, this would be replaced with a proper database
-
-interface Lead {
+// Simplified interfaces for flexible data ingestion
+interface SimpleLeadData {
   id: string;
   status: 'new' | 'contacted' | 'qualified' | 'closed';
   createdAt: string;
@@ -65,7 +59,7 @@ interface Lead {
   leadData: any;
 }
 
-interface Activity {
+interface SimpleActivity {
   id: string;
   type: string;
   timestamp: string;
@@ -74,7 +68,7 @@ interface Activity {
   metadata?: any;
 }
 
-interface Agent {
+interface SimpleAgent {
   id: string;
   name: string;
   type: string;
@@ -82,395 +76,200 @@ interface Agent {
   lastActivity: string;
 }
 
-class SafeStorage {
-  private leads: Map<string, Lead> = new Map();
-  private activities: Map<string, Activity> = new Map();
-  private agents: Map<string, Agent> = new Map();
-  private maxLeads = 10000; // Prevent memory overflow
-  private maxActivities = 5000;
+class FlexibleStorage {
+  private leadCounter = 0;
+  private activityCounter = 0;
+  private leadStore: SimpleLeadData[] = [];
+  private activityStore: SimpleActivity[] = [];
+  private agentStore: SimpleAgent[] = [];
+  
+  private readonly maxLeads = 10000;
+  private readonly maxActivities = 5000;
 
-  // Validation helpers
-  private validateLead(lead: Partial<Lead>): void {
-    if (!lead.id || typeof lead.id !== 'string') {
-      throw new AppError('Lead ID is required and must be a string', 400);
-    }
-    if (!lead.email || typeof lead.email !== 'string') {
-      throw new AppError('Lead email is required and must be a string', 400);
-    }
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(lead.email)) {
-      throw new AppError('Invalid email format', 400);
-    }
-    if (lead.status && !['new', 'contacted', 'qualified', 'closed'].includes(lead.status)) {
-      throw new AppError('Invalid lead status', 400);
-    }
+  constructor() {
+    this.initializeSampleData();
   }
 
-  private validateActivity(activity: Partial<Activity>): void {
-    if (!activity.id || typeof activity.id !== 'string') {
-      throw new AppError('Activity ID is required and must be a string', 400);
-    }
-    if (!activity.type || typeof activity.type !== 'string') {
-      throw new AppError('Activity type is required and must be a string', 400);
-    }
-    if (!activity.description || typeof activity.description !== 'string') {
-      throw new AppError('Activity description is required and must be a string', 400);
-    }
+  private initializeSampleData() {
+    // Initialize with active agent statuses
+    this.agentStore = [
+      {
+        id: "agent_1",
+        name: "VisitorIdentifierAgent",
+        type: "identifier",
+        status: "active",
+        lastActivity: new Date().toISOString()
+      },
+      {
+        id: "agent_2", 
+        name: "RealtimeChatAgent",
+        type: "chat",
+        status: "active",
+        lastActivity: new Date().toISOString()
+      },
+      {
+        id: "agent_3",
+        name: "EmailReengagementAgent", 
+        type: "email",
+        status: "active",
+        lastActivity: new Date().toISOString()
+      },
+      {
+        id: "agent_4",
+        name: "CreditCheckAgent",
+        type: "credit", 
+        status: "active",
+        lastActivity: new Date().toISOString()
+      },
+      {
+        id: "agent_5",
+        name: "LeadPackagingAgent",
+        type: "packaging",
+        status: "active", 
+        lastActivity: new Date().toISOString()
+      }
+    ];
+
+    // Add some sample activities
+    this.createActivity({
+      type: "system_startup",
+      description: "CCL Agent System initialized with Mailgun integration",
+      agentType: "System"
+    });
+
+    this.createActivity({
+      type: "api_ready", 
+      description: "Three data ingestion APIs activated",
+      agentType: "System"
+    });
   }
 
-  // Leads methods
+  // Lead methods for flexible data ingestion
   leads = {
-    getAll: (): Lead[] => {
-      try {
-        return Array.from(this.leads.values()).sort((a, b) => 
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-      } catch (error) {
-        console.warn('Error retrieving leads:', (error as Error).message);
-        return [];
-      }
+    getAll: (): SimpleLeadData[] => {
+      return [...this.leadStore].sort((a, b) => 
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
     },
 
-    getById: (id: string): Lead | null => {
-      try {
-        if (!id || typeof id !== 'string') {
-          throw new AppError('Lead ID is required and must be a string', 400);
-        }
-        return this.leads.get(id) || null;
-      } catch (error) {
-        ErrorLogger.logWarning(`Error retrieving lead ${id}`, {
-          operation: 'storage_get_lead_by_id',
-          metadata: { leadId: id, error: (error as Error).message }
-        });
-        return null;
-      }
+    getById: (id: string): SimpleLeadData | null => {
+      return this.leadStore.find(lead => lead.id === id) || null;
     },
 
-    create: (lead: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>): Lead => {
-      try {
-        if (this.leads.size >= this.maxLeads) {
-          // Remove oldest leads if at capacity
-          const oldestLeads = Array.from(this.leads.values())
-            .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-            .slice(0, 100);
-
-          oldestLeads.forEach(oldLead => this.leads.delete(oldLead.id));
-          ErrorLogger.logWarning('Removed old leads due to capacity limit', {
-            operation: 'storage_cleanup_leads',
-            metadata: { removedCount: oldestLeads.length }
-          });
-        }
-
-        const newLead: Lead = {
-          id: `lead_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          ...lead,
-          status: lead.status || 'new',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        };
-
-        this.validateLead(newLead);
-        this.leads.set(newLead.id, newLead);
-
-        ErrorLogger.logInfo('Lead created successfully', {
-          operation: 'storage_create_lead',
-          metadata: { leadId: newLead.id, email: newLead.email }
-        });
-
-        return newLead;
-      } catch (error) {
-        if (error instanceof AppError) throw error;
-        ErrorLogger.logError(error as Error, {
-          operation: 'storage_create_lead',
-          metadata: { email: lead.email }
-        });
-        throw new AppError('Failed to create lead', 500);
+    create: (leadData: Omit<SimpleLeadData, 'id' | 'createdAt' | 'updatedAt'>): SimpleLeadData => {
+      if (this.leadStore.length >= this.maxLeads) {
+        this.leadStore = this.leadStore.slice(-5000); // Keep latest 5000
       }
+
+      const newLead: SimpleLeadData = {
+        id: `lead_${++this.leadCounter}_${Date.now()}`,
+        ...leadData,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      this.leadStore.push(newLead);
+      return newLead;
     },
 
-    update: (id: string, updates: Partial<Lead>): Lead | null => {
-      try {
-        if (!id || typeof id !== 'string') {
-          throw new AppError('Lead ID is required and must be a string', 400);
-        }
+    update: (id: string, updates: Partial<SimpleLeadData>): SimpleLeadData | null => {
+      const index = this.leadStore.findIndex(lead => lead.id === id);
+      if (index === -1) return null;
 
-        const existingLead = this.leads.get(id);
-        if (!existingLead) {
-          throw new AppError('Lead not found', 404);
-        }
+      this.leadStore[index] = {
+        ...this.leadStore[index],
+        ...updates,
+        id: this.leadStore[index].id, // Preserve ID
+        createdAt: this.leadStore[index].createdAt, // Preserve creation date
+        updatedAt: new Date().toISOString()
+      };
 
-        const updatedLead: Lead = {
-          ...existingLead,
-          ...updates,
-          id: existingLead.id, // Prevent ID changes
-          createdAt: existingLead.createdAt, // Prevent creation date changes
-          updatedAt: new Date().toISOString()
-        };
-
-        this.validateLead(updatedLead);
-        this.leads.set(id, updatedLead);
-
-        ErrorLogger.logInfo('Lead updated successfully', {
-          operation: 'storage_update_lead',
-          metadata: { leadId: id }
-        });
-
-        return updatedLead;
-      } catch (error) {
-        if (error instanceof AppError) throw error;
-        ErrorLogger.logError(error as Error, {
-          operation: 'storage_update_lead',
-          metadata: { leadId: id }
-        });
-        return null;
-      }
-    },
-
-    delete: (id: string): boolean => {
-      try {
-        if (!id || typeof id !== 'string') {
-          throw new AppError('Lead ID is required and must be a string', 400);
-        }
-
-        const success = this.leads.delete(id);
-        if (success) {
-          ErrorLogger.logInfo('Lead deleted successfully', {
-            operation: 'storage_delete_lead',
-            metadata: { leadId: id }
-          });
-        }
-        return success;
-      } catch (error) {
-        ErrorLogger.logError(error as Error, {
-          operation: 'storage_delete_lead',
-          metadata: { leadId: id }
-        });
-        return false;
-      }
+      return this.leadStore[index];
     }
   };
 
-  // Activities methods
+  // Activity methods for tracking data ingestion
   activities = {
-    getAll: (): Activity[] => {
-      try {
-        return Array.from(this.activities.values()).sort((a, b) => 
-          new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
-        );
-      } catch (error) {
-        ErrorLogger.logWarning('Error retrieving activities', {
-          operation: 'storage_get_activities',
-          metadata: { error: (error as Error).message }
-        });
-        return [];
-      }
+    getAll: (): SimpleActivity[] => {
+      return [...this.activityStore].sort((a, b) => 
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+      );
     },
 
-    create: (activity: Omit<Activity, 'id' | 'timestamp'>): Activity => {
-      try {
-        if (this.activities.size >= this.maxActivities) {
-          // Remove oldest activities if at capacity
-          const oldestActivities = Array.from(this.activities.values())
-            .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
-            .slice(0, 500);
-
-          oldestActivities.forEach(oldActivity => this.activities.delete(oldActivity.id));
-          ErrorLogger.logInfo('Removed old activities due to capacity limit', {
-            operation: 'storage_cleanup_activities',
-            metadata: { removedCount: oldestActivities.length }
-          });
-        }
-
-        const newActivity: Activity = {
-          id: `activity_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-          ...activity,
-          timestamp: new Date().toISOString()
-        };
-
-        this.validateActivity(newActivity);
-        this.activities.set(newActivity.id, newActivity);
-
-        return newActivity;
-      } catch (error) {
-        if (error instanceof AppError) throw error;
-        ErrorLogger.logError(error as Error, {
-          operation: 'storage_create_activity',
-          metadata: { type: activity.type }
-        });
-        throw new AppError('Failed to create activity', 500);
+    create: (activityData: Omit<SimpleActivity, 'id' | 'timestamp'>): SimpleActivity => {
+      if (this.activityStore.length >= this.maxActivities) {
+        this.activityStore = this.activityStore.slice(-2000); // Keep latest 2000
       }
+
+      const newActivity: SimpleActivity = {
+        id: `activity_${++this.activityCounter}_${Date.now()}`,
+        ...activityData,
+        timestamp: new Date().toISOString()
+      };
+
+      this.activityStore.push(newActivity);
+      return newActivity;
     }
   };
 
-  // Agents methods
+  private createActivity = this.activities.create;
+
+  // Agent status methods
   agents = {
-    getAll: (): Agent[] => {
-      return Array.from(this.agents.values());
+    getAll: (): SimpleAgent[] => {
+      return [...this.agentStore];
     },
 
-    getActiveCount: (): number => {
-      return Array.from(this.agents.values()).filter(agent => agent.status === 'active').length;
-    },
-
-    updateStatus: (name: string, status: Agent['status']): void => {
-      try {
-        const agent = this.agents.get(name) || {
-          id: name,
-          name,
-          type: 'unknown',
-          status: 'inactive',
-          lastActivity: new Date().toISOString()
-        };
-
-        this.agents.set(name, {
-          ...agent,
-          status,
-          lastActivity: new Date().toISOString()
-        });
-      } catch (error) {
-        ErrorLogger.logError(error as Error, {
-          operation: 'storage_update_agent_status',
-          metadata: { agentName: name, status }
-        });
+    updateStatus: (agentName: string, status: 'active' | 'inactive' | 'error') => {
+      const agent = this.agentStore.find(a => a.name === agentName);
+      if (agent) {
+        agent.status = status;
+        agent.lastActivity = new Date().toISOString();
       }
     }
   };
+
+  // System statistics
+  getStats() {
+    return {
+      leads: this.leadStore.length,
+      activities: this.activityStore.length,
+      agents: this.agentStore.length,
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      timestamp: new Date().toISOString()
+    };
+  }
 
   // Cleanup methods
   cleanup = {
-    old: (days: number = 30): void => {
-      try {
-        const cutoffDate = new Date();
-        cutoffDate.setDate(cutoffDate.getDate() - days);
+    removeOldLeads: (daysOld: number = 30) => {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+      
+      const originalCount = this.leadStore.length;
+      this.leadStore = this.leadStore.filter(lead => 
+        new Date(lead.createdAt) > cutoffDate
+      );
+      
+      return originalCount - this.leadStore.length;
+    },
 
-        // Cleanup old leads
-        const oldLeads = Array.from(this.leads.values()).filter(lead => 
-          new Date(lead.createdAt) < cutoffDate
-        );
-        oldLeads.forEach(lead => this.leads.delete(lead.id));
-
-        // Cleanup old activities
-        const oldActivities = Array.from(this.activities.values()).filter(activity => 
-          new Date(activity.timestamp) < cutoffDate
-        );
-        oldActivities.forEach(activity => this.activities.delete(activity.id));
-
-        ErrorLogger.logInfo('Cleanup completed', {
-          operation: 'storage_cleanup',
-          metadata: { 
-            removedLeads: oldLeads.length, 
-            removedActivities: oldActivities.length,
-            cutoffDays: days
-          }
-        });
-      } catch (error) {
-        ErrorLogger.logError(error as Error, {
-          operation: 'storage_cleanup',
-          metadata: { days }
-        });
-      }
+    removeOldActivities: (daysOld: number = 7) => {
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+      
+      const originalCount = this.activityStore.length;
+      this.activityStore = this.activityStore.filter(activity => 
+        new Date(activity.timestamp) > cutoffDate
+      );
+      
+      return originalCount - this.activityStore.length;
     }
   };
-
-  // Get storage statistics
-  getStats() {
-    return {
-      leads: this.leads.size,
-      activities: this.activities.size,
-      agents: this.agents.size,
-      maxLeads: this.maxLeads,
-      maxActivities: this.maxActivities
-    };
-  }
 }
 
-// Initialize with some sample data for development
-const createSampleData = (storage: SafeStorage) => {
-  try {
-    // Create sample leads
-    const sampleLeads = [
-      {
-        email: 'john.doe@example.com',
-        leadData: {
-          firstName: 'John',
-          lastName: 'Doe',
-          phone: '555-0123',
-          creditAssessment: { approved: true, score: 720 },
-          metadata: { priority: 'high', source: 'website' }
-        }
-      },
-      {
-        email: 'jane.smith@example.com',
-        leadData: {
-          firstName: 'Jane',
-          lastName: 'Smith',
-          phone: '555-0124',
-          creditAssessment: { approved: true, score: 680 },
-          metadata: { priority: 'medium', source: 'referral' }
-        }
-      }
-    ];
+export const storage = new FlexibleStorage();
 
-    sampleLeads.forEach(lead => {
-      try {
-        storage.leads.create(lead);
-      } catch (error) {
-        ErrorLogger.logWarning('Failed to create sample lead', {
-          operation: 'storage_sample_data',
-          metadata: { email: lead.email, error: (error as Error).message }
-        });
-      }
-    });
-
-    // Create sample activities
-    const sampleActivities = [
-      {
-        type: 'lead_created',
-        description: 'New lead generated from website visitor',
-        agentType: 'VisitorIdentifierAgent',
-        metadata: { source: 'website' }
-      },
-      {
-        type: 'email_sent',
-        description: 'Re-engagement email sent to qualified lead',
-        agentType: 'EmailReengagementAgent',
-        metadata: { template: 'reengagement_v1' }
-      },
-      {
-        type: 'credit_check',
-        description: 'Soft credit check completed',
-        agentType: 'CreditCheckAgent',
-        metadata: { score: 720, approved: true }
-      }
-    ];
-
-    sampleActivities.forEach(activity => {
-      try {
-        storage.activities.create(activity);
-      } catch (error) {
-        ErrorLogger.logWarning('Failed to create sample activity', {
-          operation: 'storage_sample_data',
-          metadata: { type: activity.type, error: (error as Error).message }
-        });
-      }
-    });
-
-    ErrorLogger.logInfo('Sample data created successfully');
-  } catch (error) {
-    ErrorLogger.logError(error as Error, {
-      operation: 'storage_sample_data_creation'
-    });
-  }
-};
-
-export const storage = new SafeStorage();
-
-// Initialize sample data in development
-if (process.env.NODE_ENV === 'development') {
-  createSampleData(storage);
-}
-
-// Cleanup old data every hour
-setInterval(() => {
-  storage.cleanup.old(7); // Keep data for 7 days in development
-}, 60 * 60 * 1000);
+console.log("Flexible storage system initialized for data ingestion APIs");
+console.log(`Initial stats: ${JSON.stringify(storage.getStats(), null, 2)}`);

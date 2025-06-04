@@ -27,12 +27,18 @@ interface AgentStatus {
 }
 
 interface Activity {
-  id: number;
-  agentName: string;
-  action: string;
-  status: string;
-  details: string | null;
-  createdAt: string;
+  id: string;
+  type: string;
+  timestamp: string;
+  description: string;
+  agentType?: string;
+  metadata?: any;
+  // Legacy fields for compatibility
+  agentName?: string;
+  action?: string;
+  status?: string;
+  details?: string | null;
+  createdAt?: string;
 }
 
 interface Lead {
@@ -69,7 +75,7 @@ export default function Dashboard() {
     if (activities && activities.length > 0) {
       const recentErrors = activities.filter(a => 
         a.status === 'error' && 
-        new Date(a.createdAt).getTime() > Date.now() - 60000 // Last minute
+        new Date(a.timestamp || a.createdAt || new Date()).getTime() > Date.now() - 60000 // Last minute
       );
       
       if (recentErrors.length > 0) {
@@ -211,10 +217,10 @@ export default function Dashboard() {
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="font-medium truncate">
-                          {activity.agentName.replace('Agent', '')}: {activity.action}
+                          {(activity.agentType || activity.agentName || 'System').replace('Agent', '')}: {activity.description || activity.action}
                         </div>
                         <div className="text-xs text-gray-500">
-                          {new Date(activity.createdAt).toLocaleTimeString()}
+                          {new Date(activity.timestamp || activity.createdAt || Date.now()).toLocaleTimeString()}
                         </div>
                       </div>
                     </div>
