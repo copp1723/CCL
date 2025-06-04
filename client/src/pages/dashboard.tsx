@@ -8,7 +8,57 @@ import { ChatWidget } from '@/components/chat-widget';
 import { useQuery } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { useToast } from '@/hooks/use-toast';
-import type { Metrics, AgentStatus, Activity, Lead } from '../../shared/types';
+// Type definitions
+interface Metrics {
+  activeAgents: number;
+  leadsGenerated: number;
+  emailDeliveryRate: number;
+  avgResponseTime: number;
+}
+
+interface AgentStatus {
+  name: string;
+  status: 'active' | 'inactive' | 'error';
+  lastActivity: Date;
+  processedToday: number;
+  description: string;
+  icon: string;
+  color: string;
+}
+
+interface Activity {
+  id: number;
+  agentName: string;
+  action: string;
+  status: string;
+  details: string | null;
+  createdAt: Date;
+  visitorId: number | null;
+  leadId: number | null;
+}
+
+interface Lead {
+  id: number;
+  visitorId: number;
+  creditCheckId: number | null;
+  leadData: {
+    leadId: string;
+    visitor: {
+      emailHash: string;
+    };
+    creditAssessment: {
+      approved: boolean;
+      score?: number;
+    };
+    metadata: {
+      priority: 'high' | 'medium' | 'low';
+    };
+  };
+  status: string;
+  dealerResponse: unknown;
+  submittedAt: Date | null;
+  createdAt: Date;
+}
 
 interface User {
   name: string;
@@ -25,22 +75,22 @@ export default function Dashboard() {
 
   const { toast } = useToast();
 
-  const { data: metrics, isLoading: metricsLoading } = useQuery({
+  const { data: metrics, isLoading: metricsLoading } = useQuery<Metrics>({
     queryKey: ['/api/metrics'],
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
-  const { data: agentStatuses, isLoading: statusLoading } = useQuery({
+  const { data: agentStatuses, isLoading: statusLoading } = useQuery<AgentStatus[]>({
     queryKey: ['/api/agents/status'],
     refetchInterval: 15000, // Refresh every 15 seconds
   });
 
-  const { data: activities, isLoading: activitiesLoading } = useQuery({
+  const { data: activities, isLoading: activitiesLoading } = useQuery<Activity[]>({
     queryKey: ['/api/activity'],
     refetchInterval: 10000, // Refresh every 10 seconds
   });
 
-  const { data: leads, isLoading: leadsLoading } = useQuery({
+  const { data: leads, isLoading: leadsLoading } = useQuery<Lead[]>({
     queryKey: ['/api/leads'],
     refetchInterval: 30000, // Refresh every 30 seconds
   });

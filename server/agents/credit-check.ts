@@ -19,9 +19,9 @@ export class CreditCheckService {
 
       // Store credit check result
       const creditCheck = await storage.createCreditCheck({
-        visitorId: visitorId || undefined,
+        visitorId,
         phone: formattedPhone,
-        creditScore: creditResult.creditScore || undefined,
+        creditScore: creditResult.creditScore,
         approved: creditResult.approved ?? false,
         externalId: creditResult.externalId,
       });
