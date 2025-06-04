@@ -10,6 +10,7 @@ import { agentConfigService } from "./services/AgentConfigService";
 import { flexPathService } from "./services/FlexPathService";
 import { dataMappingService } from "./services/DataMappingService";
 import { emailCampaignService } from "./services/EmailCampaignService";
+import { mailgunService } from "./services/MailgunService";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
@@ -562,7 +563,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Mailgun configuration status
   app.get("/api/mailgun/status", (req, res) => {
     try {
-      const { mailgunService } = require('./services/MailgunService');
       const status = mailgunService.validateConfiguration();
       res.json(status);
     } catch (error) {
