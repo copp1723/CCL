@@ -1,0 +1,305 @@
+import { Agent, tool } from '@openai/agents';
+import { storage } from '../storage';
+import { EmailService } from '../services/EmailService';
+import { randomUUID } from 'crypto';
+import type { InsertEmailCampaign } from '@shared/schema';
+
+export class EmailReengagementAgent {
+  private agent: Agent;
+  private emailService: EmailService;
+
+  constructor() {
+    this.emailService = new EmailService();
+    
+    this.agent = new Agent({
+      name: 'Email Re-engagement Agent',
+      instructions: `
+        You are responsible for sending personalized re-engagement emails to visitors who have abandoned their loan applications.
+        Your primary tasks:
+        1. Generate personalized email content based on visitor data
+        2. Create secure return tokens with 24-hour TTL
+        3. Send emails via email service provider
+        4. Track email delivery and engagement
+        5. Emit email_sent trace events
+        
+        Always use secure token generation and respect email delivery best practices.
+        Personalize content based on abandonment step and visitor behavior.
+      `,
+      tools: [
+        this.createGenerateEmailContentTool(),
+        this.createCreateReturnTokenTool(),
+        this.createSendEmailTool(),
+      ],
+    });
+  }
+
+  private createGenerateEmailContentTool() {
+    return tool({
+      name: 'generate_email_content',
+      description: 'Generate personalized email content based on visitor abandonment data',
+      execute: async (params: { visitorId: number; abandonmentStep: number }) => {
+        try {
+          const { visitorId, abandonmentStep } = params;
+          
+          const visitor = await storage.getVisitor(visitorId);
+          if (!visitor) {
+            throw new Error('Visitor not found');
+          }
+
+          const content = this.generatePersonalizedContent(abandonmentStep);
+          
+          return {
+            success: true,
+            content,
+            subject: content.subject,
+            body: content.body,
+          };
+        } catch (error) {
+          console.error('[EmailReengagementAgent] Error generating email content:', error);
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          };
+        }
+      },
+    });
+  }
+
+  private createCreateReturnTokenTool() {
+    return tool({
+      name: 'create_return_token',
+      description: 'Create a secure return token with 24-hour TTL',
+      execute: async (params: { visitorId: number }) => {
+        try {
+          const { visitorId } = params;
+          
+          const returnToken = randomUUID();
+          const expiryTime = new Date();
+          expiryTime.setHours(expiryTime.getHours() + 24); // 24-hour TTL
+
+          // Update visitor with return token
+          await storage.updateVisitor(visitorId, {
+            returnToken,
+            returnTokenExpiry: expiryTime,
+          });
+
+          console.log(`[EmailReengagementAgent] Created return token for visitor: ${visitorId}`);
+          
+          return {
+            success: true,
+            returnToken,
+            expiryTime: expiryTime.toISOString(),
+            message: 'Return token created successfully',
+          };
+        } catch (error) {
+          console.error('[EmailReengagementAgent] Error creating return token:', error);
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          };
+        }
+      },
+    });
+  }
+
+  private createSendEmailTool() {
+    return tool({
+      name: 'send_email',
+      description: 'Send re-engagement email via email service provider',
+      execute: async (params: { 
+        visitorId: number; 
+        emailHash: string; 
+        subject: string; 
+        body: string; 
+        returnToken: string;
+      }) => {
+        try {
+          const { visitorId, emailHash, subject, body, returnToken } = params;
+          
+          // Create email campaign record
+          const campaign: InsertEmailCampaign = {
+            visitorId,
+            templateId: 'abandonment_reengagement',
+            emailHash,
+            returnToken,
+            status: 'sent',
+          };
+
+          const emailCampaign = await storage.createEmailCampaign(campaign);
+
+          // Send email via service
+          const emailResult = await this.emailService.sendReengagementEmail({
+            to: emailHash, // In production, this would be the actual email
+            subject,
+            body,
+            returnToken,
+          });
+
+          // Log activity
+          await storage.createAgentActivity({
+            agentType: 'email_reengagement',
+            action: 'email_sent',
+            description: `Re-engagement email sent via ${this.emailService.getProviderName()}`,
+            targetId: visitorId.toString(),
+            metadata: { 
+              emailCampaignId: emailCampaign.id,
+              returnToken,
+              provider: this.emailService.getProviderName(),
+            },
+          });
+
+          console.log(`[EmailReengagementAgent] Sent email for visitor: ${visitorId}, campaign: ${emailCampaign.id}`);
+          
+          return {
+            success: true,
+            emailCampaignId: emailCampaign.id,
+            emailResult,
+            message: 'Email sent successfully',
+          };
+        } catch (error) {
+          console.error('[EmailReengagementAgent] Error sending email:', error);
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          };
+        }
+      },
+    });
+  }
+
+  private generatePersonalizedContent(abandonmentStep: number): { subject: string; body: string } {
+    const stepMessages = {
+      1: {
+        subject: 'Complete Your Car Loan Application - Just One More Step!',
+        body: `
+          Hi there!
+          
+          We noticed you started your car loan application with Complete Car Loans but didn't finish. 
+          Don't worry - we've saved your progress and you're just one step away from getting pre-approved!
+          
+          ✅ Quick 2-minute completion
+          ✅ Competitive rates starting at 3.9% APR
+          ✅ Get approved in minutes
+          
+          Click here to continue where you left off: {{RETURN_LINK}}
+          
+          This link expires in 24 hours for your security.
+          
+          Best regards,
+          The CCL Team
+        `,
+      },
+      2: {
+        subject: 'Your Car Loan is Almost Ready - Complete Your Application',
+        body: `
+          Hi there!
+          
+          You're so close to getting your car loan approved! We have most of your information 
+          and just need a few more details to complete your application.
+          
+          ✅ Pre-qualification in progress
+          ✅ Rates as low as 3.9% APR
+          ✅ Multiple lender options
+          
+          Continue your application: {{RETURN_LINK}}
+          
+          Don't miss out on today's competitive rates!
+          
+          Best regards,
+          The CCL Team
+        `,
+      },
+      3: {
+        subject: 'Final Step: Complete Your Car Loan Application Now',
+        body: `
+          Hi there!
+          
+          You're on the final step of your car loan application! Complete it now to get 
+          instant approval and lock in your rate.
+          
+          ✅ Almost approved
+          ✅ Best rates available
+          ✅ Instant decision
+          
+          Finish your application: {{RETURN_LINK}}
+          
+          This secure link expires in 24 hours.
+          
+          Best regards,
+          The CCL Team
+        `,
+      },
+    };
+
+    return stepMessages[abandonmentStep as keyof typeof stepMessages] || stepMessages[1];
+  }
+
+  async sendReengagementEmail(visitorId: number): Promise<{ success: boolean; campaignId?: number; error?: string }> {
+    try {
+      const visitor = await storage.getVisitor(visitorId);
+      if (!visitor) {
+        throw new Error('Visitor not found');
+      }
+
+      // Generate return token
+      const returnToken = randomUUID();
+      const expiryTime = new Date();
+      expiryTime.setHours(expiryTime.getHours() + 24);
+
+      // Update visitor with return token
+      await storage.updateVisitor(visitorId, {
+        returnToken,
+        returnTokenExpiry: expiryTime,
+      });
+
+      // Generate personalized content
+      const content = this.generatePersonalizedContent(visitor.abandonmentStep || 1);
+      
+      // Create email campaign
+      const campaign: InsertEmailCampaign = {
+        visitorId,
+        templateId: 'abandonment_reengagement',
+        emailHash: visitor.emailHash,
+        returnToken,
+        status: 'sent',
+      };
+
+      const emailCampaign = await storage.createEmailCampaign(campaign);
+
+      // Send email
+      const emailResult = await this.emailService.sendReengagementEmail({
+        to: visitor.emailHash,
+        subject: content.subject,
+        body: content.body.replace('{{RETURN_LINK}}', `${process.env.BASE_URL || 'https://app.completecarloans.com'}/return/${returnToken}`),
+        returnToken,
+      });
+
+      // Log activity
+      await storage.createAgentActivity({
+        agentType: 'email_reengagement',
+        action: 'email_sent',
+        description: 'Re-engagement email sent successfully',
+        targetId: visitorId.toString(),
+        metadata: { 
+          emailCampaignId: emailCampaign.id,
+          returnToken,
+          abandonmentStep: visitor.abandonmentStep,
+        },
+      });
+
+      console.log(`[EmailReengagementAgent] Sent re-engagement email for visitor: ${visitorId}`);
+      
+      return { success: true, campaignId: emailCampaign.id };
+    } catch (error) {
+      console.error('[EmailReengagementAgent] Error sending re-engagement email:', error);
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      };
+    }
+  }
+
+  getAgent(): Agent {
+    return this.agent;
+  }
+}
