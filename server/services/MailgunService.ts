@@ -28,9 +28,18 @@ class MailgunService {
         username: 'api',
         key: apiKey,
       });
-      this.domain = domain;
+      
+      // Extract just the domain name from URL if provided
+      if (domain.includes('mailgun.org')) {
+        // Extract sandbox domain from URL like: https://app.mailgun.com/mg/sending/sandboxXXX.mailgun.org/settings
+        const matches = domain.match(/sandbox[a-f0-9]+\.mailgun\.org/);
+        this.domain = matches ? matches[0] : domain;
+      } else {
+        this.domain = domain;
+      }
+      
       this.isConfigured = true;
-      console.log('Mailgun service initialized');
+      console.log(`Mailgun service initialized with domain: ${this.domain}`);
     } else {
       console.log('Mailgun API key or domain not found - email sending will be simulated');
     }
