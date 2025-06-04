@@ -12,23 +12,32 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   res.status(status).json({ message });
 });
 
-registerRoutes(app).then((server) => {
-  function shutdown() {
-    console.log("Received termination signal. Shutting down gracefully...");
-    server.close(() => {
-      console.log("Server closed. Exiting process.");
-      process.exit(0);
-    });
-  }
-  process.on("SIGTERM", shutdown);
-  process.on("SIGINT", shutdown);
+// Register routes
+registerRoutes(app);
 
-  if (process.env.NODE_ENV === "development") {
-    setupVite(app, server);
-  } else {
-    serveStatic(app);
-  }
-}).catch((error) => {
-  console.error("Failed to start server:", error);
-  process.exit(1);
+const PORT = process.env.PORT || 5000;
+const server = app.listen(PORT, "0.0.0.0", () => {
+  console.log(`Server running on port ${PORT}`);
+  console.log("📧 Mailgun email system ready");
+  console.log("🔄 Three data ingestion APIs active:");
+  console.log("   1. POST /api/email-campaigns/bulk-send (Bulk Dataset)");
+  console.log("   2. POST /api/leads/process (Real-time Processing)");
+  console.log("   3. POST /api/webhook/dealer-leads (Dealer Webhook)");
 });
+
+function shutdown() {
+  console.log("Received termination signal. Shutting down gracefully...");
+  server.close(() => {
+    console.log("Server closed. Exiting process.");
+    process.exit(0);
+  });
+}
+
+process.on("SIGTERM", shutdown);
+process.on("SIGINT", shutdown);
+
+if (process.env.NODE_ENV === "development") {
+  setupVite(app, server);
+} else {
+  serveStatic(app);
+}
