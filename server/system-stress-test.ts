@@ -1,12 +1,12 @@
 import { storage } from './storage';
-import { MailgunService } from './services/MailgunService';
+import { mailgunService } from './services/external-apis';
 
 class SystemStressTest {
-  private mailgunService: MailgunService;
+  private mailgunService = mailgunService;
   private testResults: any[] = [];
 
   constructor() {
-    this.mailgunService = new MailgunService();
+    // Using singleton mailgun service
   }
 
   async testDataIngestionReliability(): Promise<{
@@ -267,7 +267,7 @@ class SystemStressTest {
       activityMetrics: {
         totalActivities: activities.length,
         recentActivities: activities.slice(0, 5).length,
-        activityTypes: [...new Set(activities.map(a => a.type))]
+        activityTypes: Array.from(new Set(activities.map(a => a.type)))
       },
       dataIntegrity: {
         leadsStored: stats.leads,
@@ -284,7 +284,7 @@ class SystemStressTest {
       // Test single email delivery
       const testResult = await this.mailgunService.sendEmail({
         to: 'system-test@example.com',
-        from: 'cathy@' + (process.env.MAILGUN_DOMAIN || 'example.com'),
+        from: `cathy@${process.env.MAILGUN_DOMAIN || 'example.com'}`,
         subject: 'CCL System Test - Email Delivery Verification',
         text: 'This is a system test email from Cathy at Complete Car Loans.',
         html: '<p>This is a system test email from <strong>Cathy</strong> at Complete Car Loans.</p>'

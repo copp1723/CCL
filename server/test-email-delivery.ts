@@ -1,11 +1,11 @@
-import { MailgunService } from './services/MailgunService';
+import { mailgunService } from './services/external-apis';
 import { storage } from './storage';
 
 class EmailDeliveryTest {
-  private mailgunService: MailgunService;
+  private mailgunService = mailgunService;
 
   constructor() {
-    this.mailgunService = new MailgunService();
+    // Using singleton mailgun service
   }
 
   async testEmailDelivery(testEmail: string): Promise<{

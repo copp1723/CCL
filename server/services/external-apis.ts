@@ -26,6 +26,7 @@ export interface FlexPathCreditResponse {
 
 export interface MailgunEmailRequest {
   to: string;
+  from: string;
   subject: string;
   html: string;
   text?: string;
