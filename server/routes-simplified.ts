@@ -1,11 +1,22 @@
 import express, { Request, Response } from "express";
 import { storage } from "./storage";
-import { handleApiError, createSuccessResponse, createErrorResponse, validateRequired, validateEmail, ApiError } from "./utils/error-handler";
+import { 
+  handleApiError, 
+  createSuccessResponse, 
+  createErrorResponse, 
+  validateRequired, 
+  validateEmail,
+  validateDataFormat,
+  asyncHandler,
+  generateRequestId,
+  ApiError 
+} from "./utils/error-handler";
+import { ErrorCode } from "./utils/error-codes";
 
 export async function registerRoutes(app: express.Express) {
   
   // System health check endpoint
-  app.get("/api/system/health", async (_req: Request, res: Response) => {
+  app.get("/api/system/health", asyncHandler(async (req: Request, res: Response) => {
     try {
       const stats = storage.getStats();
       const agents = storage.getAgents();
@@ -21,47 +32,44 @@ export async function registerRoutes(app: express.Express) {
         totalLeads: stats.leads,
         totalActivities: stats.activities,
         timestamp: new Date().toISOString()
-      }));
+      }, req.requestId));
     } catch (error) {
-      handleApiError(res, error);
+      throw new ApiError(ErrorCode.SYSTEM_HEALTH_CHECK_FAILED, undefined, { originalError: error });
     }
-  });
+  }));
   
   // Agent Status API
-  app.get("/api/agents/status", async (_req: Request, res: Response) => {
+  app.get("/api/agents/status", asyncHandler(async (req: Request, res: Response) => {
     try {
       const agents = storage.getAgents();
-      res.json(agents);
+      res.json(createSuccessResponse(agents, req.requestId));
     } catch (error) {
-      console.error("Error fetching agent status:", error);
-      res.status(500).json({ message: "Failed to fetch agent status" });
+      throw new ApiError(ErrorCode.AGENT_STATUS_FETCH_FAILED, undefined, { originalError: error });
     }
-  });
+  }));
 
   // Activity Feed API
-  app.get("/api/activity", async (_req: Request, res: Response) => {
+  app.get("/api/activity", asyncHandler(async (req: Request, res: Response) => {
     try {
       const activities = storage.getActivities().slice(0, 50);
-      res.json(activities);
+      res.json(createSuccessResponse(activities, req.requestId));
     } catch (error) {
-      console.error("Error fetching activities:", error);
-      res.status(500).json({ message: "Failed to fetch activities" });
+      throw new ApiError(ErrorCode.ACTIVITY_FETCH_FAILED, undefined, { originalError: error });
     }
-  });
+  }));
 
   // Leads API
-  app.get("/api/leads", async (_req: Request, res: Response) => {
+  app.get("/api/leads", asyncHandler(async (req: Request, res: Response) => {
     try {
       const leads = storage.getLeads();
-      res.json(leads);
+      res.json(createSuccessResponse(leads, req.requestId));
     } catch (error) {
-      console.error("Error fetching leads:", error);
-      res.status(500).json({ message: "Failed to fetch leads" });
+      throw new ApiError(ErrorCode.LEAD_PROCESSING_FAILED, 'Failed to retrieve leads', { originalError: error });
     }
-  });
+  }));
 
   // Metrics API
-  app.get("/api/metrics", async (_req: Request, res: Response) => {
+  app.get("/api/metrics", asyncHandler(async (req: Request, res: Response) => {
     try {
       const stats = storage.getStats();
       const agents = storage.getAgents();
@@ -69,16 +77,15 @@ export async function registerRoutes(app: express.Express) {
       const metrics = {
         activeAgents: agents.filter(a => a.status === 'active').length,
         leadsGenerated: stats.leads,
-        emailDeliveryRate: 95, // Mock for demo
+        emailDeliveryRate: 95,
         avgResponseTime: 2.3
       };
       
-      res.json(metrics);
+      res.json(createSuccessResponse(metrics, req.requestId));
     } catch (error) {
-      console.error("Error fetching metrics:", error);
-      res.status(500).json({ message: "Failed to fetch metrics" });
+      throw new ApiError(ErrorCode.SYSTEM_STATS_UNAVAILABLE, undefined, { originalError: error });
     }
-  });
+  }));
 
   // Data Processing - Real-time Lead Processing
   app.post("/api/leads/process", async (req: Request, res: Response) => {
