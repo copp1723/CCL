@@ -1,0 +1,15 @@
+node_modules
+dist
+build
+.next
+.nuxt
+.vscode
+.idea
+*.log
+package-lock.json
+yarn.lock
+.env*
+coverage
+.nyc_output
+*.min.js
+*.min.css
