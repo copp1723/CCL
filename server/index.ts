@@ -3,6 +3,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { setupVite, serveStatic } from "./vite";
 import { handleApiError } from "./utils/error-handler";
 import { storage } from "./database-storage";
+import { sanitizeCampaignName, sanitizeEmail, sanitizeText, sanitizeJsonData } from "./utils/input-sanitizer";
 
 const app = express();
 app.use(express.json({ limit: "50mb" }));
@@ -134,15 +135,19 @@ app.post('/api/leads/process', async (req, res) => {
       });
     }
     
+    // Sanitize inputs to prevent security vulnerabilities
+    const sanitizedEmail = sanitizeEmail(email);
+    const sanitizedData = sanitizeJsonData({ vehicleInterest, firstName, lastName });
+    
     const lead = await storage.createLead({
-      email,
+      email: sanitizedEmail,
       status: 'new',
-      leadData: { vehicleInterest, firstName, lastName }
+      leadData: sanitizedData
     });
     
     await storage.createActivity(
       'lead_processing',
-      `Lead processed for ${email.replace(/@.*/, '@...')}`,
+      `Lead processed for ${sanitizedEmail.replace(/@.*/, '@...')}`,
       'LeadPackagingAgent',
       { leadId: lead.id }
     );
@@ -152,6 +157,47 @@ app.post('/api/leads/process', async (req, res) => {
       data: {
         leadId: lead.id,
         message: 'Lead processed and email automation triggered'
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    handleApiError(res, error);
+  }
+});
+
+app.post('/api/email-campaigns/bulk-send', async (req, res) => {
+  try {
+    const { campaignName, data } = req.body;
+    
+    if (!campaignName) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_001',
+          message: 'Campaign name is required',
+          category: 'validation',
+          retryable: false
+        },
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    // Sanitize campaign name to prevent path traversal attacks
+    const sanitizedCampaignName = sanitizeCampaignName(campaignName);
+    const sanitizedData = sanitizeJsonData(data);
+    
+    await storage.createActivity(
+      'bulk_campaign',
+      `Bulk email campaign "${sanitizedCampaignName}" processed ${Array.isArray(sanitizedData) ? sanitizedData.length : 0} records`,
+      'EmailReengagementAgent',
+      { campaignName: sanitizedCampaignName, recordCount: Array.isArray(sanitizedData) ? sanitizedData.length : 0 }
+    );
+    
+    res.json({
+      success: true,
+      data: {
+        processed: Array.isArray(sanitizedData) ? sanitizedData.length : 0,
+        message: `${sanitizedCampaignName} campaign processed ${Array.isArray(sanitizedData) ? sanitizedData.length : 0} records`
       },
       timestamp: new Date().toISOString()
     });
