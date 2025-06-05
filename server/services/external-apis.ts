@@ -177,8 +177,8 @@ export class MailgunService {
 
     try {
       const formData = new FormData();
-      formData.append('from', request.from || this.fromEmail);
-      formData.append('to', request.to);
+      formData.append('from', `Cathy from Complete Car Loans <postmaster@${this.domain}>`);
+      formData.append('to', `${request.to}`);
       formData.append('subject', request.subject);
       formData.append('html', request.html);
 
