@@ -1,0 +1,252 @@
+# Remote Agent Task Sets
+
+## Set 1: Dependency Management Tasks
+
+### Task 1.1: Security Vulnerability Audit and Patch
+**Objective**: Identify and update dependencies with known security vulnerabilities
+**Scope**: Single repository, specific vulnerability severity level
+
+**Detailed Instructions**:
+- Run `npm audit` or equivalent security scanner for the project
+- Identify all HIGH and CRITICAL severity vulnerabilities
+- Update each vulnerable dependency to the latest secure version
+- Run the full test suite after each dependency update
+- If tests fail, revert that specific update and document the issue
+- Create a summary report of all successful updates and any blocked updates
+- Ensure all security issues are resolved or documented with reasoning
+
+**Self-Validation**:
+- Security scanner shows 0 HIGH/CRITICAL vulnerabilities
+- All existing tests pass
+- Application builds successfully
+- No new console warnings or errors introduced
+
+---
+
+### Task 1.2: Node.js Major Version Dependencies Update
+**Objective**: Update all dependencies to support Node.js 18+ compatibility
+**Scope**: Single Node.js project
+
+**Detailed Instructions**:
+- Audit current `package.json` for Node.js version compatibility
+- Identify dependencies that don't support Node.js 18+
+- Update each dependency individually, starting with direct dependencies
+- Update `engines` field in package.json to specify Node 18+
+- Update any deprecated API usage flagged by updated dependencies
+- Run `npm ls` to verify no dependency conflicts
+- Test application startup and core functionality
+- Update `.nvmrc` or equivalent Node version specification files
+
+**Self-Validation**:
+- `npm install` completes without warnings
+- `npm ls` shows no dependency conflicts
+- Application runs on Node.js 18+ without deprecation warnings
+- All tests pass on target Node.js version
+
+---
+
+### Task 1.3: Python Requirements Security and Compatibility Update
+**Objective**: Update Python dependencies for security and Python 3.11+ compatibility
+**Scope**: Single Python project with requirements.txt or pyproject.toml
+
+**Detailed Instructions**:
+- Run `safety check` or `pip-audit` to identify vulnerable packages
+- Use `pip list --outdated` to identify outdated packages
+- Update each package individually, prioritizing security fixes
+- Verify compatibility with Python 3.11+ for each updated package
+- Update version constraints in requirements.txt/pyproject.toml
+- Run full test suite after each significant update
+- Update any deprecated imports or API usage
+- Regenerate requirements-lock.txt or equivalent lock file
+
+**Self-Validation**:
+- Security scanner shows no known vulnerabilities
+- All tests pass on Python 3.11+
+- `pip install` completes without conflicts
+- Application imports and runs without deprecation warnings
+
+---
+
+### Task 1.4: Frontend Dependencies Modernization
+**Objective**: Update frontend build tools and major framework dependencies
+**Scope**: Single frontend project (React, Vue, Angular, etc.)
+
+**Detailed Instructions**:
+- Update build tools (Webpack, Vite, Parcel) to latest stable versions
+- Update major framework to latest LTS version (React 18, Vue 3, etc.)
+- Update TypeScript to latest stable version if applicable
+- Update testing framework dependencies (Jest, Vitest, Cypress)
+- Update linting and formatting tools (ESLint, Prettier)
+- Address any breaking changes in configuration files
+- Update import statements for renamed or moved packages
+- Verify build output and bundle size impact
+
+**Self-Validation**:
+- Project builds successfully with `npm run build`
+- Development server starts with `npm run dev`
+- All unit and integration tests pass
+- Linting passes with no errors
+- Bundle size has not increased significantly (>10%)
+
+---
+
+### Task 1.5: Docker Base Image and Dependencies Update
+**Objective**: Update Docker base images and system dependencies
+**Scope**: Single project's Dockerfile and docker-compose.yml
+
+**Detailed Instructions**:
+- Update base image to latest LTS version (node:18-alpine, python:3.11-slim, etc.)
+- Update system package dependencies in Dockerfile
+- Update multi-stage build dependencies if applicable
+- Verify all COPY and RUN commands still work correctly
+- Update docker-compose service versions
+- Test image build process completes successfully
+- Verify container runs and application starts correctly
+- Check for any security vulnerabilities in new base image
+
+**Self-Validation**:
+- `docker build` completes without errors
+- `docker run` starts application successfully
+- Container health checks pass if configured
+- Image size has not increased significantly
+- No high-severity vulnerabilities in base image scan
+
+---
+
+## Set 2: Automated Refactoring Tasks
+
+### Task 2.1: Extract Reusable Utility Functions
+**Objective**: Identify and extract repeated code patterns into reusable utility functions
+**Scope**: Single module or service with identified code duplication
+
+**Detailed Instructions**:
+- Analyze target files for repeated code patterns (minimum 3 occurrences)
+- Extract common logic into appropriately named utility functions
+- Create a dedicated utils/helpers directory if it doesn't exist
+- Add comprehensive JSDoc/docstring documentation for each utility
+- Replace all instances of duplicated code with utility function calls
+- Add unit tests for each extracted utility function
+- Ensure function names follow project naming conventions
+- Verify no functionality is broken by the extraction
+
+**Self-Validation**:
+- All existing tests continue to pass
+- New utility functions have 100% test coverage
+- No code duplication remains for targeted patterns
+- Linting passes with no new warnings
+- Functions are properly documented with examples
+
+---
+
+### Task 2.2: Convert Callback Hell to Async/Await
+**Objective**: Modernize asynchronous code patterns for better readability
+**Scope**: Single service or module with callback-based async operations
+
+**Detailed Instructions**:
+- Identify all callback-based async operations in target files
+- Convert nested callbacks to Promise-based functions
+- Replace Promise chains with async/await syntax
+- Add proper error handling with try/catch blocks
+- Update function signatures to return Promises where appropriate
+- Maintain the exact same functional behavior
+- Add TypeScript return types if project uses TypeScript
+- Update any related documentation or comments
+
+**Self-Validation**:
+- All existing functionality works identically
+- Error handling maintains same behavior
+- No unhandled Promise rejections introduced
+- Code passes existing async operation tests
+- ESLint/TSLint shows no async-related warnings
+
+---
+
+### Task 2.3: Implement Consistent Error Handling Pattern
+**Objective**: Standardize error handling across API endpoints or service methods
+**Scope**: Single API router or service class
+
+**Detailed Instructions**:
+- Audit current error handling patterns in target scope
+- Design consistent error response format (status codes, message structure)
+- Create centralized error handling middleware or base classes
+- Replace ad-hoc error handling with standardized approach
+- Ensure all errors include appropriate logging
+- Add error code constants for different error types
+- Update API documentation to reflect consistent error responses
+- Maintain backward compatibility for existing error responses
+
+**Self-Validation**:
+- All API endpoints return consistent error format
+- Error logging includes necessary context information
+- Existing error handling tests continue to pass
+- No breaking changes to public API error responses
+- Error codes are documented and consistent
+
+---
+
+### Task 2.4: Extract Configuration into Environment Variables
+**Objective**: Remove hardcoded configuration values and centralize configuration management
+**Scope**: Single application or service with hardcoded config values
+
+**Detailed Instructions**:
+- Identify all hardcoded configuration values (URLs, timeouts, limits, etc.)
+- Create environment variable names following project conventions
+- Add configuration loader/manager if not present
+- Replace hardcoded values with environment variable reads
+- Add default values for non-critical configuration
+- Update .env.example with all new environment variables
+- Add configuration validation on application startup
+- Document all configuration options in README
+
+**Self-Validation**:
+- Application starts successfully with default configuration
+- All configuration values are externalized
+- Configuration validation catches invalid values
+- .env.example is complete and accurate
+- No hardcoded values remain in target scope
+
+---
+
+### Task 2.5: Implement Repository Pattern for Data Access
+**Objective**: Abstract data access logic into repository pattern for better testability
+**Scope**: Single data model or entity with direct database access
+
+**Detailed Instructions**:
+- Create repository interface defining all data operations
+- Implement concrete repository class with current database logic
+- Extract all direct database calls from business logic into repository
+- Add dependency injection for repository in service classes
+- Create mock repository implementation for testing
+- Update existing tests to use mock repository
+- Ensure repository methods have consistent naming conventions
+- Add comprehensive error handling in repository methods
+
+**Self-Validation**:
+- All business logic is decoupled from direct database access
+- Existing functionality works with repository pattern
+- Tests run faster using mock repository
+- Repository interface is complete and consistent
+- No direct database calls remain in business logic layer
+
+---
+
+### Task 2.6: Optimize Database Query Performance
+**Objective**: Identify and optimize slow database queries and add appropriate indexing
+**Scope**: Single database table or service with performance issues
+
+**Detailed Instructions**:
+- Analyze current query patterns and identify slow operations
+- Add database indexes for frequently queried columns
+- Optimize N+1 query problems with eager loading or batch queries
+- Replace inefficient queries with optimized versions
+- Add query result caching where appropriate
+- Implement database query logging to monitor performance
+- Add query execution time monitoring
+- Document all optimization changes and performance improvements
+
+**Self-Validation**:
+- Query execution times show measurable improvement (>20% faster)
+- No functionality is broken by optimizations
+- Database migration scripts run successfully
+- Query monitoring shows improved performance metrics
+- All existing tests pass with optimized queries
