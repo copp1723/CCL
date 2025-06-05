@@ -72,21 +72,18 @@ export interface StorageInterface {
   getStats(): SystemStats;
 }
 
-class StreamlinedStorage implements StorageInterface {
+class DatabaseStorage implements StorageInterface {
   private leadCounter = 0;
   private activityCounter = 0;
-  private leadStore: LeadData[] = [];
-  private activityStore: Activity[] = [];
-  private agentStore: Agent[] = [];
 
   constructor() {
     this.initializeAgents();
-    this.createActivity("system_startup", "CCL Agent System initialized with Mailgun integration", "System");
+    this.createActivity("system_startup", "CCL Agent System initialized with database persistence", "System");
     this.createActivity("api_ready", "Three data ingestion APIs activated", "System");
   }
 
-  private initializeAgents() {
-    this.agentStore = [
+  private async initializeAgents() {
+    const agentsData = [
       {
         id: "agent_1",
         name: "VisitorIdentifierAgent",
