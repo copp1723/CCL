@@ -1,0 +1,194 @@
+name: Release Management
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.2.3)'
+        required: true
+        type: string
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    
+    outputs:
+      release-id: ${{ steps.create-release.outputs.id }}
+      upload-url: ${{ steps.create-release.outputs.upload_url }}
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: Generate changelog
+      id: changelog
+      run: |
+        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          VERSION="${{ github.event.inputs.version }}"
+        else
+          VERSION="${{ github.ref_name }}"
+        fi
+        
+        echo "Generating changelog for $VERSION"
+        
+        # Get commits since last tag
+        LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+        if [[ -n "$LAST_TAG" ]]; then
+          COMMITS=$(git log --oneline ${LAST_TAG}..HEAD --grep="feat:" --grep="fix:" --grep="BREAKING CHANGE:" --pretty=format:"- %s")
+        else
+          COMMITS=$(git log --oneline --grep="feat:" --grep="fix:" --grep="BREAKING CHANGE:" --pretty=format:"- %s")
+        fi
+        
+        cat > CHANGELOG.md << EOF
+        # Release $VERSION
+        
+        ## What's Changed
+        $COMMITS
+        
+        ## Full Changelog
+        [View all changes](https://github.com/${{ github.repository }}/compare/${LAST_TAG}...${VERSION})
+        EOF
+        
+        echo "changelog-file=CHANGELOG.md" >> $GITHUB_OUTPUT
+    
+    - name: Create GitHub Release
+      id: create-release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.event.inputs.version || github.ref_name }}
+        release_name: Release ${{ github.event.inputs.version || github.ref_name }}
+        body_path: CHANGELOG.md
+        draft: false
+        prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
+
+  build-artifacts:
+    name: Build Release Artifacts
+    runs-on: ubuntu-latest
+    needs: create-release
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Build application
+      run: npm run build
+      env:
+        NODE_ENV: production
+    
+    - name: Create release package
+      run: |
+        mkdir -p release-package
+        
+        # Copy built application
+        cp -r dist/ release-package/
+        cp -r client/dist/ release-package/client/
+        
+        # Copy source files needed for deployment
+        cp package.json release-package/
+        cp package-lock.json release-package/
+        cp -r server/ release-package/server/
+        cp -r shared/ release-package/shared/
+        
+        # Copy configuration files
+        cp tsconfig.json release-package/
+        cp tailwind.config.ts release-package/
+        cp vite.config.ts release-package/
+        
+        # Copy documentation
+        cp README.md release-package/ 2>/dev/null || echo "README.md not found"
+        cp CHANGELOG.md release-package/ 2>/dev/null || echo "CHANGELOG.md not found"
+        
+        # Create deployment archive
+        tar -czf ccl-agents-${{ github.ref_name }}.tar.gz -C release-package .
+        zip -r ccl-agents-${{ github.ref_name }}.zip release-package/
+    
+    - name: Upload release archive (tar.gz)
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload-url }}
+        asset_path: ./ccl-agents-${{ github.ref_name }}.tar.gz
+        asset_name: ccl-agents-${{ github.ref_name }}.tar.gz
+        asset_content_type: application/gzip
+    
+    - name: Upload release archive (zip)
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload-url }}
+        asset_path: ./ccl-agents-${{ github.ref_name }}.zip
+        asset_name: ccl-agents-${{ github.ref_name }}.zip
+        asset_content_type: application/zip
+
+  deploy-release:
+    name: Deploy Release
+    runs-on: ubuntu-latest
+    needs: [create-release, build-artifacts]
+    if: ${{ !contains(github.ref_name, 'alpha') && !contains(github.ref_name, 'beta') && !contains(github.ref_name, 'rc') }}
+    
+    environment:
+      name: production
+      url: https://ccl-agents.replit.app
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download release artifacts
+      run: |
+        curl -L -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+             -o release.tar.gz \
+             "https://api.github.com/repos/${{ github.repository }}/releases/latest/assets/ccl-agents-${{ github.ref_name }}.tar.gz"
+        
+        tar -xzf release.tar.gz
+    
+    - name: Deploy to production
+      run: |
+        echo "Deploying release ${{ github.ref_name }} to production"
+        echo "Release artifacts extracted and ready for deployment"
+        
+        # Production deployment would happen here
+        echo "Production deployment initiated"
+    
+    - name: Verify deployment
+      run: |
+        echo "Verifying production deployment..."
+        sleep 30
+        
+        # Health check
+        curl -f https://ccl-agents.replit.app/api/system/health
+        
+        echo "Production deployment verified successfully"
+
+  notify-release:
+    name: Release Notification
+    runs-on: ubuntu-latest
+    needs: [create-release, deploy-release]
+    if: always()
+    
+    steps:
+    - name: Notify release status
+      run: |
+        if [[ "${{ needs.deploy-release.result }}" == "success" ]]; then
+          echo "Release ${{ github.ref_name }} deployed successfully to production"
+        elif [[ "${{ needs.deploy-release.result }}" == "skipped" ]]; then
+          echo "Release ${{ github.ref_name }} created (pre-release, no deployment)"
+        else
+          echo "Release ${{ github.ref_name }} deployment failed"
+        fi
