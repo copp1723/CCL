@@ -173,7 +173,7 @@ export default function Dashboard() {
           <CardContent>
             <ScrollArea className="h-64">
               <div className="space-y-2">
-                {activities.slice(0, 10).map((activity) => (
+                {Array.isArray(activities) ? activities.slice(0, 10).map((activity) => (
                   <div key={activity.id} className="flex items-center space-x-3 p-2 text-sm">
                     <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
@@ -185,7 +185,11 @@ export default function Dashboard() {
                       </div>
                     </div>
                   </div>
-                ))}
+                )) : (
+                  <div className="text-center text-muted-foreground py-4">
+                    No recent activity
+                  </div>
+                )}
                 {activities.length === 0 && (
                   <div className="text-center text-muted-foreground py-4">
                     No recent activity
