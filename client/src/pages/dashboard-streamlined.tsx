@@ -65,10 +65,10 @@ export default function Dashboard() {
   });
 
   // Extract data from standardized API responses
-  const agents = agentsResponse?.data || [];
-  const metrics = metricsResponse?.data;
-  const activities = activitiesResponse?.data || [];
-  const leads = leadsResponse?.data || [];
+  const agents = (agentsResponse as any)?.data || [];
+  const metrics = (metricsResponse as any)?.data;
+  const activities = (activitiesResponse as any)?.data || [];
+  const leads = (leadsResponse as any)?.data || [];
 
   return (
     <div className="space-y-6">
