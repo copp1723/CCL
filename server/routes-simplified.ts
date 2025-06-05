@@ -3,6 +3,49 @@ import { storage } from "./storage";
 
 export async function registerRoutes(app: express.Express) {
   
+  // System stress test endpoint
+  app.post("/api/system/stress-test", async (_req: Request, res: Response) => {
+    try {
+      const { systemStressTest } = await import("./system-stress-test");
+      
+      console.log("Starting comprehensive system stress test...");
+      const startTime = Date.now();
+      
+      const [
+        dataIngestionResults,
+        emailDeliveryResults
+      ] = await Promise.all([
+        systemStressTest.testDataIngestionReliability(),
+        systemStressTest.testEmailDeliveryStability()
+      ]);
+      
+      const totalTime = Date.now() - startTime;
+      
+      const results = {
+        testDuration: totalTime,
+        timestamp: new Date().toISOString(),
+        dataIngestion: dataIngestionResults,
+        emailDelivery: emailDeliveryResults,
+        summary: {
+          totalLeadsProcessed: dataIngestionResults.leadProcessingResults.length + 
+                               dataIngestionResults.bulkCampaignResults.reduce((acc, batch) => acc + (batch.recordsProcessed || 0), 0) +
+                               dataIngestionResults.webhookResults.length,
+          systemStable: dataIngestionResults.systemStability.dataIntegrity.storageHealthy,
+          emailSystemReady: emailDeliveryResults.emailSystemConfigured
+        }
+      };
+      
+      console.log("Stress test completed successfully");
+      res.json(results);
+    } catch (error) {
+      console.error("Stress test failed:", error);
+      res.status(500).json({ 
+        error: "Stress test failed", 
+        details: error instanceof Error ? error.message : "Unknown error" 
+      });
+    }
+  });
+  
   // Agent Status API
   app.get("/api/agents/status", async (_req: Request, res: Response) => {
     try {
