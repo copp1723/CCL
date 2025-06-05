@@ -177,7 +177,7 @@ export class MailgunService {
 
     try {
       const formData = new FormData();
-      formData.append('from', this.fromEmail);
+      formData.append('from', request.from || this.fromEmail);
       formData.append('to', request.to);
       formData.append('subject', request.subject);
       formData.append('html', request.html);
@@ -197,8 +197,6 @@ export class MailgunService {
       }
 
       const apiUrl = `${this.baseUrl}/${this.domain}/messages`;
-      console.log(`Sending email to: ${apiUrl}`);
-      console.log(`Using domain: ${this.domain}`);
       
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -206,14 +204,21 @@ export class MailgunService {
           'Authorization': `Basic ${Buffer.from(`api:${this.apiKey}`).toString('base64')}`
         },
         body: formData,
-        signal: AbortSignal.timeout(15000) // 15 second timeout for email
+        signal: AbortSignal.timeout(15000)
       });
-
-      console.log(`Response status: ${response.status} ${response.statusText}`);
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.log(`Error response body: ${errorText}`);
+        const errorData = JSON.parse(errorText);
+        
+        // Handle sandbox domain authorization requirement
+        if (errorData.message && errorData.message.includes('authorized recipients')) {
+          return {
+            success: false,
+            error: `Sandbox domain requires authorized recipients. Please add ${request.to} to authorized recipients in your Mailgun dashboard at: https://app.mailgun.com/mg/sending/${this.domain.split('.')[0]}/settings`
+          };
+        }
+        
         throw new Error(`Mailgun API error: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
