@@ -196,7 +196,11 @@ export class MailgunService {
         });
       }
 
-      const response = await fetch(`${this.baseUrl}/${this.domain}/messages`, {
+      const apiUrl = `${this.baseUrl}/${this.domain}/messages`;
+      console.log(`Sending email to: ${apiUrl}`);
+      console.log(`Using domain: ${this.domain}`);
+      
+      const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Authorization': `Basic ${Buffer.from(`api:${this.apiKey}`).toString('base64')}`
@@ -205,8 +209,12 @@ export class MailgunService {
         signal: AbortSignal.timeout(15000) // 15 second timeout for email
       });
 
+      console.log(`Response status: ${response.status} ${response.statusText}`);
+
       if (!response.ok) {
-        throw new Error(`Mailgun API error: ${response.status} ${response.statusText}`);
+        const errorText = await response.text();
+        console.log(`Error response body: ${errorText}`);
+        throw new Error(`Mailgun API error: ${response.status} ${response.statusText} - ${errorText}`);
       }
 
       const data = await response.json();
