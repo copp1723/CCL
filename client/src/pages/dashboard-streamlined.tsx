@@ -44,25 +44,31 @@ interface Metrics {
 }
 
 export default function Dashboard() {
-  const { data: agents = [] } = useQuery<Agent[]>({
+  const { data: agentsResponse } = useQuery({
     queryKey: ['/api/agents/status'],
     refetchInterval: 30000,
   });
 
-  const { data: metrics } = useQuery<Metrics>({
+  const { data: metricsResponse } = useQuery({
     queryKey: ['/api/metrics'],
     refetchInterval: 30000,
   });
 
-  const { data: activities = [] } = useQuery<ActivityItem[]>({
+  const { data: activitiesResponse } = useQuery({
     queryKey: ['/api/activity'],
     refetchInterval: 10000,
   });
 
-  const { data: leads = [] } = useQuery<Lead[]>({
+  const { data: leadsResponse } = useQuery({
     queryKey: ['/api/leads'],
     refetchInterval: 30000,
   });
+
+  // Extract data from standardized API responses
+  const agents = agentsResponse?.data || [];
+  const metrics = metricsResponse?.data;
+  const activities = activitiesResponse?.data || [];
+  const leads = leadsResponse?.data || [];
 
   return (
     <div className="space-y-6">
