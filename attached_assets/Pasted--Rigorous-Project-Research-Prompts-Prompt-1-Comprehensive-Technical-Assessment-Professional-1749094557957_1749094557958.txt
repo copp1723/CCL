@@ -1,0 +1,120 @@
+# Rigorous Project Research Prompts
+
+## Prompt 1: Comprehensive Technical Assessment
+**"Professional Technical Deep Dive"**
+
+**Your mission**: Conduct a thorough technical evaluation with industry-standard expectations. Be direct and honest about findings, but constructive in your approach.
+
+### **Technical Investigation Areas:**
+
+**Security & Vulnerability Assessment:**
+- Systematically test all endpoints for common vulnerabilities (OWASP Top 10)
+- Review authentication and authorization implementations
+- Check for exposed sensitive data and proper encryption practices
+- Audit third-party dependencies for known security issues
+- Evaluate data validation and sanitization practices
+
+**Architecture & Design Review:**
+- Assess system architecture for scalability and maintainability
+- Identify potential bottlenecks and single points of failure
+- Review separation of concerns and adherence to design principles
+- Evaluate error handling and logging strategies
+- Check for proper abstraction layers and code organization
+
+**Code Quality Analysis:**
+- Review code for readability, maintainability, and best practices
+- Assess test coverage and quality of test implementations
+- Identify areas of technical debt that may impact future development
+- Check for performance optimization opportunities
+- Evaluate documentation quality and completeness
+
+**Operational Readiness:**
+- Review deployment processes and infrastructure setup
+- Assess monitoring, alerting, and observability implementation
+- Check backup and disaster recovery procedures
+- Evaluate CI/CD pipeline effectiveness
+- Review configuration management and environment consistency
+
+**Industry Standards Compliance:**
+- Compare against relevant industry best practices
+- Check accessibility compliance where applicable
+- Review API design against established standards
+- Assess mobile responsiveness and cross-browser compatibility
+
+**Deliverable Expectations:**
+Provide a detailed technical assessment including:
+- Executive summary highlighting key findings and recommendations
+- Prioritized list of technical improvements with impact assessment
+- Security findings with recommended remediation steps
+- Performance optimization opportunities
+- Roadmap for addressing technical debt and scalability concerns
+
+---
+
+## Prompt 2: Strategic Business Evaluation
+**"Market Viability & Product Assessment"**
+
+**Your mission**: Evaluate the business opportunity and product-market fit with realistic market expectations. Provide honest feedback on commercial viability and growth potential.
+
+### **Business Analysis Framework:**
+
+**Market Opportunity Assessment:**
+- Research the target market size and growth trends
+- Identify existing solutions and competitive landscape
+- Evaluate the problem severity and customer willingness to pay
+- Assess market timing and adoption readiness
+- Analyze potential barriers to market entry
+
+**Product-Market Fit Evaluation:**
+- Test the user experience with realistic user scenarios
+- Evaluate the value proposition clarity and strength
+- Assess feature completeness for target use cases
+- Review user feedback and early adoption metrics
+- Identify gaps between product capabilities and market needs
+
+**Competitive Position Analysis:**
+- Compare features and capabilities against key competitors
+- Evaluate pricing strategy and competitive advantages
+- Assess differentiation factors and unique value propositions
+- Review competitor strengths and potential threats
+- Identify opportunities for competitive positioning
+
+**Business Model Viability:**
+- Review revenue model sustainability and scalability
+- Assess customer acquisition strategies and costs
+- Evaluate unit economics and path to profitability
+- Review growth assumptions and financial projections
+- Analyze potential revenue streams and monetization options
+
+**Go-to-Market Strategy Review:**
+- Evaluate target customer identification and segmentation
+- Assess marketing channels and customer acquisition plans
+- Review sales process and conversion optimization
+- Analyze partnership and distribution strategies
+- Evaluate brand positioning and messaging effectiveness
+
+**User Experience Assessment:**
+- Conduct usability testing with target users
+- Evaluate onboarding process and user activation
+- Assess core user journeys and conversion funnels
+- Review mobile experience and accessibility
+- Identify friction points and optimization opportunities
+
+**Growth Potential Analysis:**
+- Evaluate scalability of customer acquisition channels
+- Assess viral potential and network effects
+- Review retention strategies and customer lifetime value
+- Analyze expansion opportunities and market adjacencies
+- Evaluate team capabilities for executing growth plans
+
+**Deliverable Expectations:**
+Deliver a comprehensive business assessment including:
+- Executive summary with key insights and strategic recommendations
+- Market opportunity analysis with realistic growth projections
+- Competitive positioning assessment and strategic advantages
+- User experience evaluation with improvement recommendations
+- Business model validation and optimization suggestions
+- Risk assessment with mitigation strategies
+- Strategic roadmap for market success
+
+**Maintain professional standards while being candid about both strengths and areas for improvement.**
