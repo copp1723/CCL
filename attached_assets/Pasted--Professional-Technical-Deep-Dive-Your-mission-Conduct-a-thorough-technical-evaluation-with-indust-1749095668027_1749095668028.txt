@@ -1,0 +1,50 @@
+"Professional Technical Deep Dive"
+Your mission: Conduct a thorough technical evaluation with industry-standard expectations. Be direct and honest about findings, but constructive in your approach.
+Technical Investigation Areas:
+Security & Vulnerability Assessment:
+
+Systematically test all endpoints for common vulnerabilities (OWASP Top 10)
+Review authentication and authorization implementations
+Check for exposed sensitive data and proper encryption practices
+Audit third-party dependencies for known security issues
+Evaluate data validation and sanitization practices
+
+Architecture & Design Review:
+
+Assess system architecture for scalability and maintainability
+Identify potential bottlenecks and single points of failure
+Review separation of concerns and adherence to design principles
+Evaluate error handling and logging strategies
+Check for proper abstraction layers and code organization
+
+Code Quality Analysis:
+
+Review code for readability, maintainability, and best practices
+Assess test coverage and quality of test implementations
+Identify areas of technical debt that may impact future development
+Check for performance optimization opportunities
+Evaluate documentation quality and completeness
+
+Operational Readiness:
+
+Review deployment processes and infrastructure setup
+Assess monitoring, alerting, and observability implementation
+Check backup and disaster recovery procedures
+Evaluate CI/CD pipeline effectiveness
+Review configuration management and environment consistency
+
+Industry Standards Compliance:
+
+Compare against relevant industry best practices
+Check accessibility compliance where applicable
+Review API design against established standards
+Assess mobile responsiveness and cross-browser compatibility
+
+Deliverable Expectations:
+Provide a detailed technical assessment including:
+
+Executive summary highlighting key findings and recommendations
+Prioritized list of technical improvements with impact assessment
+Security findings with recommended remediation steps
+Performance optimization opportunities
+Roadmap for addressing technical debt and scalability concerns
