@@ -1,4 +1,5 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import type { ApiResponse } from "@shared/api-types";
 
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
@@ -7,13 +8,13 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
-export async function apiRequest(
+export async function apiRequest<T = any>(
   url: string,
   options?: {
     method?: string;
     data?: unknown;
   }
-): Promise<any> {
+): Promise<T> {
   const { method = "GET", data } = options || {};
   
   const res = await fetch(url, {

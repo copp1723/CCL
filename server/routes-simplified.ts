@@ -1,5 +1,12 @@
 import express, { Request, Response } from "express";
 import { storage } from "./storage";
+import type { 
+  ApiResponse, 
+  LeadProcessingResponse, 
+  BulkEmailSendResponse,
+  SystemStatsResponse,
+  EmailCampaignSettingsResponse 
+} from "../shared/api-types";
 import { handleApiError, createSuccessResponse, createErrorResponse, validateRequired, validateEmail, ApiError } from "./utils/error-handler";
 
 export async function registerRoutes(app: express.Express) {

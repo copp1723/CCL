@@ -1,4 +1,6 @@
 // Streamlined storage for CCL agent system
+import { randomUUID } from 'crypto';
+
 interface LeadData {
   id: string;
   status: 'new' | 'contacted' | 'qualified' | 'closed';
@@ -26,7 +28,38 @@ interface Agent {
   color: string;
 }
 
-class StreamlinedStorage {
+interface SystemStats {
+  leads: number;
+  activities: number;
+  agents: number;
+  uptime: number;
+  memory: NodeJS.MemoryUsage;
+  timestamp: string;
+}
+
+export interface StorageInterface {
+  // Leads
+  createLead(data: { email: string; status: 'new' | 'contacted' | 'qualified' | 'closed'; leadData: any }): LeadData;
+  getLeads(): LeadData[];
+  updateLead(id: string, updates: Partial<LeadData>): void;
+
+  // Activities
+  createActivity(type: string, description: string, agentType?: string, metadata?: any): Activity;
+  getActivities(limit?: number): Activity[];
+
+  // Agents
+  getAgents(): Agent[];
+  updateAgent(id: string, updates: Partial<Agent>): void;
+
+  // Visitors
+  createVisitor(data: { ipAddress?: string; userAgent?: string; metadata?: any }): { id: string };
+  updateVisitor(id: string, updates: { phoneNumber?: string; email?: string; metadata?: any }): void;
+
+  // Stats
+  getStats(): SystemStats;
+}
+
+class StreamlinedStorage implements StorageInterface {
   private leadCounter = 0;
   private activityCounter = 0;
   private leadStore: LeadData[] = [];
@@ -51,7 +84,7 @@ class StreamlinedStorage {
         color: "text-blue-600"
       },
       {
-        id: "agent_2", 
+        id: "agent_2",
         name: "RealtimeChatAgent",
         status: "active",
         processedToday: 0,
@@ -61,7 +94,7 @@ class StreamlinedStorage {
       },
       {
         id: "agent_3",
-        name: "EmailReengagementAgent", 
+        name: "EmailReengagementAgent",
         status: "active",
         processedToday: 0,
         description: "Sends personalized email campaigns",
@@ -71,7 +104,7 @@ class StreamlinedStorage {
       {
         id: "agent_4",
         name: "CreditCheckAgent",
-        status: "active", 
+        status: "active",
         processedToday: 0,
         description: "Processes credit applications",
         icon: "CreditCard",
@@ -81,7 +114,7 @@ class StreamlinedStorage {
         id: "agent_5",
         name: "LeadPackagingAgent",
         status: "active",
-        processedToday: 0, 
+        processedToday: 0,
         description: "Packages leads for dealer CRM",
         icon: "Package",
         color: "text-indigo-600"
@@ -105,7 +138,14 @@ class StreamlinedStorage {
     return this.leadStore;
   }
 
-  // Activities  
+  updateLead(id: string, updates: Partial<LeadData>): void {
+    const leadIndex = this.leadStore.findIndex(lead => lead.id === id);
+    if (leadIndex > -1) {
+      this.leadStore[leadIndex] = { ...this.leadStore[leadIndex], ...updates };
+    }
+  }
+
+  // Activities
   createActivity(type: string, description: string, agentType?: string, metadata?: any): Activity {
     this.activityCounter++;
     const newActivity: Activity = {
@@ -117,7 +157,7 @@ class StreamlinedStorage {
       timestamp: new Date().toISOString()
     };
     this.activityStore.unshift(newActivity);
-    
+
     // Update agent processed count
     if (agentType && agentType !== 'System') {
       const agent = this.agentStore.find(a => a.name === agentType);
@@ -125,7 +165,7 @@ class StreamlinedStorage {
         agent.processedToday++;
       }
     }
-    
+
     return newActivity;
   }
 
@@ -138,8 +178,15 @@ class StreamlinedStorage {
     return this.agentStore;
   }
 
+  updateAgent(id: string, updates: Partial<Agent>): void {
+    const agentIndex = this.agentStore.findIndex(agent => agent.id === id);
+    if (agentIndex > -1) {
+      this.agentStore[agentIndex] = { ...this.agentStore[agentIndex], ...updates };
+    }
+  }
+
   // Stats
-  getStats() {
+  getStats(): SystemStats {
     return {
       leads: this.leadStore.length,
       activities: this.activityStore.length,
@@ -149,6 +196,25 @@ class StreamlinedStorage {
       timestamp: new Date().toISOString()
     };
   }
+
+  createVisitor(data: { ipAddress?: string; userAgent?: string; metadata?: any }): { id: string } {
+    const visitor = {
+      id: randomUUID(),
+      ipAddress: data.ipAddress,
+      userAgent: data.userAgent,
+      metadata: data.metadata || {},
+      createdAt: new Date().toISOString()
+    };
+
+    // Store visitor (in a real system, this would go to database)
+    return { id: visitor.id };
+  }
+
+  updateVisitor(id: string, updates: { phoneNumber?: string; email?: string; metadata?: any }): void {
+    // In a real system, this would update the visitor in database
+    console.log(`Updating visitor ${id} with:`, updates);
+  }
+
 }
 
 export const storage = new StreamlinedStorage();

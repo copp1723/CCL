@@ -26,7 +26,6 @@ export interface FlexPathCreditResponse {
 
 export interface MailgunEmailRequest {
   to: string;
-  from: string;
   subject: string;
   html: string;
   text?: string;
@@ -48,7 +47,7 @@ export class FlexPathService {
   constructor() {
     this.apiKey = process.env.FLEXPATH_API_KEY || '';
     this.baseUrl = process.env.FLEXPATH_BASE_URL || 'https://sandbox.flexpath.com/api/v1';
-    
+
     if (!this.apiKey) {
       console.warn('FlexPath API key not configured. Credit checks will use simulation mode.');
     }
@@ -86,7 +85,7 @@ export class FlexPathService {
       }
 
       const data = await response.json();
-      
+
       return {
         success: true,
         approved: data.approved,
@@ -100,7 +99,7 @@ export class FlexPathService {
 
     } catch (error) {
       console.error('FlexPath credit check failed:', error);
-      
+
       return {
         success: false,
         approved: false,
@@ -116,10 +115,10 @@ export class FlexPathService {
     const phoneHash = this.hashString(request.phoneNumber);
     const scoreVariation = phoneHash % 300;
     const baseScore = 580 + scoreVariation;
-    
+
     const approved = baseScore >= 620;
     const riskTier = this.mapRiskTier(baseScore);
-    
+
     return Promise.resolve({
       success: true,
       approved,
@@ -178,15 +177,15 @@ export class MailgunService {
       formData.append('to', request.to);
       formData.append('subject', request.subject);
       formData.append('html', request.html);
-      
+
       if (request.text) {
         formData.append('text', request.text);
       }
-      
+
       if (request.tags) {
         request.tags.forEach(tag => formData.append('o:tag', tag));
       }
-      
+
       if (request.customData) {
         Object.entries(request.customData).forEach(([key, value]) => {
           formData.append(`v:${key}`, String(value));
@@ -207,7 +206,7 @@ export class MailgunService {
       }
 
       const data = await response.json();
-      
+
       return {
         success: true,
         messageId: data.id
@@ -215,7 +214,7 @@ export class MailgunService {
 
     } catch (error) {
       console.error('Mailgun email send failed:', error);
-      
+
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -229,7 +228,7 @@ export class MailgunService {
       setTimeout(() => {
         // Simulate 95% delivery success rate
         const success = Math.random() > 0.05;
-        
+
         resolve({
           success,
           messageId: success ? `sim_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` : undefined,
@@ -239,10 +238,10 @@ export class MailgunService {
     });
   }
 
-  async validateEmail(email: string): Promise<{ valid: boolean; reason?: string }> {
+  validateEmail(email: string): { valid: boolean; reason?: string } {
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    
+
     if (!emailRegex.test(email)) {
       return { valid: false, reason: 'Invalid email format' };
     }
@@ -251,7 +250,7 @@ export class MailgunService {
     const disposableDomains = [
       '10minutemail.com', 'tempmail.org', 'guerrillamail.com', 'mailinator.com'
     ];
-    
+
     const domain = email.split('@')[1]?.toLowerCase();
     if (disposableDomains.includes(domain)) {
       return { valid: false, reason: 'Disposable email domain not allowed' };
@@ -266,27 +265,6 @@ export class PIIProtectionService {
   private phonePattern = /\b\d{3}-?\d{3}-?\d{4}\b/g;
   private creditCardPattern = /\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b/g;
   private dobPattern = /\b\d{1,2}\/\d{1,2}\/\d{4}\b/g;
-
-  async validateEmail(email: string): Promise<{ valid: boolean; reason?: string }> {
-    // Basic email validation
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    
-    if (!emailRegex.test(email)) {
-      return { valid: false, reason: 'Invalid email format' };
-    }
-
-    // Check for common disposable email domains
-    const disposableDomains = [
-      '10minutemail.com', 'tempmail.org', 'guerrillamail.com', 'mailinator.com'
-    ];
-    
-    const domain = email.split('@')[1]?.toLowerCase();
-    if (disposableDomains.includes(domain)) {
-      return { valid: false, reason: 'Disposable email domain not allowed' };
-    }
-
-    return { valid: true };
-  }
 
   sanitizeContent(content: string): { sanitized: string; piiDetected: boolean; violations: string[] } {
     let sanitized = content;
@@ -320,7 +298,7 @@ export class PIIProtectionService {
   validatePhoneNumber(phone: string): { valid: boolean; formatted?: string; error?: string } {
     // Remove all non-digits
     const digits = phone.replace(/\D/g, '');
-    
+
     // Check for valid US phone number length
     if (digits.length === 10) {
       const formatted = `+1${digits}`;
@@ -331,6 +309,27 @@ export class PIIProtectionService {
     } else {
       return { valid: false, error: 'Invalid phone number format. Must be 10 or 11 digits.' };
     }
+  }
+
+  validateEmailAddress(email: string): { valid: boolean; reason?: string } {
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(email)) {
+      return { valid: false, reason: 'Invalid email format' };
+    }
+
+    // Check for common disposable email domains
+    const disposableDomains = [
+      '10minutemail.com', 'tempmail.org', 'guerrillamail.com', 'mailinator.com'
+    ];
+
+    const domain = email.split('@')[1]?.toLowerCase();
+    if (disposableDomains.includes(domain)) {
+      return { valid: false, reason: 'Disposable email domain not allowed' };
+    }
+
+    return { valid: true };
   }
 }
 
