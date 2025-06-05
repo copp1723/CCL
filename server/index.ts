@@ -1,25 +1,28 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes-simplified";
 import { setupVite, serveStatic } from "./vite";
+import { handleApiError } from "./utils/error-handler";
+import { addEmailTestRoutes } from "./routes-email-test";
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: false }));
 
-app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-  const status = err.status || err.statusCode || 500;
-  const message = err.message || "Internal Server Error";
-  res.status(status).json({ message });
+// Centralized error handling middleware
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  if (res.headersSent) {
+    return next(err);
+  }
+  handleApiError(res, err);
 });
 
 // Register routes
 registerRoutes(app);
 
 // Add email testing routes
-const { addEmailTestRoutes } = require("./routes-email-test");
 addEmailTestRoutes(app);
 
-const PORT = process.env.PORT || 5000;
+const PORT = parseInt(process.env.PORT || "5000", 10);
 const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
   console.log("📧 Mailgun email system ready");
