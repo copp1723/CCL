@@ -157,9 +157,13 @@ export class MailgunService {
 
   constructor() {
     this.apiKey = process.env.MAILGUN_API_KEY || '';
-    this.domain = process.env.MAILGUN_DOMAIN || '';
+    // Clean domain by removing any path or protocol
+    const rawDomain = process.env.MAILGUN_DOMAIN || '';
+    this.domain = rawDomain.replace(/^https?:\/\//, '').split('/')[0];
     this.baseUrl = process.env.MAILGUN_BASE_URL || 'https://api.mailgun.net/v3';
     this.fromEmail = process.env.MAILGUN_FROM_EMAIL || 'noreply@completecarloan.com';
+
+    console.log(`Mailgun configured - Domain: ${this.domain}, API Key length: ${this.apiKey.length}`);
 
     if (!this.apiKey || !this.domain) {
       console.warn('Mailgun credentials not configured. Emails will use simulation mode.');
