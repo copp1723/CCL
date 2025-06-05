@@ -17,7 +17,6 @@ export function addEmailTestRoutes(app: express.Express) {
       // Test actual email delivery
       const emailResult = await mailgunService.sendEmail({
         to: testEmail,
-        from: `cathy@${process.env.MAILGUN_DOMAIN}`,
         subject: "CCL System Test - Cathy's Email Delivery Verification",
         text: `Hi there,
 
@@ -35,8 +34,7 @@ Complete Car Loans
 
 Technical Details:
 - Test timestamp: ${new Date().toISOString()}
-- System uptime: ${Math.round(process.uptime())} seconds
-- Email system: Mailgun with domain ${process.env.MAILGUN_DOMAIN}`,
+- System uptime: ${Math.round(process.uptime())} seconds`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
             <h2 style="color: #2563eb;">Complete Car Loans - System Test</h2>
@@ -56,8 +54,7 @@ Technical Details:
             <p style="font-size: 12px; color: #666;">
               <strong>Technical Details:</strong><br>
               Test timestamp: ${new Date().toISOString()}<br>
-              System uptime: ${Math.round(process.uptime())} seconds<br>
-              Email system: Mailgun with domain ${process.env.MAILGUN_DOMAIN}
+              System uptime: ${Math.round(process.uptime())} seconds
             </p>
           </div>
         `
