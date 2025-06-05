@@ -157,11 +157,10 @@ export class MailgunService {
 
   constructor() {
     this.apiKey = process.env.MAILGUN_API_KEY || '';
-    // Clean domain by removing any path or protocol
-    const rawDomain = process.env.MAILGUN_DOMAIN || '';
-    this.domain = rawDomain.replace(/^https?:\/\//, '').split('/')[0];
+    // Use verified domain from Mailgun API response
+    this.domain = 'onerylie.com';
     this.baseUrl = process.env.MAILGUN_BASE_URL || 'https://api.mailgun.net/v3';
-    this.fromEmail = process.env.MAILGUN_FROM_EMAIL || 'noreply@completecarloan.com';
+    this.fromEmail = 'cathy@onerylie.com';
 
     console.log(`Mailgun configured - Domain: ${this.domain}, API Key length: ${this.apiKey.length}`);
 
