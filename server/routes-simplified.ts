@@ -1,56 +1,29 @@
 import express, { Request, Response } from "express";
 import { storage } from "./storage";
-import type { 
-  ApiResponse, 
-  LeadProcessingResponse, 
-  BulkEmailSendResponse,
-  SystemStatsResponse,
-  EmailCampaignSettingsResponse 
-} from "../shared/api-types";
 import { handleApiError, createSuccessResponse, createErrorResponse, validateRequired, validateEmail, ApiError } from "./utils/error-handler";
 
 export async function registerRoutes(app: express.Express) {
   
-  // System stress test endpoint
-  app.post("/api/system/stress-test", async (_req: Request, res: Response) => {
+  // System health check endpoint
+  app.get("/api/system/health", async (_req: Request, res: Response) => {
     try {
-      const { systemStressTest } = await import("./system-stress-test");
+      const stats = storage.getStats();
+      const agents = storage.getAgents();
       
-      console.log("Starting comprehensive system stress test...");
-      const startTime = Date.now();
-      
-      const [
-        dataIngestionResults,
-        emailDeliveryResults
-      ] = await Promise.all([
-        systemStressTest.testDataIngestionReliability(),
-        systemStressTest.testEmailDeliveryStability()
-      ]);
-      
-      const totalTime = Date.now() - startTime;
-      
-      const results = {
-        testDuration: totalTime,
-        timestamp: new Date().toISOString(),
-        dataIngestion: dataIngestionResults,
-        emailDelivery: emailDeliveryResults,
-        summary: {
-          totalLeadsProcessed: dataIngestionResults.leadProcessingResults.length + 
-                               dataIngestionResults.bulkCampaignResults.reduce((acc, batch) => acc + (batch.recordsProcessed || 0), 0) +
-                               dataIngestionResults.webhookResults.length,
-          systemStable: dataIngestionResults.systemStability.dataIntegrity.storageHealthy,
-          emailSystemReady: emailDeliveryResults.emailSystemConfigured
-        }
-      };
-      
-      console.log("Stress test completed successfully");
-      res.json(results);
+      res.json(createSuccessResponse({
+        status: 'healthy',
+        uptime: Math.round(stats.uptime),
+        memoryUsage: {
+          heapUsed: Math.round(stats.memory.heapUsed / 1024 / 1024),
+          heapTotal: Math.round(stats.memory.heapTotal / 1024 / 1024)
+        },
+        agents: agents.map(a => ({ name: a.name, status: a.status })),
+        totalLeads: stats.leads,
+        totalActivities: stats.activities,
+        timestamp: new Date().toISOString()
+      }));
     } catch (error) {
-      console.error("Stress test failed:", error);
-      res.status(500).json({ 
-        error: "Stress test failed", 
-        details: error instanceof Error ? error.message : "Unknown error" 
-      });
+      handleApiError(res, error);
     }
   });
   

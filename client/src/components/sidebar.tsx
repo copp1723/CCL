@@ -30,18 +30,6 @@ const navItems: NavItem[] = [
     href: "/email-campaigns",
     icon: Mail,
     description: "Manage re-engagement email campaigns"
-  },
-  {
-    title: "Data Processing",
-    href: "/data-processing",
-    icon: Database,
-    description: "Bulk uploads and real-time lead processing"
-  },
-  {
-    title: "Agent Configuration",
-    href: "/agent-config",
-    icon: Bot,
-    description: "Configure AI agents and workflows"
   }
 ];
 
