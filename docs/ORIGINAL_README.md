@@ -1,6 +1,70 @@
 # Complete Car Loans - AI Agent System
 
-A sophisticated multi-agent auto-loan recovery system leveraging advanced AI technologies to optimize customer re-engagement and lead generation through intelligent communication strategies.
+> A sophisticated multi-agent auto-loan recovery system leveraging advanced AI technologies.
+
+## 🚀 Quick Start
+
+```bash
+# Install dependencies
+npm install
+
+# Start development server
+npm run dev
+```
+
+## 📁 Project Structure
+
+```
+├── client/                 # React frontend application
+│   ├── src/
+│   │   ├── components/     # Reusable UI components
+│   │   ├── pages/          # Page components
+│   │   ├── hooks/          # Custom React hooks
+│   │   └── lib/            # Utilities and configuration
+├── server/                 # Node.js backend application
+│   ├── agents/             # AI agent implementations
+│   ├── middleware/         # Express middleware
+│   ├── services/           # External API integrations
+│   └── utils/              # Backend utilities
+├── shared/                 # Shared types and schemas
+├── docs/                   # Documentation
+├── data/                   # Sample data and datasets
+├── tests/                  # Test files
+└── scripts/                # Build and deployment scripts
+```
+
+## 🤖 AI Agents
+
+1. **Visitor Identifier** - Tracks website visitors
+2. **Realtime Chat** - Handles customer conversations
+3. **Credit Check** - Processes credit applications
+4. **Email Reengagement** - Manages email campaigns
+5. **Lead Packaging** - Prepares leads for CRM
+
+## 📚 Documentation
+
+- [Deployment Guide](docs/DEPLOYMENT.md)
+- [API Integration](docs/API_INTEGRATION_GUIDE.md)
+- [Security Report](docs/SECURITY_AUDIT_REPORT.md)
+- [Production Readiness](docs/PRODUCTION_READINESS_REPORT.md)
+
+## 🛠️ Tech Stack
+
+- **Frontend**: React 18, TypeScript, Tailwind CSS
+- **Backend**: Node.js, Express, TypeScript
+- **Database**: PostgreSQL with Drizzle ORM
+- **AI**: OpenAI Agents SDK
+- **Email**: Mailgun integration
+
+## 🚦 Environment Status
+
+- **Development**: Ready
+- **Staging**: `https://ccl-staging.replit.app`
+- **Production**: `https://ccl-agents.replit.app`
+
+## 📄 License
+
+MIT License
 
 ## Features
 
@@ -273,10 +337,6 @@ For technical support:
 - Check GitHub Issues
 - Review deployment logs
 - Contact development team
-
-## License
-
-MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Changelog
 
