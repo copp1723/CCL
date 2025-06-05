@@ -1,113 +1,209 @@
 import { Response } from "express";
+import { ErrorCode, getErrorDefinition, type ErrorDefinition } from "./error-codes";
 
 export interface StandardError {
   success: false;
-  error: string;
-  code: string;
-  details?: any;
+  error: {
+    code: ErrorCode;
+    message: string;
+    category: string;
+    retryable: boolean;
+    details?: any;
+  };
   timestamp: string;
+  requestId?: string;
 }
 
 export interface StandardSuccess<T = any> {
   success: true;
   data: T;
   timestamp: string;
+  requestId?: string;
 }
 
 export type ApiResponse<T = any> = StandardSuccess<T> | StandardError;
 
 export class ApiError extends Error {
+  public statusCode: number;
+  public code: ErrorCode;
+  public details?: any;
+  public retryable: boolean;
+  public category: string;
+  public logLevel: 'error' | 'warn' | 'info';
+
   constructor(
-    public code: string,
-    message: string,
-    public statusCode: number = 500,
-    public details?: any
+    code: ErrorCode,
+    message?: string,
+    details?: any,
+    statusCode?: number
   ) {
-    super(message);
+    const errorDef = getErrorDefinition(code);
+    super(message || errorDef.message);
+    
     this.name = 'ApiError';
+    this.code = code;
+    this.statusCode = statusCode || errorDef.httpStatus;
+    this.details = details;
+    this.retryable = errorDef.retryable;
+    this.category = errorDef.category;
+    this.logLevel = errorDef.logLevel;
+  }
+
+  static fromErrorCode(code: ErrorCode, details?: any): ApiError {
+    return new ApiError(code, undefined, details);
+  }
+
+  static validation(code: ErrorCode, field?: string, value?: any): ApiError {
+    return new ApiError(code, undefined, { field, value });
+  }
+
+  static external(code: ErrorCode, service: string, originalError?: any): ApiError {
+    return new ApiError(code, undefined, { 
+      service, 
+      originalError: originalError?.message || originalError 
+    });
   }
 }
 
 export function createErrorResponse(
-  error: string,
-  code: string,
-  details?: any
+  error: ApiError | ErrorCode,
+  details?: any,
+  requestId?: string
 ): StandardError {
+  let apiError: ApiError;
+
+  if (error instanceof ApiError) {
+    apiError = error;
+  } else {
+    apiError = new ApiError(error, undefined, details);
+  }
+
   return {
     success: false,
-    error,
-    code,
-    details,
-    timestamp: new Date().toISOString()
+    error: {
+      code: apiError.code,
+      message: apiError.message,
+      category: apiError.category,
+      retryable: apiError.retryable,
+      details: apiError.details || details
+    },
+    timestamp: new Date().toISOString(),
+    requestId
   };
 }
 
-export function createSuccessResponse<T>(data: T): StandardSuccess<T> {
+export function createSuccessResponse<T>(data: T, requestId?: string): StandardSuccess<T> {
   return {
     success: true,
     data,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    requestId
   };
 }
 
-export function handleApiError(res: Response, error: any): void {
-  console.error('API Error:', error);
+export function handleApiError(res: Response, error: any, requestId?: string): void {
+  let apiError: ApiError;
 
   if (error instanceof ApiError) {
-    res.status(error.statusCode).json(createErrorResponse(
-      error.message,
-      error.code,
-      error.details
-    ));
-    return;
+    apiError = error;
+  } else if (error.name === 'ValidationError') {
+    apiError = new ApiError(ErrorCode.DATA_VALIDATION_FAILED, undefined, { originalError: error.message });
+  } else if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
+    apiError = new ApiError(ErrorCode.SERVICE_UNAVAILABLE, undefined, { errorCode: error.code });
+  } else {
+    apiError = new ApiError(
+      ErrorCode.INTERNAL_SERVER_ERROR,
+      error.message || 'An unexpected error occurred',
+      process.env.NODE_ENV === 'development' ? { stack: error.stack } : undefined
+    );
   }
 
-  // Handle known error types
-  if (error.name === 'ValidationError') {
-    res.status(400).json(createErrorResponse(
-      'Invalid request data',
-      'VALIDATION_ERROR',
-      error.message
-    ));
-    return;
+  // Log error with appropriate level
+  const logMessage = `[${apiError.code}] ${apiError.message}`;
+  const logContext = {
+    code: apiError.code,
+    category: apiError.category,
+    retryable: apiError.retryable,
+    statusCode: apiError.statusCode,
+    details: apiError.details,
+    requestId,
+    timestamp: new Date().toISOString()
+  };
+
+  switch (apiError.logLevel) {
+    case 'error':
+      console.error(logMessage, logContext);
+      break;
+    case 'warn':
+      console.warn(logMessage, logContext);
+      break;
+    case 'info':
+      console.info(logMessage, logContext);
+      break;
   }
 
-  if (error.code === 'ECONNREFUSED' || error.code === 'ENOTFOUND') {
-    res.status(503).json(createErrorResponse(
-      'External service unavailable',
-      'SERVICE_UNAVAILABLE',
-      { errorCode: error.code }
-    ));
-    return;
-  }
-
-  // Default error response
-  res.status(500).json(createErrorResponse(
-    'Internal server error',
-    'INTERNAL_ERROR',
-    process.env.NODE_ENV === 'development' ? error.message : undefined
-  ));
+  res.status(apiError.statusCode).json(createErrorResponse(apiError, undefined, requestId));
 }
 
 export function validateRequired(obj: any, fields: string[]): void {
   const missing = fields.filter(field => !obj[field]);
   if (missing.length > 0) {
     throw new ApiError(
-      'MISSING_FIELDS',
+      ErrorCode.REQUIRED_FIELD_MISSING,
       `Missing required fields: ${missing.join(', ')}`,
-      400,
       { missingFields: missing }
     );
   }
 }
 
-export function validateEmail(email: string): boolean {
+export function validateEmail(email: string): void {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email);
+  if (!emailRegex.test(email)) {
+    throw ApiError.validation(ErrorCode.INVALID_EMAIL_FORMAT, 'email', email);
+  }
 }
 
-export function validatePhoneNumber(phone: string): boolean {
+export function validatePhoneNumber(phone: string): void {
   // E.164 format validation
   const phoneRegex = /^\+[1-9]\d{1,14}$/;
-  return phoneRegex.test(phone);
+  if (!phoneRegex.test(phone)) {
+    throw ApiError.validation(ErrorCode.INVALID_PHONE_FORMAT, 'phone', phone);
+  }
+}
+
+export function validateDataFormat(data: any, expectedType: string, fieldName?: string): void {
+  if (expectedType === 'array' && !Array.isArray(data)) {
+    throw ApiError.validation(ErrorCode.INVALID_DATA_FORMAT, fieldName || 'data', { expected: 'array', actual: typeof data });
+  }
+  if (expectedType === 'object' && (typeof data !== 'object' || data === null)) {
+    throw ApiError.validation(ErrorCode.INVALID_DATA_FORMAT, fieldName || 'data', { expected: 'object', actual: typeof data });
+  }
+}
+
+export function validateFieldLength(value: string, fieldName: string, maxLength: number): void {
+  if (value && value.length > maxLength) {
+    throw ApiError.validation(ErrorCode.FIELD_LENGTH_EXCEEDED, fieldName, {
+      actual: value.length,
+      maximum: maxLength
+    });
+  }
+}
+
+// Request ID generation utility
+export function generateRequestId(): string {
+  return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+// Centralized async wrapper for route handlers
+export function asyncHandler(
+  fn: (req: any, res: any, next?: any) => Promise<any>
+) {
+  return (req: any, res: any, next: any) => {
+    const requestId = generateRequestId();
+    req.requestId = requestId;
+    
+    Promise.resolve(fn(req, res, next)).catch((error) => {
+      handleApiError(res, error, requestId);
+    });
+  };
 }
