@@ -1,5 +1,18 @@
-// Streamlined storage for CCL agent system
+// Database storage for CCL agent system
 import { randomUUID } from 'crypto';
+import {
+  systemLeads,
+  systemActivities,
+  systemAgents,
+  type SystemLead,
+  type SystemActivity,
+  type SystemAgent,
+  type InsertSystemLead,
+  type InsertSystemActivity,
+  type InsertSystemAgent,
+} from "../shared/schema";
+import { db } from "./db";
+import { eq, desc } from "drizzle-orm";
 
 interface LeadData {
   id: string;

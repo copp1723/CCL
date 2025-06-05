@@ -48,6 +48,48 @@ export const creditChecks = pgTable("credit_checks", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Session storage table for authentication
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)],
+);
+
+// System leads table
+export const systemLeads = pgTable("system_leads", {
+  id: text("id").primaryKey(),
+  email: text("email").notNull(),
+  status: text("status").notNull().default("new"), // new, contacted, qualified, closed
+  leadData: jsonb("lead_data").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// System activities table
+export const systemActivities = pgTable("system_activities", {
+  id: text("id").primaryKey(),
+  type: text("type").notNull(),
+  description: text("description").notNull(),
+  agentType: text("agent_type"),
+  metadata: jsonb("metadata"),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+});
+
+// System agents table
+export const systemAgents = pgTable("system_agents", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  status: text("status").notNull().default("active"), // active, inactive, error
+  processedToday: integer("processed_today").default(0),
+  description: text("description").notNull(),
+  icon: text("icon").notNull(),
+  color: text("color").notNull(),
+  lastActivity: timestamp("last_activity").defaultNow(),
+});
+
 export const leads = pgTable("leads", {
   id: serial("id").primaryKey(),
   visitorId: integer("visitor_id").references(() => visitors.id).notNull(),
@@ -68,6 +110,19 @@ export const agentActivity = pgTable("agent_activity", {
   leadId: integer("lead_id").references(() => leads.id),
   status: text("status").notNull(), // success, error, pending
   createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Insert schemas for system tables
+export const insertSystemLeadSchema = createInsertSchema(systemLeads).omit({
+  createdAt: true,
+});
+
+export const insertSystemActivitySchema = createInsertSchema(systemActivities).omit({
+  timestamp: true,
+});
+
+export const insertSystemAgentSchema = createInsertSchema(systemAgents).omit({
+  lastActivity: true,
 });
 
 // Insert schemas
@@ -101,6 +156,16 @@ export const insertAgentActivitySchema = createInsertSchema(agentActivity).omit(
   id: true,
   createdAt: true,
 });
+
+// Types for system tables
+export type InsertSystemLead = z.infer<typeof insertSystemLeadSchema>;
+export type SystemLead = typeof systemLeads.$inferSelect;
+
+export type InsertSystemActivity = z.infer<typeof insertSystemActivitySchema>;
+export type SystemActivity = typeof systemActivities.$inferSelect;
+
+export type InsertSystemAgent = z.infer<typeof insertSystemAgentSchema>;
+export type SystemAgent = typeof systemAgents.$inferSelect;
 
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
