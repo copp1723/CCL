@@ -1,3 +1,55 @@
+
+import express from "express";
+import { registerSecuredRoutes } from "./routes-secured";
+import { applySecurityMiddleware } from "./middleware/security-enhanced";
+import { storage } from "./storage";
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+// Apply security middleware stack
+applySecurityMiddleware(app);
+
+// Basic middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+
+// Register secured routes
+await registerSecuredRoutes(app);
+
+// Health check endpoint (public)
+app.get("/health", (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// Error handling middleware
+app.use((error: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('Unhandled error:', error);
+  res.status(500).json({
+    success: false,
+    error: {
+      code: 'INTERNAL_SERVER_ERROR',
+      message: 'An unexpected error occurred',
+      category: 'system',
+      retryable: true,
+    },
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🔒 Secured CCL Agent System running on port ${PORT}`);
+  console.log(`📊 Agent orchestrator initialized`);
+  console.log(`🛡️ Security features enabled:`);
+  console.log(`   - JWT Authentication`);
+  console.log(`   - Role-based Authorization`);
+  console.log(`   - Enhanced Rate Limiting`);
+  console.log(`   - Input Sanitization`);
+  console.log(`   - Security Headers`);
+  console.log(`   - Audit Logging`);
+  console.log(`📝 Demo credentials: admin@completecarloans.com / admin123`);
+});
+
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes-simplified";
 import { setupVite, serveStatic } from "./vite";
