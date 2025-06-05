@@ -15,6 +15,10 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
 // Register routes
 registerRoutes(app);
 
+// Add email testing routes
+const { addEmailTestRoutes } = require("./routes-email-test");
+addEmailTestRoutes(app);
+
 const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`Server running on port ${PORT}`);
