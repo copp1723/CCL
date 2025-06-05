@@ -13,10 +13,14 @@ import {
 } from "./utils/error-handler";
 import { ErrorCode } from "./utils/error-codes";
 
+interface RequestWithId extends Request {
+  requestId?: string;
+}
+
 export async function registerRoutes(app: express.Express) {
   
   // System health check endpoint
-  app.get("/api/system/health", asyncHandler(async (req: Request, res: Response) => {
+  app.get("/api/system/health", asyncHandler(async (req: RequestWithId, res: Response) => {
     try {
       const stats = storage.getStats();
       const agents = storage.getAgents();
@@ -39,7 +43,7 @@ export async function registerRoutes(app: express.Express) {
   }));
   
   // Agent Status API
-  app.get("/api/agents/status", asyncHandler(async (req: Request, res: Response) => {
+  app.get("/api/agents/status", asyncHandler(async (req: RequestWithId, res: Response) => {
     try {
       const agents = storage.getAgents();
       res.json(createSuccessResponse(agents, req.requestId));
@@ -49,7 +53,7 @@ export async function registerRoutes(app: express.Express) {
   }));
 
   // Activity Feed API
-  app.get("/api/activity", asyncHandler(async (req: Request, res: Response) => {
+  app.get("/api/activity", asyncHandler(async (req: RequestWithId, res: Response) => {
     try {
       const activities = storage.getActivities().slice(0, 50);
       res.json(createSuccessResponse(activities, req.requestId));
@@ -59,7 +63,7 @@ export async function registerRoutes(app: express.Express) {
   }));
 
   // Leads API
-  app.get("/api/leads", asyncHandler(async (req: Request, res: Response) => {
+  app.get("/api/leads", asyncHandler(async (req: RequestWithId, res: Response) => {
     try {
       const leads = storage.getLeads();
       res.json(createSuccessResponse(leads, req.requestId));
@@ -69,7 +73,7 @@ export async function registerRoutes(app: express.Express) {
   }));
 
   // Metrics API
-  app.get("/api/metrics", asyncHandler(async (req: Request, res: Response) => {
+  app.get("/api/metrics", asyncHandler(async (req: RequestWithId, res: Response) => {
     try {
       const stats = storage.getStats();
       const agents = storage.getAgents();
@@ -88,14 +92,14 @@ export async function registerRoutes(app: express.Express) {
   }));
 
   // Data Processing - Real-time Lead Processing
-  app.post("/api/leads/process", async (req: Request, res: Response) => {
-    try {
-      const { email, vehicleInterest, loanAmount, abandonmentStep } = req.body;
-      
-      if (!email) {
-        return res.status(400).json({ error: "Email is required" });
-      }
+  app.post("/api/leads/process", asyncHandler(async (req: RequestWithId, res: Response) => {
+    const { email, vehicleInterest, loanAmount, abandonmentStep } = req.body;
+    
+    // Validate required fields
+    validateRequired(req.body, ['email']);
+    validateEmail(email);
 
+    try {
       // Create new lead
       const lead = storage.createLead({
         email: email.replace(/@.*/, '@...'), // Mask email for privacy
@@ -119,26 +123,24 @@ export async function registerRoutes(app: express.Express) {
         { email: email.replace(/@.*/, '@...'), step: abandonmentStep || 1 }
       );
 
-      res.json({ 
-        success: true, 
+      res.json(createSuccessResponse({ 
         leadId: lead.id,
         message: "Lead processed and email automation triggered"
-      });
+      }, req.requestId));
     } catch (error) {
-      console.error("Error processing lead:", error);
-      res.status(500).json({ error: "Failed to process lead" });
+      throw new ApiError(ErrorCode.LEAD_PROCESSING_FAILED, undefined, { originalError: error, email: email.replace(/@.*/, '@...') });
     }
-  });
+  }));
 
   // Data Processing - Bulk Email Campaign
-  app.post("/api/email-campaigns/bulk-send", async (req: Request, res: Response) => {
-    try {
-      const { campaignName, data: bulkData } = req.body;
-      
-      if (!bulkData || !Array.isArray(bulkData)) {
-        return res.status(400).json({ error: "Bulk data array is required" });
-      }
+  app.post("/api/email-campaigns/bulk-send", asyncHandler(async (req: RequestWithId, res: Response) => {
+    const { campaignName, data: bulkData } = req.body;
+    
+    // Validate required fields and data format
+    validateRequired(req.body, ['campaignName', 'data']);
+    validateDataFormat(bulkData, 'array', 'data');
 
+    try {
       const results = [];
       for (const record of bulkData.slice(0, 5)) { // Process first 5 for demo
         const lead = storage.createLead({
@@ -157,22 +159,20 @@ export async function registerRoutes(app: express.Express) {
         results.push(lead);
       }
 
-      res.json({
-        success: true,
+      res.json(createSuccessResponse({
         processed: results.length,
         message: `${campaignName} campaign processed ${results.length} records`
-      });
+      }, req.requestId));
     } catch (error) {
-      console.error("Error processing bulk campaign:", error);
-      res.status(500).json({ error: "Failed to process bulk campaign" });
+      throw new ApiError(ErrorCode.BULK_CAMPAIGN_FAILED, undefined, { originalError: error, campaignName });
     }
-  });
+  }));
 
   // Data Processing - Dealer Webhook
-  app.post("/api/webhook/dealer-leads", async (req: Request, res: Response) => {
+  app.post("/api/webhook/dealer-leads", asyncHandler(async (req: RequestWithId, res: Response) => {
+    const leadData = req.body;
+    
     try {
-      const leadData = req.body;
-      
       const lead = storage.createLead({
         email: leadData.email?.replace(/@.*/, '@...') || 'dealer-lead@...',
         status: 'qualified',
@@ -186,61 +186,73 @@ export async function registerRoutes(app: express.Express) {
         { leadId: lead.id, dealerKey: leadData.dealerKey || "demo_dealer_key_123" }
       );
 
-      res.json({ 
-        success: true, 
+      res.json(createSuccessResponse({ 
         leadId: lead.id,
         message: "Dealer lead processed successfully"
-      });
+      }, req.requestId));
     } catch (error) {
-      console.error("Error processing dealer webhook:", error);
-      res.status(500).json({ error: "Failed to process dealer webhook" });
+      throw new ApiError(ErrorCode.WEBHOOK_PROCESSING_FAILED, undefined, { originalError: error, dealerKey: leadData.dealerKey });
     }
-  });
+  }));
 
   // System Stats
-  app.get("/api/system/stats", async (_req: Request, res: Response) => {
+  app.get("/api/system/stats", asyncHandler(async (req: RequestWithId, res: Response) => {
     try {
       const stats = storage.getStats();
-      res.json(stats);
+      res.json(createSuccessResponse(stats, req.requestId));
     } catch (error) {
-      console.error("Error fetching system stats:", error);
-      res.status(500).json({ message: "Failed to fetch system stats" });
+      throw new ApiError(ErrorCode.SYSTEM_STATS_UNAVAILABLE, undefined, { originalError: error });
     }
-  });
+  }));
 
-  // Email Campaign Settings (Mock for demo)
-  app.get("/api/email-campaigns/settings", async (_req: Request, res: Response) => {
-    res.json({
-      timing: {
-        step1Delay: 30,
-        step2Delay: 180,
-        step3Delay: 720
-      }
-    });
-  });
-
-  app.post("/api/email-campaigns/settings", async (req: Request, res: Response) => {
+  // Email Campaign Settings
+  app.get("/api/email-campaigns/settings", asyncHandler(async (req: RequestWithId, res: Response) => {
     try {
-      // In a real system, this would save to database
-      res.json({ success: true, message: "Settings saved successfully" });
+      const settings = {
+        timing: {
+          step1Delay: 30,
+          step2Delay: 180,
+          step3Delay: 720
+        }
+      };
+      res.json(createSuccessResponse(settings, req.requestId));
     } catch (error) {
-      res.status(500).json({ error: "Failed to save settings" });
+      throw new ApiError(ErrorCode.EMAIL_SETTINGS_INVALID, undefined, { originalError: error });
     }
-  });
+  }));
 
-  // Email Campaigns List (Mock for demo)
-  app.get("/api/email-campaigns", async (_req: Request, res: Response) => {
-    res.json([
-      {
-        id: "campaign_1",
-        name: "Live Demo Campaign",
-        status: "active",
-        totalRecipients: 3,
-        emailsSent: 3,
-        openRate: 67,
-        clickRate: 33,
-        createdAt: new Date().toISOString()
-      }
-    ]);
-  });
+  app.post("/api/email-campaigns/settings", asyncHandler(async (req: RequestWithId, res: Response) => {
+    const { timing } = req.body;
+    
+    validateRequired(req.body, ['timing']);
+    
+    try {
+      res.json(createSuccessResponse({ 
+        message: "Settings saved successfully" 
+      }, req.requestId));
+    } catch (error) {
+      throw new ApiError(ErrorCode.EMAIL_SETTINGS_INVALID, undefined, { originalError: error });
+    }
+  }));
+
+  // Email Campaigns List
+  app.get("/api/email-campaigns", asyncHandler(async (req: RequestWithId, res: Response) => {
+    try {
+      const campaigns = [
+        {
+          id: "campaign_1",
+          name: "Live Demo Campaign",
+          status: "active",
+          totalRecipients: 3,
+          emailsSent: 3,
+          openRate: 67,
+          clickRate: 33,
+          createdAt: new Date().toISOString()
+        }
+      ];
+      res.json(createSuccessResponse(campaigns, req.requestId));
+    } catch (error) {
+      throw new ApiError(ErrorCode.EMAIL_CAMPAIGN_CREATION_FAILED, 'Failed to retrieve campaigns', { originalError: error });
+    }
+  }));
 }
