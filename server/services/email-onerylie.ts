@@ -140,37 +140,90 @@ Complete Car Loans
   }
 
   async sendWelcomeEmail(email: string, firstName: string): Promise<EmailResponse> {
-    const subject = `Welcome to Complete Car Loans, ${firstName}!`;
+    const subject = `${firstName}, your auto loan application is being processed`;
     
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <h2 style="color: #2563eb;">Welcome ${firstName}!</h2>
-        
-        <p>Thanks for choosing Complete Car Loans. I'm Cathy, your personal auto finance specialist, and I'm excited to help you get approved for your next vehicle.</p>
-        
-        <div style="background: #ecfdf5; border: 1px solid #10b981; padding: 20px; border-radius: 8px; margin: 20px 0;">
-          <h3 style="margin-top: 0; color: #065f46;">What happens next?</h3>
-          <ol style="color: #047857;">
-            <li>I'll review your application within 2 hours</li>
-            <li>You'll receive a pre-approval decision</li>
-            <li>I'll connect you with verified dealers</li>
-            <li>Drive away in your new car!</li>
-          </ol>
+        <div style="background: #2563eb; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
+          <h1 style="margin: 0; font-size: 24px;">Complete Car Loans</h1>
+          <p style="margin: 5px 0 0 0; opacity: 0.9;">Your Trusted Auto Finance Partner</p>
         </div>
         
-        <p>I'll be in touch soon with your approval details. In the meantime, feel free to reach out if you have any questions.</p>
+        <div style="padding: 30px; background: white; border-radius: 0 0 8px 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+          <h2 style="color: #1f2937; margin-top: 0;">Hey ${firstName}!</h2>
+          
+          <p style="color: #374151; line-height: 1.6;">Thanks for starting your auto loan application with Complete Car Loans. I'm Cathy, your personal finance specialist, and I'm here to help you get behind the wheel of your dream car.</p>
+          
+          <div style="background: #f0f9ff; border-left: 4px solid #2563eb; padding: 20px; margin: 25px 0;">
+            <h3 style="margin-top: 0; color: #1e40af; font-size: 18px;">Your Application Status</h3>
+            <p style="margin: 10px 0; color: #1f2937;"><strong>Status:</strong> In Review</p>
+            <p style="margin: 10px 0; color: #1f2937;"><strong>Expected Response:</strong> Within 2-4 hours</p>
+            <p style="margin: 10px 0; color: #1f2937;"><strong>Next Step:</strong> Pre-approval decision</p>
+          </div>
+          
+          <div style="background: #ecfdf5; border: 1px solid #10b981; padding: 20px; border-radius: 8px; margin: 25px 0;">
+            <h3 style="margin-top: 0; color: #065f46;">Why Complete Car Loans?</h3>
+            <ul style="color: #047857; margin: 0; padding-left: 20px;">
+              <li style="margin: 8px 0;">✓ Work with all credit types - even bad credit</li>
+              <li style="margin: 8px 0;">✓ Same-day approvals available</li>
+              <li style="margin: 8px 0;">✓ Access to 15,000+ dealers nationwide</li>
+              <li style="margin: 8px 0;">✓ No hidden fees or surprises</li>
+            </ul>
+          </div>
+          
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="https://completecarloans.com/status" 
+               style="background: #2563eb; color: white; padding: 14px 28px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">
+              Check Application Status
+            </a>
+          </div>
+          
+          <p style="color: #374151; line-height: 1.6;">I'll personally review your application and be in touch with your pre-approval details soon. If you have any questions, just reply to this email or call me directly.</p>
+          
+          <div style="border-top: 1px solid #e5e7eb; padding-top: 20px; margin-top: 30px;">
+            <p style="margin: 0; color: #1f2937;"><strong>Cathy Johnson</strong><br>
+            <em style="color: #6b7280;">Personal Auto Finance Specialist</em><br>
+            Complete Car Loans<br>
+            <a href="tel:1-800-CARLOANS" style="color: #2563eb;">1-800-CARLOANS</a></p>
+          </div>
+        </div>
         
-        <p>Best regards,<br>
-        Cathy<br>
-        <em>Your Personal Auto Finance Specialist</em><br>
-        Complete Car Loans</p>
+        <div style="text-align: center; padding: 20px; color: #6b7280; font-size: 12px;">
+          <p>This email was sent because you applied for auto financing with Complete Car Loans.<br>
+          If you didn't apply, please ignore this email or <a href="#" style="color: #6b7280;">contact us</a>.</p>
+        </div>
       </div>
+    `;
+
+    const text = `
+Hi ${firstName},
+
+Thanks for starting your auto loan application with Complete Car Loans. I'm Cathy, your personal finance specialist.
+
+Your Application Status:
+- Status: In Review  
+- Expected Response: Within 2-4 hours
+- Next Step: Pre-approval decision
+
+Why Complete Car Loans?
+- Work with all credit types - even bad credit
+- Same-day approvals available  
+- Access to 15,000+ dealers nationwide
+- No hidden fees or surprises
+
+I'll personally review your application and be in touch with your pre-approval details soon. If you have any questions, just reply to this email or call me at 1-800-CARLOANS.
+
+Best regards,
+Cathy Johnson
+Personal Auto Finance Specialist
+Complete Car Loans
     `;
 
     return this.sendEmail({
       to: email,
       subject,
-      html
+      html,
+      text
     });
   }
 
