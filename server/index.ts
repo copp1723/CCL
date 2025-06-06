@@ -1,9 +1,12 @@
-
 import express, { type Request, Response, NextFunction } from "express";
 import { setupVite, serveStatic } from "./vite";
 import { handleApiError } from "./utils/error-handler";
 import { storage } from "./database-storage";
 import { sanitizeCampaignName, sanitizeEmail, sanitizeText, sanitizeJsonData } from "./utils/input-sanitizer";
+import { applySecurityMiddleware } from "./middleware/security-enhanced";
+import { dbOptimizer } from "./utils/database-optimizer";
+import securityAuditRoutes from "./routes/security-audit";
+import { validateSecurityHeaders, enhancedSanitizationMiddleware } from "./middleware/request-validation";
 
 const app = express();
 app.use(express.json({ limit: "50mb" }));
@@ -15,16 +18,16 @@ const API_KEY = process.env.INTERNAL_API_KEY || "ccl-internal-2025";
 const authenticate = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
   const apiKey = req.headers['x-api-key'];
-  
+
   // Allow health check without auth
   if (req.path === '/health' || req.path === '/api/system/health') {
     return next();
   }
-  
+
   if (authHeader === `Bearer ${API_KEY}` || apiKey === API_KEY) {
     return next();
   }
-  
+
   res.status(401).json({
     success: false,
     error: {
@@ -57,7 +60,7 @@ app.get('/api/system/health', async (req, res) => {
   try {
     const stats = await storage.getStats();
     const agents = await storage.getAgents();
-    
+
     res.json({
       success: true,
       data: {
@@ -121,7 +124,7 @@ app.get('/api/leads', async (req, res) => {
 app.post('/api/leads/process', async (req, res) => {
   try {
     const { email, vehicleInterest, firstName, lastName } = req.body;
-    
+
     if (!email) {
       return res.status(400).json({
         success: false,
@@ -134,24 +137,24 @@ app.post('/api/leads/process', async (req, res) => {
         timestamp: new Date().toISOString()
       });
     }
-    
+
     // Sanitize inputs to prevent security vulnerabilities
     const sanitizedEmail = sanitizeEmail(email);
     const sanitizedData = sanitizeJsonData({ vehicleInterest, firstName, lastName });
-    
+
     const lead = await storage.createLead({
       email: sanitizedEmail,
       status: 'new',
       leadData: sanitizedData
     });
-    
+
     await storage.createActivity(
       'lead_processing',
       `Lead processed for ${sanitizedEmail.replace(/@.*/, '@...')}`,
       'LeadPackagingAgent',
       { leadId: lead.id }
     );
-    
+
     res.json({
       success: true,
       data: {
@@ -168,7 +171,7 @@ app.post('/api/leads/process', async (req, res) => {
 app.post('/api/email-campaigns/bulk-send', async (req, res) => {
   try {
     const { campaignName, data } = req.body;
-    
+
     if (!campaignName) {
       return res.status(400).json({
         success: false,
@@ -181,18 +184,18 @@ app.post('/api/email-campaigns/bulk-send', async (req, res) => {
         timestamp: new Date().toISOString()
       });
     }
-    
+
     // Sanitize campaign name to prevent path traversal attacks
     const sanitizedCampaignName = sanitizeCampaignName(campaignName);
     const sanitizedData = sanitizeJsonData(data);
-    
+
     await storage.createActivity(
       'bulk_campaign',
       `Bulk email campaign "${sanitizedCampaignName}" processed ${Array.isArray(sanitizedData) ? sanitizedData.length : 0} records`,
       'EmailReengagementAgent',
       { campaignName: sanitizedCampaignName, recordCount: Array.isArray(sanitizedData) ? sanitizedData.length : 0 }
     );
-    
+
     res.json({
       success: true,
       data: {
@@ -205,6 +208,24 @@ app.post('/api/email-campaigns/bulk-send', async (req, res) => {
     handleApiError(res, error);
   }
 });
+
+// Initialize database optimization
+dbOptimizer.optimizeConnection();
+
+// Run database maintenance periodically (every 6 hours)
+setInterval(() => {
+  dbOptimizer.runMaintenance();
+}, 6 * 60 * 60 * 1000);
+
+// Apply comprehensive security middleware
+applySecurityMiddleware(app);
+
+// Additional security middleware
+app.use(validateSecurityHeaders);
+app.use(enhancedSanitizationMiddleware);
+
+// Security audit routes (admin only)
+app.use('/api/security', securityAuditRoutes);
 
 const PORT = parseInt(process.env.PORT || "5000", 10);
 const server = app.listen(PORT, "0.0.0.0", () => {

@@ -1,4 +1,3 @@
-
 import type { Request, Response, NextFunction } from 'express';
 import { createHash } from 'crypto';
 import { logSecurityEvent } from './security';
@@ -35,20 +34,20 @@ class EnhancedRateLimiter {
     this.windowMs = windowMs;
     this.maxRequests = maxRequests;
     this.blockDuration = blockDuration;
-    
+
     setInterval(() => this.cleanup(), 60000);
   }
 
   isAllowed(identifier: string, req?: Request): { allowed: boolean; reason?: string } {
     const now = Date.now();
     const entry = this.limits.get(identifier);
-    
+
     // Check if currently blocked
     if (entry?.blocked && now - entry.windowStart < this.blockDuration) {
       logSecurityEvent('rate_limit_blocked_request', { identifier }, req);
       return { allowed: false, reason: 'IP temporarily blocked' };
     }
-    
+
     if (!entry || now - entry.windowStart > this.windowMs) {
       // New window or unblock
       this.limits.set(identifier, {
@@ -58,7 +57,7 @@ class EnhancedRateLimiter {
       });
       return { allowed: true };
     }
-    
+
     if (entry.count >= this.maxRequests) {
       // Block the IP
       entry.blocked = true;
@@ -69,7 +68,7 @@ class EnhancedRateLimiter {
       }, req);
       return { allowed: false, reason: 'Rate limit exceeded - IP blocked' };
     }
-    
+
     entry.count++;
     return { allowed: true };
   }
@@ -96,7 +95,7 @@ export function enhancedRateLimitMiddleware(type: 'api' | 'auth' | 'webhook' = '
     }
 
     const identifier = req.ip || 'unknown';
-    
+
     let limiter: EnhancedRateLimiter;
     switch (type) {
       case 'auth':
@@ -109,9 +108,9 @@ export function enhancedRateLimitMiddleware(type: 'api' | 'auth' | 'webhook' = '
         limiter = apiRateLimiter;
         break;
     }
-    
+
     const result = limiter.isAllowed(identifier, req);
-    
+
     if (!result.allowed) {
       res.status(429).json({
         success: false,
@@ -125,7 +124,7 @@ export function enhancedRateLimitMiddleware(type: 'api' | 'auth' | 'webhook' = '
       });
       return;
     }
-    
+
     next();
   };
 }
@@ -204,7 +203,7 @@ function sanitizeValue(value: any, req?: Request): any {
   value = value.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
   value = value.replace(/javascript:/gi, '');
   value = value.replace(/on\w+\s*=/gi, '');
-  
+
   // Check for SQL injection patterns
   const sqlPatterns = [
     /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|UNION)\b)/gi,
@@ -249,7 +248,7 @@ export function securityHeadersMiddleware(req: Request, res: Response, next: Nex
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
-  
+
   // CSP Header
   const csp = [
     "default-src 'self'",
@@ -262,7 +261,7 @@ export function securityHeadersMiddleware(req: Request, res: Response, next: Nex
     "media-src 'self'",
     "frame-src 'none'",
   ].join('; ');
-  
+
   res.setHeader('Content-Security-Policy', csp);
 
   next();
@@ -314,14 +313,14 @@ export function validateRequestSize(maxSize: string = securityConfig.maxRequestS
     if (contentLength) {
       const size = parseInt(contentLength, 10);
       const maxBytes = parseSize(maxSize);
-      
+
       if (size > maxBytes) {
         logSecurityEvent('request_size_exceeded', { 
           size, 
           maxSize: maxBytes,
           url: req.url,
         }, req);
-        
+
         res.status(413).json({
           success: false,
           error: {
@@ -335,7 +334,7 @@ export function validateRequestSize(maxSize: string = securityConfig.maxRequestS
         return;
       }
     }
-    
+
     next();
   };
 }
@@ -355,7 +354,7 @@ function parseSize(size: string): number {
 
   const value = parseFloat(match[1]);
   const unit = match[2] || 'b';
-  
+
   return Math.floor(value * units[unit]);
 }
 
@@ -378,3 +377,123 @@ export function applySecurityMiddleware(app: any): void {
   // Audit logging
   app.use(auditLoggingMiddleware);
 }
+
+interface SecurityLogEntry {
+  id: string;
+  timestamp: string;
+  event: string;
+  severity: 'low' | 'medium' | 'high' | 'critical';
+  ip: string;
+  userAgent: string;
+  url?: string;
+  method?: string;
+  details: any;
+  fingerprint?: string;
+}
+
+class AuditLogger {
+  private logs: SecurityLogEntry[] = [];
+  private maxLogs = 10000;
+
+  log(event: string, details: any, req?: Request, severity: 'low' | 'medium' | 'high' | 'critical' = 'medium'): void {
+    const timestamp = new Date().toISOString();
+    const ip = req?.ip || 'unknown';
+    const userAgent = req?.get('User-Agent') || 'unknown';
+    const fingerprint = this.generateFingerprint(event, ip, userAgent);
+
+    const logEntry: SecurityLogEntry = {
+      id: `audit_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      timestamp,
+      event,
+      severity,
+      ip,
+      userAgent,
+      url: req?.url,
+      method: req?.method,
+      details: this.stripPII(details),
+      fingerprint,
+    };
+
+    this.logs.unshift(logEntry);
+
+    // Keep only recent logs in memory
+    if (this.logs.length > this.maxLogs) {
+      this.logs = this.logs.slice(0, this.maxLogs);
+    }
+
+    // Console logging with severity-based formatting
+    const logLevel = severity === 'critical' ? 'error' : severity === 'high' ? 'warn' : 'log';
+    console[logLevel](`[SECURITY:${severity.toUpperCase()}] ${timestamp} - ${event}`, {
+      ip,
+      userAgent,
+      url: req?.url,
+      method: req?.method,
+      details: logEntry.details,
+      fingerprint,
+    });
+
+    // Alert on critical events
+    if (severity === 'critical') {
+      this.handleCriticalEvent(logEntry);
+    }
+  }
+
+  private generateFingerprint(event: string, ip: string, userAgent: string): string {
+    const hash = createHash('sha256');
+    hash.update(`${event}:${ip}:${userAgent}`);
+    return hash.digest('hex').substring(0, 16);
+  }
+
+  private stripPII(data: any): any {
+    if (typeof data !== 'object' || data === null) {
+      return data;
+    }
+
+    const piiFields = ['email', 'phone', 'ssn', 'address', 'firstName', 'lastName', 'fullName', 'password'];
+    const cleaned = { ...data };
+
+    for (const field of piiFields) {
+      if (cleaned[field]) {
+        cleaned[field] = '[REDACTED]';
+      }
+    }
+
+    for (const [key, value] of Object.entries(cleaned)) {
+      if (typeof value === 'object' && value !== null) {
+        cleaned[key] = this.stripPII(value);
+      }
+    }
+
+    return cleaned;
+  }
+
+  private handleCriticalEvent(logEntry: SecurityLogEntry): void {
+    // In production, this could trigger alerts, notifications, etc.
+    console.error(`🚨 CRITICAL SECURITY EVENT: ${logEntry.event}`, logEntry);
+  }
+
+  getRecentLogs(limit: number = 100): SecurityLogEntry[] {
+    return this.logs.slice(0, limit);
+  }
+
+  getLogsByFingerprint(fingerprint: string): SecurityLogEntry[] {
+    return this.logs.filter(log => log.fingerprint === fingerprint);
+  }
+
+  getLogsBySeverity(severity: 'low' | 'medium' | 'high' | 'critical'): SecurityLogEntry[] {
+    return this.logs.filter(log => log.severity === severity);
+  }
+}
+
+const auditLogger = new AuditLogger();
+
+export function logSecurityEvent(
+  event: string, 
+  details: any, 
+  req?: Request, 
+  severity: 'low' | 'medium' | 'high' | 'critical' = 'medium'
+): void {
+  auditLogger.log(event, details, req, severity);
+}
+
+export { auditLogger };
