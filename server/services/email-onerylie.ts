@@ -34,8 +34,8 @@ class OnerylieEmailService {
       key: conf.MAILGUN_API_KEY
     });
     
-    this.domain = conf.MAILGUN_DOMAIN || 'onerylie.com';
-    this.fromEmail = conf.MAILGUN_FROM_EMAIL || 'noreply@onerylie.com';
+    this.domain = 'mail.onerylie.com';
+    this.fromEmail = 'noreply@onerylie.com';
   }
 
   async sendEmail(params: EmailParams): Promise<EmailResponse> {
