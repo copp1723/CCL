@@ -151,7 +151,7 @@ export default function DataIngestion() {
     setManualLeads(updated);
   };
 
-  const stats = statsData?.data || {};
+  const stats = (statsData as any)?.data || {};
 
   return (
     <div className="space-y-6">
@@ -215,9 +215,9 @@ export default function DataIngestion() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
-              {Object.entries(stats.ingestionSources).map(([source, count]) => (
+              {Object.entries(stats.ingestionSources || {}).map(([source, count]) => (
                 <Badge key={source} variant="outline">
-                  {source}: {count}
+                  {source}: {count as number}
                 </Badge>
               ))}
             </div>
