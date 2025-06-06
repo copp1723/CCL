@@ -33,6 +33,12 @@ const navItems: NavItem[] = [
     description: "Manage re-engagement email campaigns"
   },
   {
+    title: "Data Ingestion",
+    href: "/data-ingestion",
+    icon: Database,
+    description: "Import lead data from various sources"
+  },
+  {
     title: "Prompt Testing",
     href: "/prompt-testing",
     icon: MessageSquare,

@@ -36,22 +36,44 @@ export default function DataIngestion() {
   // CSV upload mutation
   const csvUploadMutation = useMutation({
     mutationFn: (file: File) => {
-      const formData = new FormData();
-      formData.append('csvFile', file);
-      return fetch('/api/data-ingestion/leads/csv', {
-        method: 'POST',
-        headers: {
-          'x-api-key': 'ccl-internal-2025'
-        },
-        body: formData
-      }).then(res => res.json());
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const csvData = e.target?.result as string;
+          const lines = csvData.split('\n').filter(line => line.trim());
+          const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
+          
+          const leads = lines.slice(1).map(line => {
+            const values = line.split(',').map(v => v.trim());
+            const lead: any = {};
+            
+            headers.forEach((header, index) => {
+              if (header === 'email') lead.email = values[index];
+              if (header === 'firstname' || header === 'first_name') lead.firstName = values[index];
+              if (header === 'lastname' || header === 'last_name') lead.lastName = values[index];
+              if (header === 'phone' || header === 'phonenumber' || header === 'phone_number') lead.phoneNumber = values[index];
+              if (header === 'vehicle' || header === 'vehicleinterest' || header === 'vehicle_interest') lead.vehicleInterest = values[index];
+              if (header === 'notes') lead.notes = values[index];
+            });
+            
+            return lead;
+          }).filter(lead => lead.email);
+          
+          apiRequest('/api/data-ingestion/leads/manual', {
+            method: 'POST',
+            data: { leads }
+          }).then(resolve).catch(reject);
+        };
+        reader.onerror = reject;
+        reader.readAsText(file);
+      });
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/data-ingestion/stats'] });
       queryClient.invalidateQueries({ queryKey: ['/api/leads'] });
       toast({
         title: "CSV Upload Complete",
-        description: `Processed ${data.data.totalRows} rows: ${data.data.successCount} successful, ${data.data.failureCount} failed`,
+        description: `Processed ${data.data?.totalProcessed || 0} leads: ${data.data?.successCount || 0} successful, ${data.data?.failureCount || 0} failed`,
       });
       setCsvFile(null);
     },
@@ -70,12 +92,12 @@ export default function DataIngestion() {
       method: 'POST',
       data: { leads }
     }),
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ['/api/data-ingestion/stats'] });
       queryClient.invalidateQueries({ queryKey: ['/api/leads'] });
       toast({
         title: "Manual Upload Complete",
-        description: `Processed ${data.data.totalProcessed} leads: ${data.data.successCount} successful, ${data.data.failureCount} failed`,
+        description: `Processed ${data.data?.totalProcessed || 0} leads: ${data.data?.successCount || 0} successful, ${data.data?.failureCount || 0} failed`,
       });
       setManualLeads([{ email: '', firstName: '', lastName: '', vehicleInterest: '', phoneNumber: '', notes: '' }]);
     },

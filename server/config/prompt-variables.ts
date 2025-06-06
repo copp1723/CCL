@@ -57,7 +57,13 @@ export const DEFAULT_PROMPT_VARIABLES: PromptVariables = {
   // Constraints
   never_mention: ['rates', 'guarantees', 'approval promises'],
   always_include: ['soft credit check', 'no impact to score'],
-  compliance_level: 'enhanced'
+  compliance_level: 'enhanced',
+  
+  // Phone Collection Settings
+  phone_collection_enabled: true,
+  phone_collection_priority: 'optional',
+  phone_collection_approach: 'soft_ask',
+  phone_collection_timing: 'mid_conversation'
 };
 
 export class PromptVariableManager {
