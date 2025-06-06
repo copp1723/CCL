@@ -15,11 +15,20 @@ import {
 import { requestMetricsMiddleware } from "./monitoring/metrics";
 
 const app = express();
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ extended: false }));
 
-// Simple API key authentication for internal use
-const API_KEY = process.env.INTERNAL_API_KEY || "ccl-internal-2025";
+// Security and monitoring middleware
+app.use(securityHeaders());
+app.use(requestLogging());
+app.use(requestMetricsMiddleware());
+app.use(rateLimiter.middleware());
+
+// Body parsing with validation
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: false, limit: "10mb" }));
+app.use(validateJsonPayload());
+
+// API key authentication for internal use
+const API_KEY = config.get().INTERNAL_API_KEY;
 
 const authenticate = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
@@ -215,23 +224,11 @@ app.post('/api/email-campaigns/bulk-send', async (req, res) => {
   }
 });
 
-// Initialize database optimization
-dbOptimizer.optimizeConnection();
+// Monitoring routes
+app.use('/api/monitoring', monitoringRoutes);
 
-// Run database maintenance periodically (every 6 hours)
-setInterval(() => {
-  dbOptimizer.runMaintenance();
-}, 6 * 60 * 60 * 1000);
-
-// Apply comprehensive security middleware
-applySecurityMiddleware(app);
-
-// Additional security middleware
-app.use(validateSecurityHeaders);
-app.use(enhancedSanitizationMiddleware);
-
-// Security audit routes (admin only)
-app.use('/api/security', securityAuditRoutes);
+// Error handling middleware (must be last)
+app.use(errorHandler());
 
 const PORT = parseInt(process.env.PORT || "5000", 10);
 const server = app.listen(PORT, "0.0.0.0", () => {
