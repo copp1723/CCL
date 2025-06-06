@@ -17,7 +17,7 @@ class RateLimiter {
     const rateLimitConfig = config.getRateLimitConfig();
     this.windowMs = rateLimitConfig.windowMs;
     this.maxRequests = rateLimitConfig.max;
-    
+
     // Clean up expired entries every minute
     setInterval(() => this.cleanup(), 60000);
   }
@@ -35,7 +35,7 @@ class RateLimiter {
     return (req: Request, res: Response, next: NextFunction) => {
       const key = req.ip || req.connection.remoteAddress || 'unknown';
       const now = Date.now();
-      
+
       if (!this.store[key] || this.store[key].resetTime < now) {
         this.store[key] = {
           count: 1,
@@ -105,15 +105,15 @@ export function requestLogging() {
     res.on('finish', () => {
       const duration = Date.now() - start;
       const { statusCode } = res;
-      
+
       // Log format: timestamp method url status duration ip userAgent
       console.log(`${new Date().toISOString()} ${method} ${url} ${statusCode} ${duration}ms ${ip} "${userAgent}"`);
-      
+
       // Log errors and slow requests
       if (statusCode >= 400) {
         console.error(`Error response: ${method} ${url} - ${statusCode} - ${duration}ms`);
       }
-      
+
       if (duration > 1000) {
         console.warn(`Slow request: ${method} ${url} - ${duration}ms`);
       }
@@ -182,7 +182,7 @@ export function validateJsonPayload() {
   return (req: Request, res: Response, next: NextFunction) => {
     if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
       const contentType = req.get('Content-Type');
-      
+
       if (contentType && contentType.includes('application/json')) {
         if (!req.body || typeof req.body !== 'object') {
           return res.status(400).json({
@@ -198,10 +198,9 @@ export function validateJsonPayload() {
         }
       }
     }
-    
+
     next();
   };
 }
 
 export const rateLimiter = new RateLimiter();
-export const rateLimitMiddleware = rateLimiter.middleware();
