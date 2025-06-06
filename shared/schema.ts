@@ -155,6 +155,12 @@ export type SystemActivity = typeof systemActivities.$inferSelect;
 export type InsertSystemAgent = z.infer<typeof insertSystemAgentSchema>;
 export type SystemAgent = typeof systemAgents.$inferSelect;
 
+// Insert schema for users
+export const insertUserSchema = createInsertSchema(users).pick({
+  username: true,
+  password: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -175,8 +181,3 @@ export type Lead = typeof leads.$inferSelect;
 
 export type InsertAgentActivity = z.infer<typeof insertAgentActivitySchema>;
 export type AgentActivity = typeof agentActivity.$inferSelect;
-
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-});
