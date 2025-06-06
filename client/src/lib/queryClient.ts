@@ -17,9 +17,17 @@ export async function apiRequest<T = any>(
 ): Promise<T> {
   const { method = "GET", data } = options || {};
   
+  const headers: Record<string, string> = {
+    'x-api-key': 'ccl-internal-2025'
+  };
+  
+  if (data) {
+    headers['Content-Type'] = 'application/json';
+  }
+  
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include",
   });
@@ -35,6 +43,9 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     const res = await fetch(queryKey[0] as string, {
+      headers: {
+        'x-api-key': 'ccl-internal-2025'
+      },
       credentials: "include",
     });
 
