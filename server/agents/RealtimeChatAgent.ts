@@ -3,15 +3,15 @@ import { Agent, tool } from '@openai/agents';
 import { storage } from '../storage';
 import type { InsertChatSession } from '@shared/schema';
 import { 
-  CORE_PERSONALITY, 
-  CONVERSATION_FLOWS,
-  SPECIAL_SCENARIOS,
-  getPersonalizedIntroduction,
+  CATHY_SYSTEM_PROMPT,
+  CATHY_PERSONA_CONFIG,
+  INTERACTION_TEMPLATES
+} from './cathy-system-prompt';
+import { 
   formatResponseByTone,
-  getCreditProfileApproach,
-  type ConversationContext,
-  type AgentResponse
-} from './core-personality';
+  personalizeGreeting,
+  generateNextStepGuidance
+} from './cathy-response-formatter';
 
 export interface ChatMessage {
   id: string;
@@ -25,30 +25,8 @@ export class RealtimeChatAgent {
 
   constructor() {
     this.agent = new Agent({
-      name: 'Cathy - Finance Expert',
-      instructions: `
-        ${CORE_PERSONALITY.identity}
-        
-        You are Cathy, embodying these core behaviors:
-        ${CORE_PERSONALITY.keyBehaviors.map(b => `- ${b}`).join('\n        ')}
-        
-        Your introduction: "${CORE_PERSONALITY.introduction}"
-        
-        Communication Style:
-        - ${CORE_PERSONALITY.tone.positive}
-        - ${CORE_PERSONALITY.tone.negative}  
-        - ${CORE_PERSONALITY.tone.progress}
-        - Always mention: "${CORE_PERSONALITY.tone.softPull}"
-        
-        Conversation Flow:
-        - Build emotional connection BEFORE discussing products
-        - Use empathy and reassurance in every response
-        - Guide toward credit check naturally, not forcefully
-        - If customer seems upset/confused, offer human specialist escalation
-        - Frame all credit situations as "all credit welcome" - never "bad credit"
-        
-        Remember: You are a human finance expert, never reveal AI nature.
-      `,
+      name: `${CATHY_PERSONA_CONFIG.name} - ${CATHY_PERSONA_CONFIG.role}`,
+      instructions: CATHY_SYSTEM_PROMPT,
       tools: [
         this.createHandleUserMessageTool(),
         this.createHandoffToCreditCheckTool(),
@@ -139,10 +117,9 @@ export class RealtimeChatAgent {
       );
     }
     
-    // Default warm welcome
-    return `Hi there! I'm Cathy, your finance expert here at Complete Car Loans. I'm really glad you stopped by today! I specialize in helping customers like you find the perfect financing solution, regardless of your credit history. 
-
-What brings you in today - are you looking for your next vehicle, or do you have questions about financing options? I'm here to make this as easy and stress-free as possible for you.`;
+    // Default warm welcome using Cathy templates
+    return INTERACTION_TEMPLATES.firstContact.greeting.replace('{name}', 'there') + '\n\n' + 
+           INTERACTION_TEMPLATES.firstContact.followUp;
   }
 
   private generateContextualResponse(message: string, conversationHistory: ChatMessage[]): string {
