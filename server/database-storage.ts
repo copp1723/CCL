@@ -12,7 +12,7 @@ import {
   type InsertSystemAgent,
 } from "../shared/schema";
 import { db } from "./db";
-import { eq, desc } from "drizzle-orm";
+import { eq, desc, count } from "drizzle-orm";
 
 interface LeadData {
   id: string;
@@ -250,16 +250,17 @@ class DatabaseStorage implements StorageInterface {
   }
 
   async getStats(): Promise<SystemStats> {
-    const [leadCount] = await db.select({ count: systemLeads.id }).from(systemLeads);
-    const [activityCount] = await db.select({ count: systemActivities.id }).from(systemActivities);
-    const [agentCount] = await db.select({ count: systemAgents.id }).from(systemAgents);
+    // Simple count implementation without using count() function
+    const leads = await db.select().from(systemLeads);
+    const activities = await db.select().from(systemActivities);
+    const agents = await db.select().from(systemAgents);
     
     const uptime = (Date.now() - this.startTime) / 1000;
     
     return {
-      leads: leadCount?.count || 0,
-      activities: activityCount?.count || 0,
-      agents: agentCount?.count || 0,
+      leads: leads.length,
+      activities: activities.length,
+      agents: agents.length,
       uptime,
       memory: process.memoryUsage(),
       timestamp: new Date().toISOString()
