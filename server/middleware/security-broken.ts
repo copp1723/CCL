@@ -178,6 +178,21 @@ export function errorHandler() {
   };
 }
 
+
+    
+    res.status(500).json({
+      success: false,
+      error: {
+        code: 'INTERNAL_ERROR',
+        message: 'Internal server error',
+        category: 'server',
+        retryable: true
+      },
+      timestamp: new Date().toISOString()
+    });
+  };
+}
+
 export function validateJsonPayload() {
   return (req: Request, res: Response, next: NextFunction) => {
     if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
@@ -203,5 +218,46 @@ export function validateJsonPayload() {
   };
 }
 
+import { Request, Response, NextFunction } from 'express';
+
+class RateLimiter {
+  private requests: Map<string, number[]> = new Map();
+  private readonly windowMs: number = 15 * 60 * 1000; // 15 minutes
+  private readonly maxRequests: number = 100;
+
+  middleware() {
+    return (req: Request, res: Response, next: NextFunction) => {
+      const ip = req.ip || req.connection.remoteAddress || 'unknown';
+      const now = Date.now();
+      
+      if (!this.requests.has(ip)) {
+        this.requests.set(ip, []);
+      }
+      
+      const requests = this.requests.get(ip)!;
+      const windowStart = now - this.windowMs;
+      
+      // Remove old requests
+      const recentRequests = requests.filter(time => time > windowStart);
+      this.requests.set(ip, recentRequests);
+      
+      if (recentRequests.length >= this.maxRequests) {
+        return res.status(429).json({
+          success: false,
+          error: {
+            code: 'RATE_LIMIT_EXCEEDED',
+            message: 'Too many requests',
+            category: 'rate_limit',
+            retryable: true
+          },
+          timestamp: new Date().toISOString()
+        });
+      }
+      
+      recentRequests.push(now);
+      next();
+    };
+  }
+}
+
 export const rateLimiter = new RateLimiter();
-export const rateLimitMiddleware = rateLimiter.middleware();
