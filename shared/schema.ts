@@ -38,15 +38,7 @@ export const emailCampaigns = pgTable("email_campaigns", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const creditChecks = pgTable("credit_checks", {
-  id: serial("id").primaryKey(),
-  visitorId: integer("visitor_id").references(() => visitors.id).notNull(),
-  phone: text("phone").notNull(),
-  creditScore: integer("credit_score"),
-  approved: boolean("approved").default(false),
-  externalId: text("external_id"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+
 
 // Session storage table for authentication
 export const sessions = pgTable(
@@ -93,7 +85,6 @@ export const systemAgents = pgTable("system_agents", {
 export const leads = pgTable("leads", {
   id: serial("id").primaryKey(),
   visitorId: integer("visitor_id").references(() => visitors.id).notNull(),
-  creditCheckId: integer("credit_check_id").references(() => creditChecks.id),
   leadData: jsonb("lead_data").notNull(),
   status: text("status").notNull().default("pending"), // pending, submitted, failed
   dealerResponse: jsonb("dealer_response"),
@@ -142,10 +133,7 @@ export const insertEmailCampaignSchema = createInsertSchema(emailCampaigns).omit
   createdAt: true,
 });
 
-export const insertCreditCheckSchema = createInsertSchema(creditChecks).omit({
-  id: true,
-  createdAt: true,
-});
+
 
 export const insertLeadSchema = createInsertSchema(leads).omit({
   id: true,
@@ -180,8 +168,7 @@ export type ChatSession = typeof chatSessions.$inferSelect;
 export type InsertEmailCampaign = z.infer<typeof insertEmailCampaignSchema>;
 export type EmailCampaign = typeof emailCampaigns.$inferSelect;
 
-export type InsertCreditCheck = z.infer<typeof insertCreditCheckSchema>;
-export type CreditCheck = typeof creditChecks.$inferSelect;
+
 
 export type InsertLead = z.infer<typeof insertLeadSchema>;
 export type Lead = typeof leads.$inferSelect;

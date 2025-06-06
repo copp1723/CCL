@@ -1,28 +1,7 @@
 /**
  * External API Integration Services
- * Production-ready integrations for FlexPath credit checks and Mailgun email delivery
+ * Production-ready integrations for Mailgun email delivery
  */
-
-export interface FlexPathCreditRequest {
-  phoneNumber: string;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  ipAddress?: string;
-  userAgent?: string;
-}
-
-export interface FlexPathCreditResponse {
-  success: boolean;
-  approved: boolean;
-  creditScore?: number;
-  riskTier: 'prime' | 'near-prime' | 'sub-prime' | 'deep-sub-prime';
-  maxLoanAmount?: number;
-  estimatedRate?: number;
-  externalId: string;
-  reasons?: string[];
-  error?: string;
-}
 
 export interface MailgunEmailRequest {
   to: string;
@@ -38,25 +17,6 @@ export interface MailgunEmailResponse {
   messageId?: string;
   error?: string;
 }
-
-export class FlexPathService {
-  private apiKey: string;
-  private baseUrl: string;
-  private timeout: number = 10000; // 10 second timeout
-
-  constructor() {
-    this.apiKey = process.env.FLEXPATH_API_KEY || '';
-    this.baseUrl = process.env.FLEXPATH_BASE_URL || 'https://sandbox.flexpath.com/api/v1';
-
-    if (!this.apiKey) {
-      console.warn('FlexPath API key not configured. Credit checks will use simulation mode.');
-    }
-  }
-
-  async performCreditCheck(request: FlexPathCreditRequest): Promise<FlexPathCreditResponse> {
-    if (!this.apiKey) {
-      return this.simulateCreditCheck(request);
-    }
 
     try {
       const response = await fetch(`${this.baseUrl}/credit-check`, {
