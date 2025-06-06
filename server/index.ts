@@ -7,6 +7,7 @@ import { sanitizeCampaignName, sanitizeEmail, sanitizeJsonData } from "./utils/i
 import config from "./config/environment";
 import monitoringRoutes from "./routes/monitoring";
 import promptTestingRoutes from "./routes/prompt-testing";
+import stagingDeploymentRoutes from "./routes/staging-deployment";
 import { 
   securityHeaders, 
   requestLogging, 
