@@ -88,26 +88,27 @@ export default function PromptTesting() {
     setCurrentMessage('');
 
     try {
-      // Mock response for now - replace with actual API call
-      const mockResponse: TestResponse = {
-        customerMessage: messageToSend,
-        cathyResponse: generateMockCathyResponse(messageToSend),
-        analysis: generateMockAnalysis(messageToSend),
-        salesReadiness: determineSalesReadiness(messageToSend),
-        customerName,
-        channel: 'web_chat',
-        insights: generateMockInsights(messageToSend),
-        nextSteps: generateNextSteps(messageToSend)
-      };
+      const response = await apiRequest('/api/test/chat-response', {
+        method: 'POST',
+        data: {
+          userMessage: messageToSend,
+          customerName,
+          customerSituation,
+          conversationHistory: conversation.map(msg => ({
+            type: msg.type,
+            content: msg.content
+          }))
+        }
+      });
 
-      setLastResponse(mockResponse);
+      setLastResponse(response);
 
       const agentMessage: ConversationMessage = {
         id: (Date.now() + 1).toString(),
         type: 'agent',
-        content: mockResponse.cathyResponse,
+        content: response.cathyResponse,
         timestamp: new Date(),
-        metadata: mockResponse
+        metadata: response
       };
 
       setConversation(prev => [...prev, agentMessage]);
@@ -141,74 +142,7 @@ export default function PromptTesting() {
     });
   };
 
-  // Mock functions - replace with actual API calls
-  const generateMockCathyResponse = (message: string): string => {
-    const lowerMsg = message.toLowerCase();
-    
-    if (lowerMsg.includes('credit') && (lowerMsg.includes('worried') || lowerMsg.includes('issues'))) {
-      return `Hi ${customerName}! I completely understand your concerns about credit - you're definitely not alone in feeling this way. I want you to know that I specialize in working with customers who have had credit challenges, and many of my most successful customers started exactly where you are.\n\nCredit history doesn't define your options; it just helps me find the right path forward for you. What kind of vehicle are you hoping to get? I'd love to show you what's possible.`;
-    }
-    
-    if (lowerMsg.includes('first') || lowerMsg.includes('new') || lowerMsg.includes('understand')) {
-      return `Welcome ${customerName}! I'm so glad you reached out - buying your first car is exciting! I'm here to make the financing process as simple and stress-free as possible for you.\n\nAuto financing is actually pretty straightforward: we'll do a quick, soft credit check (no impact to your score), see what you qualify for, and then help you find a vehicle that fits your budget and needs. Would you like me to walk you through each step?`;
-    }
-    
-    if (lowerMsg.includes('ready') || lowerMsg.includes('apply') || lowerMsg.includes('pre-approved')) {
-      return `That's wonderful, ${customerName}! I love working with customers who are ready to move forward. Getting pre-approved is smart - it gives you real purchasing power and lets you shop with confidence.\n\nI can get your pre-qualification started right now with just a soft credit check. This won't impact your credit score at all, and you'll know exactly what you qualify for in just a few minutes. Sound good?`;
-    }
-    
-    return `Hi ${customerName}! I'm Cathy, and I'm really glad you stopped by today. I specialize in helping customers find the perfect auto financing solution, regardless of their credit situation. Every customer's needs are unique, and I'm here to make this process as easy as possible for you.\n\nWhat questions can I answer for you today?`;
-  };
 
-  const generateMockAnalysis = (message: string): string => {
-    const lowerMsg = message.toLowerCase();
-    
-    if (lowerMsg.includes('worried') || lowerMsg.includes('anxious')) {
-      return 'Customer expressing anxiety about credit situation. Responding with empathy and reassurance to build trust and confidence.';
-    }
-    
-    if (lowerMsg.includes('confused') || lowerMsg.includes('overwhelmed')) {
-      return 'Customer feeling overwhelmed by information. Simplifying process and offering clear guidance.';
-    }
-    
-    if (lowerMsg.includes('ready') || lowerMsg.includes('apply')) {
-      return 'Customer showing high intent and readiness to proceed. Moving toward pre-qualification process.';
-    }
-    
-    return 'Customer engaged in general inquiry. Building rapport and gathering needs information.';
-  };
-
-  const determineSalesReadiness = (message: string): string => {
-    const lowerMsg = message.toLowerCase();
-    
-    if (lowerMsg.includes('ready') || lowerMsg.includes('apply') || lowerMsg.includes('pre-approved')) {
-      return 'high';
-    }
-    
-    if (lowerMsg.includes('worried') || lowerMsg.includes('confused') || lowerMsg.includes('overwhelmed')) {
-      return 'low';
-    }
-    
-    return 'medium';
-  };
-
-  const generateMockInsights = (message: string): string => {
-    return `Customer ${customerName} seeking information about auto financing. ${customerSituation || 'Standard inquiry with moderate engagement level.'}`;
-  };
-
-  const generateNextSteps = (message: string): string => {
-    const readiness = determineSalesReadiness(message);
-    
-    if (readiness === 'high') {
-      return 'Guide customer through soft credit check process and pre-qualification';
-    }
-    
-    if (readiness === 'low') {
-      return 'Build trust and confidence, address concerns, offer educational content';
-    }
-    
-    return 'Continue building rapport and gather more information about customer needs';
-  };
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">

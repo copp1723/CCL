@@ -5,6 +5,7 @@ import { storage } from "./database-storage";
 import { sanitizeCampaignName, sanitizeEmail, sanitizeText, sanitizeJsonData } from "./utils/input-sanitizer";
 import config from "./config/environment";
 import monitoringRoutes from "./routes/monitoring";
+import promptTestingRoutes from "./routes/prompt-testing";
 import { 
   securityHeaders, 
   requestLogging, 
@@ -226,6 +227,9 @@ app.post('/api/email-campaigns/bulk-send', async (req, res) => {
 
 // Monitoring routes
 app.use('/api/monitoring', monitoringRoutes);
+
+// Prompt testing routes
+app.use('/api/test', promptTestingRoutes);
 
 // Error handling middleware (must be last)
 app.use(errorHandler());

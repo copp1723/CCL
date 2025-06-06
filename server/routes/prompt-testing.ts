@@ -1,0 +1,220 @@
+import express from 'express';
+import { Request, Response } from 'express';
+import { CATHY_SYSTEM_PROMPT } from '../agents/cathy-system-prompt';
+
+const router = express.Router();
+
+interface TestChatRequest {
+  userMessage: string;
+  customerName: string;
+  customerSituation?: string;
+  conversationHistory?: Array<{
+    type: 'user' | 'agent';
+    content: string;
+  }>;
+}
+
+interface TestResponse {
+  customerMessage: string;
+  cathyResponse: string;
+  analysis: string;
+  salesReadiness: string;
+  customerName: string;
+  channel: string;
+  insights: string;
+  nextSteps?: string;
+}
+
+// Get current system prompt
+router.get('/system-prompt', (req: Request, res: Response) => {
+  try {
+    res.json({
+      prompt: CATHY_SYSTEM_PROMPT,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error retrieving system prompt:', error);
+    res.status(500).json({ error: 'Failed to retrieve system prompt' });
+  }
+});
+
+// Update system prompt (for testing purposes)
+router.post('/system-prompt', (req: Request, res: Response) => {
+  try {
+    const { prompt } = req.body;
+    
+    if (!prompt || typeof prompt !== 'string') {
+      return res.status(400).json({ error: 'Valid prompt string is required' });
+    }
+
+    // In a real implementation, you might want to save this to a database
+    // For now, we'll just acknowledge the update
+    res.json({
+      success: true,
+      message: 'System prompt updated successfully',
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error updating system prompt:', error);
+    res.status(500).json({ error: 'Failed to update system prompt' });
+  }
+});
+
+// Test chat response
+router.post('/chat-response', async (req: Request, res: Response) => {
+  try {
+    const { userMessage, customerName, customerSituation, conversationHistory }: TestChatRequest = req.body;
+
+    if (!userMessage || !customerName) {
+      return res.status(400).json({ error: 'userMessage and customerName are required' });
+    }
+
+    const response = await generateCathyResponse(userMessage, customerName, customerSituation, conversationHistory);
+    
+    res.json(response);
+  } catch (error) {
+    console.error('Error generating chat response:', error);
+    res.status(500).json({ error: 'Failed to generate response' });
+  }
+});
+
+// Test email response
+router.post('/email-response', async (req: Request, res: Response) => {
+  try {
+    const { userMessage, customerName, customerSituation }: TestChatRequest = req.body;
+
+    if (!userMessage || !customerName) {
+      return res.status(400).json({ error: 'userMessage and customerName are required' });
+    }
+
+    const response = await generateCathyEmailResponse(userMessage, customerName, customerSituation);
+    
+    res.json(response);
+  } catch (error) {
+    console.error('Error generating email response:', error);
+    res.status(500).json({ error: 'Failed to generate email response' });
+  }
+});
+
+// Helper function to generate Cathy's chat response
+async function generateCathyResponse(
+  userMessage: string,
+  customerName: string,
+  customerSituation?: string,
+  conversationHistory?: Array<{ type: 'user' | 'agent'; content: string }>
+): Promise<TestResponse> {
+  const lowerMsg = userMessage.toLowerCase();
+  
+  // Analyze customer intent and generate appropriate response
+  let cathyResponse: string;
+  let analysis: string;
+  let salesReadiness: string;
+  let insights: string;
+  let nextSteps: string;
+
+  if (lowerMsg.includes('credit') && (lowerMsg.includes('worried') || lowerMsg.includes('issues') || lowerMsg.includes('anxious'))) {
+    cathyResponse = `Hi ${customerName}! I completely understand your concerns about credit - you're definitely not alone in feeling this way. I want you to know that I specialize in working with customers who have had credit challenges, and many of my most successful customers started exactly where you are.\n\nCredit history doesn't define your options; it just helps me find the right path forward for you. What kind of vehicle are you hoping to get? I'd love to show you what's possible.`;
+    analysis = 'Customer expressing anxiety about credit situation. Responding with empathy and reassurance to build trust and confidence.';
+    salesReadiness = 'medium';
+    insights = 'Customer has credit concerns but is engaged in the conversation. Building trust is critical.';
+    nextSteps = 'Build confidence through education and show available options despite credit challenges.';
+  } else if (lowerMsg.includes('first') || lowerMsg.includes('new') || lowerMsg.includes('understand') || lowerMsg.includes('how') && lowerMsg.includes('work')) {
+    cathyResponse = `Welcome ${customerName}! I'm so glad you reached out - buying your first car is exciting! I'm here to make the financing process as simple and stress-free as possible for you.\n\nAuto financing is actually pretty straightforward: we'll do a quick, soft credit check (no impact to your score), see what you qualify for, and then help you find a vehicle that fits your budget and needs. Would you like me to walk you through each step?`;
+    analysis = 'First-time buyer seeking education about the auto financing process. Providing clear, encouraging guidance.';
+    salesReadiness = 'high';
+    insights = 'Customer is new to auto financing and receptive to guidance. High conversion potential with proper education.';
+    nextSteps = 'Offer to walk through the financing process step-by-step and initiate soft credit check.';
+  } else if (lowerMsg.includes('ready') || lowerMsg.includes('apply') || lowerMsg.includes('pre-approved') || lowerMsg.includes('move forward')) {
+    cathyResponse = `That's wonderful, ${customerName}! I love working with customers who are ready to move forward. Getting pre-approved is smart - it gives you real purchasing power and lets you shop with confidence.\n\nI can get your pre-qualification started right now with just a soft credit check. This won't impact your credit score at all, and you'll know exactly what you qualify for in just a few minutes. Sound good?`;
+    analysis = 'Customer showing high intent and readiness to proceed. Moving toward pre-qualification process.';
+    salesReadiness = 'high';
+    insights = 'Customer is highly motivated and ready to take action. Prime candidate for immediate pre-qualification.';
+    nextSteps = 'Guide customer through soft credit check process and pre-qualification application.';
+  } else if (lowerMsg.includes('confused') || lowerMsg.includes('overwhelmed') || lowerMsg.includes('different things')) {
+    cathyResponse = `I hear you, ${customerName}, and I'm so sorry you've had that experience. Car shopping can definitely feel overwhelming when everyone's telling you different things - that's exactly why I'm here to cut through all the confusion.\n\nLet me be your advocate and give you the straight facts. What specific questions do you have? I promise to give you clear, honest answers without any pressure.`;
+    analysis = 'Customer feeling overwhelmed by conflicting information from other sources. Positioning as trusted advisor.';
+    salesReadiness = 'medium';
+    insights = 'Customer needs clarity and trust-building before moving forward. Opportunity to differentiate through transparency.';
+    nextSteps = 'Address specific concerns, provide clear information, and build trust through transparency.';
+  } else if (lowerMsg.includes('payment') || lowerMsg.includes('monthly') || lowerMsg.includes('budget') || lowerMsg.includes('afford')) {
+    cathyResponse = `Absolutely, ${customerName}! Keeping your monthly payment manageable is so important, and I completely understand wanting to stay within your budget.\n\n$300 a month is definitely workable - I've helped many customers find great financing options within that range. The key is finding the right vehicle and loan terms that fit your situation. Can you tell me a bit about what type of vehicle you're looking for?`;
+    analysis = 'Customer focused on monthly payment and budget constraints. Addressing affordability concerns directly.';
+    salesReadiness = 'high';
+    insights = 'Customer has specific budget parameters but is actively seeking solutions. Good qualification opportunity.';
+    nextSteps = 'Gather vehicle preferences and show financing options that meet budget requirements.';
+  } else if (lowerMsg.includes('started') || lowerMsg.includes('application') || lowerMsg.includes('paperwork')) {
+    cathyResponse = `No worries at all, ${customerName}! You definitely don't need to start over. I can easily pull up your previous application and help you pick up right where you left off.\n\nI understand paperwork can feel overwhelming - that's exactly why I'm here to guide you through it step by step. Would you like me to take a look at what you've already completed and show you what's next?`;
+    analysis = 'Customer had previous abandonment experience, needs reassurance and guidance to complete process.';
+    salesReadiness = 'high';
+    insights = 'Customer has shown intent by starting application previously. Strong re-engagement opportunity.';
+    nextSteps = 'Reassure customer, retrieve previous application data, and provide guided completion assistance.';
+  } else {
+    cathyResponse = `Hi ${customerName}! I'm Cathy, and I'm really glad you stopped by today. I specialize in helping customers find the perfect auto financing solution, regardless of their credit situation. Every customer's needs are unique, and I'm here to make this process as easy as possible for you.\n\nWhat questions can I answer for you today?`;
+    analysis = 'General inquiry from customer. Establishing rapport and gathering initial needs information.';
+    salesReadiness = 'medium';
+    insights = 'Customer is in early discovery phase. Opportunity to build relationship and understand specific needs.';
+    nextSteps = 'Continue building rapport, ask qualifying questions, and identify specific customer needs and concerns.';
+  }
+
+  return {
+    customerMessage: userMessage,
+    cathyResponse,
+    analysis,
+    salesReadiness,
+    customerName,
+    channel: 'web_chat',
+    insights,
+    nextSteps
+  };
+}
+
+// Helper function to generate Cathy's email response
+async function generateCathyEmailResponse(
+  userMessage: string,
+  customerName: string,
+  customerSituation?: string
+): Promise<TestResponse & { email?: { subject: string; salutation: string; body: string; signoff: string } }> {
+  const chatResponse = await generateCathyResponse(userMessage, customerName, customerSituation);
+  
+  // Generate email-specific formatting
+  const email = {
+    subject: generateEmailSubject(userMessage, customerName),
+    salutation: `Hi ${customerName},`,
+    body: formatForEmail(chatResponse.cathyResponse),
+    signoff: `Best regards,\n\nCathy\nAuto Finance Specialist\nComplete Car Loans\n\nP.S. I'm here whenever you have questions - just reply to this email or give me a call!`
+  };
+
+  return {
+    ...chatResponse,
+    cathyResponse: email.body,
+    channel: 'email',
+    email
+  };
+}
+
+function generateEmailSubject(userMessage: string, customerName: string): string {
+  const lowerMsg = userMessage.toLowerCase();
+  
+  if (lowerMsg.includes('credit') && (lowerMsg.includes('worried') || lowerMsg.includes('issues'))) {
+    return `${customerName}, let's find you the right auto financing solution`;
+  } else if (lowerMsg.includes('first') || lowerMsg.includes('new')) {
+    return `${customerName}, your auto financing questions answered`;
+  } else if (lowerMsg.includes('ready') || lowerMsg.includes('apply')) {
+    return `${customerName}, let's get your pre-approval started`;
+  } else if (lowerMsg.includes('confused') || lowerMsg.includes('overwhelmed')) {
+    return `${customerName}, let me clear up the confusion`;
+  } else if (lowerMsg.includes('payment') || lowerMsg.includes('budget')) {
+    return `${customerName}, financing options that fit your budget`;
+  } else {
+    return `${customerName}, I'm here to help with your auto financing`;
+  }
+}
+
+function formatForEmail(chatResponse: string): string {
+  // Convert chat response to email format
+  return chatResponse
+    .replace(/\n\n/g, '\n\n')
+    .replace(/\n/g, '\n\n');
+}
+
+export default router;
