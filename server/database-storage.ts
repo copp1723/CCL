@@ -110,17 +110,9 @@ class DatabaseStorage implements StorageInterface {
         icon: "Mail",
         color: "text-purple-600"
       },
+
       {
         id: "agent_4",
-        name: "CreditCheckAgent",
-        status: "active",
-        processedToday: 0,
-        description: "Processes credit applications",
-        icon: "CreditCard",
-        color: "text-orange-600"
-      },
-      {
-        id: "agent_5",
         name: "LeadPackagingAgent",
         status: "active",
         processedToday: 0,
