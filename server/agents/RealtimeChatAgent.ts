@@ -1,6 +1,17 @@
+
 import { Agent, tool } from '@openai/agents';
 import { storage } from '../storage';
 import type { InsertChatSession } from '@shared/schema';
+import { 
+  CORE_PERSONALITY, 
+  CONVERSATION_FLOWS,
+  SPECIAL_SCENARIOS,
+  getPersonalizedIntroduction,
+  formatResponseByTone,
+  getCreditProfileApproach,
+  type ConversationContext,
+  type AgentResponse
+} from './core-personality';
 
 export interface ChatMessage {
   id: string;
@@ -14,24 +25,29 @@ export class RealtimeChatAgent {
 
   constructor() {
     this.agent = new Agent({
-      name: 'Realtime Chat Agent',
+      name: 'Cathy - Finance Expert',
       instructions: `
-        You are a helpful car loan assistant for Complete Car Loans. Your role is to:
-        1. Help visitors continue their abandoned loan applications
-        2. Answer questions about loan products and rates
-        3. Collect contact information for credit checks
-        4. Guide users through the application process
-        5. Hand off to credit check agent when phone number is provided
+        ${CORE_PERSONALITY.identity}
         
-        Key behaviors:
-        - Be friendly, professional, and helpful
-        - Ask for phone number to perform credit check
-        - Explain loan products clearly
-        - Help recover abandoned applications using return tokens
-        - Keep responses concise and actionable
-        - Always offer to help with next steps
+        You are Cathy, embodying these core behaviors:
+        ${CORE_PERSONALITY.keyBehaviors.map(b => `- ${b}`).join('\n        ')}
         
-        When a user provides their phone number, immediately hand off to the credit check agent.
+        Your introduction: "${CORE_PERSONALITY.introduction}"
+        
+        Communication Style:
+        - ${CORE_PERSONALITY.tone.positive}
+        - ${CORE_PERSONALITY.tone.negative}  
+        - ${CORE_PERSONALITY.tone.progress}
+        - Always mention: "${CORE_PERSONALITY.tone.softPull}"
+        
+        Conversation Flow:
+        - Build emotional connection BEFORE discussing products
+        - Use empathy and reassurance in every response
+        - Guide toward credit check naturally, not forcefully
+        - If customer seems upset/confused, offer human specialist escalation
+        - Frame all credit situations as "all credit welcome" - never "bad credit"
+        
+        Remember: You are a human finance expert, never reveal AI nature.
       `,
       tools: [
         this.createHandleUserMessageTool(),
@@ -44,7 +60,7 @@ export class RealtimeChatAgent {
   private createHandleUserMessageTool() {
     return tool({
       name: 'handle_user_message',
-      description: 'Process and respond to user messages in the chat',
+      description: 'Process and respond to user messages with Cathy\'s empathetic personality',
       execute: async (params: { sessionId: string; message: string; visitorId?: number }) => {
         try {
           const { sessionId, message, visitorId } = params;
@@ -62,24 +78,24 @@ export class RealtimeChatAgent {
             chatSession = await storage.createChatSession(newSession);
           }
 
-          // Analyze message for phone number
+          // Analyze conversation context
+          const messages = (chatSession.messages as ChatMessage[]) || [];
+          const isFirstMessage = messages.filter(m => m.type === 'user').length === 0;
+          
+          // Check for phone number
           const phoneRegex = /(?:\+1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/;
           const phoneMatch = message.match(phoneRegex);
           
           let response = '';
           let shouldHandoff = false;
-
+          
           if (phoneMatch) {
-            response = "Thank you for providing your phone number! I'm now connecting you with our credit check system to get you pre-approved. This will just take a moment...";
+            response = this.generatePhoneNumberResponse();
             shouldHandoff = true;
-          } else if (message.toLowerCase().includes('abandon') || message.toLowerCase().includes('application')) {
-            response = "I'd be happy to help you continue your car loan application! Can you provide your email address or phone number so I can look up your previous application?";
-          } else if (message.toLowerCase().includes('rate') || message.toLowerCase().includes('interest')) {
-            response = "Our current car loan rates start as low as 3.9% APR for qualified borrowers. Rates depend on your credit score, loan term, and vehicle. Would you like me to check what rate you qualify for? I'll just need your phone number to run a quick credit check.";
-          } else if (message.toLowerCase().includes('help') || message.toLowerCase().includes('hello') || message.toLowerCase().includes('hi')) {
-            response = "Hello! I'm here to help you with your car loan. Whether you're looking to start a new application or continue an existing one, I can assist you. What can I help you with today?";
+          } else if (isFirstMessage) {
+            response = this.generateWelcomeResponse(message);
           } else {
-            response = "I understand you're interested in a car loan. I can help you get pre-approved quickly! To provide you with the best rates and terms, I'll need to run a soft credit check. Can you please provide your phone number?";
+            response = this.generateContextualResponse(message, messages);
           }
 
           return {
@@ -94,17 +110,94 @@ export class RealtimeChatAgent {
           return {
             success: false,
             error: error instanceof Error ? error.message : 'Unknown error',
-            response: "I apologize, but I'm experiencing technical difficulties. Please try again in a moment.",
+            response: "I'm so sorry, but I'm experiencing some technical difficulties right now. This is frustrating for both of us! Could you give me just a moment to get this sorted out?",
           };
         }
       },
     });
   }
 
+  private generateWelcomeResponse(message: string): string {
+    const lowerMsg = message.toLowerCase();
+    
+    // Detect emotional tone and respond with empathy
+    if (lowerMsg.includes('frustrated') || lowerMsg.includes('denied') || lowerMsg.includes('rejected')) {
+      return formatResponseByTone('negative', 
+        "I completely understand how frustrating that experience must have been. You're not alone in this - I work specifically with people in all credit situations, and I've helped many customers who felt exactly like you do right now. Let's see what options we can explore together. What's been your biggest concern about getting approved?"
+      );
+    }
+    
+    if (lowerMsg.includes('urgent') || lowerMsg.includes('need asap') || lowerMsg.includes('quickly')) {
+      return formatResponseByTone('progress',
+        "I hear the urgency in your message, and I'm here to help you move quickly. I specialize in getting people pre-approved efficiently, often within minutes. Our soft credit check won't impact your score, and we work with all credit situations. What's driving the timeline - did you find a vehicle you love?"
+      );
+    }
+    
+    if (lowerMsg.includes('bad credit') || lowerMsg.includes('poor credit') || lowerMsg.includes('credit problems')) {
+      return formatResponseByTone('positive',
+        "I'm so glad you reached out! I want you to know that I work exclusively with customers in all credit situations - that's exactly my specialty. Many of my most successful customers started exactly where you are. Credit challenges don't define your options; they just help me find the right path for you. What kind of vehicle are you hoping to get?"
+      );
+    }
+    
+    // Default warm welcome
+    return `Hi there! I'm Cathy, your finance expert here at Complete Car Loans. I'm really glad you stopped by today! I specialize in helping customers like you find the perfect financing solution, regardless of your credit history. 
+
+What brings you in today - are you looking for your next vehicle, or do you have questions about financing options? I'm here to make this as easy and stress-free as possible for you.`;
+  }
+
+  private generateContextualResponse(message: string, conversationHistory: ChatMessage[]): string {
+    const lowerMsg = message.toLowerCase();
+    
+    // Handle emotional states with empathy
+    if (lowerMsg.includes('confused') || lowerMsg.includes("don't understand")) {
+      return formatResponseByTone('negative',
+        "I can absolutely see how this might feel overwhelming - car financing can seem complicated, but it doesn't have to be! Let me break this down in simple terms for you. Think of me as your personal guide through this process. What specific part would you like me to explain more clearly?"
+      );
+    }
+    
+    if (lowerMsg.includes('worried') || lowerMsg.includes('nervous') || lowerMsg.includes('scared')) {
+      return formatResponseByTone('negative',
+        "Those feelings are completely normal, and I appreciate you sharing that with me. Many of my customers felt exactly the same way when they first reached out. The good news? You've already taken the hardest step by starting this conversation. I'm going to walk you through everything step by step, and there are no surprises or pressure here. What's your biggest worry right now?"
+      );
+    }
+    
+    // Handle rate and payment inquiries with relationship building
+    if (lowerMsg.includes('rate') || lowerMsg.includes('payment') || lowerMsg.includes('monthly')) {
+      return formatResponseByTone('positive',
+        "That's exactly the right question to ask! Your rate and payment will depend on a few factors like your credit profile, the vehicle you choose, and loan term. The great news is that our current rates start as low as 3.9% APR for qualified customers, and we have programs for all credit situations. Our soft credit check takes just a moment and won't impact your score at all. Would you like me to check what specific rate and payment you'd qualify for?"
+      );
+    }
+    
+    // Handle application/process questions
+    if (lowerMsg.includes('apply') || lowerMsg.includes('application') || lowerMsg.includes('process')) {
+      return formatResponseByTone('progress',
+        "I love that you're ready to move forward! The process is actually much simpler than most people expect. We start with a quick, soft credit check that won't affect your score, then I can show you exactly what you qualify for. The whole pre-approval usually takes less than 2 minutes. Once you're pre-approved, you'll know your exact buying power before you even look at vehicles. Should we get your pre-approval started?"
+      );
+    }
+    
+    // Handle vehicle-specific questions
+    if (lowerMsg.includes('car') || lowerMsg.includes('truck') || lowerMsg.includes('suv') || lowerMsg.includes('vehicle')) {
+      return formatResponseByTone('positive',
+        "It sounds like you're getting excited about your next vehicle - I love that energy! Whether you're looking at something specific or still exploring options, getting pre-approved first is always the smart move. It gives you real negotiating power and helps you shop with confidence. Plus, our financing often beats dealer rates. Have you been looking at anything particular, or are you still in the browsing stage?"
+      );
+    }
+    
+    // Default response that builds connection
+    return formatResponseByTone('progress',
+      "I want to make sure I'm giving you exactly the help you need. Every customer's situation is unique, and I believe in taking the time to understand yours. Our soft credit check process is completely free and won't impact your credit score - it just helps me see what options will work best for you. What would be most helpful for you to know right now?"
+    );
+  }
+
+  private generatePhoneNumberResponse(): string {
+    return formatResponseByTone('progress',
+      "Perfect! Thank you for trusting me with that information. I'm starting your soft credit check right now - this will just take a moment and won't impact your credit score at all. I'm really excited to see what great options we can get you approved for! You're taking exactly the right step here."
+    );
+  }
+
   private createHandoffToCreditCheckTool() {
     return tool({
       name: 'handoff_to_credit_check',
-      description: 'Hand off to credit check agent when phone number is provided',
+      description: 'Hand off to credit check agent with warm transition',
       execute: async (params: { sessionId: string; phoneNumber: string; visitorId?: number }) => {
         try {
           const { sessionId, phoneNumber, visitorId } = params;
@@ -129,7 +222,7 @@ export class RealtimeChatAgent {
           await storage.createAgentActivity({
             agentType: 'realtime_chat',
             action: 'handoff_to_credit_check',
-            description: 'Chat session handed off to credit check agent',
+            description: 'Cathy successfully connected customer to credit check with warm handoff',
             targetId: sessionId,
             metadata: { 
               phoneNumber: this.formatPhoneNumber(phoneNumber),
@@ -137,13 +230,13 @@ export class RealtimeChatAgent {
             },
           });
 
-          console.log(`[RealtimeChatAgent] Handed off session ${sessionId} to credit check`);
+          console.log(`[RealtimeChatAgent] Cathy handed off session ${sessionId} to credit check`);
           
           return {
             success: true,
             handoffComplete: true,
             phoneNumber: this.formatPhoneNumber(phoneNumber),
-            message: 'Handoff to credit check agent completed',
+            message: 'Warm handoff to credit check completed',
           };
         } catch (error) {
           console.error('[RealtimeChatAgent] Error during handoff:', error);
@@ -159,7 +252,7 @@ export class RealtimeChatAgent {
   private createRecoverAbandonedApplicationTool() {
     return tool({
       name: 'recover_abandoned_application',
-      description: 'Help recover an abandoned application using return token or email',
+      description: 'Help recover an abandoned application with empathy and understanding',
       execute: async (params: { returnToken?: string; emailHash?: string }) => {
         try {
           const { returnToken, emailHash } = params;
@@ -175,7 +268,7 @@ export class RealtimeChatAgent {
           if (!visitor) {
             return {
               success: false,
-              message: "I couldn't find your application. Could you provide your email address or phone number?",
+              message: "I'd love to help you find your application! Sometimes our system takes a moment to locate things. Could you provide your email address or phone number? I'll get you back on track right away.",
             };
           }
 
@@ -183,17 +276,17 @@ export class RealtimeChatAgent {
           if (returnToken && visitor.returnTokenExpiry && new Date() > visitor.returnTokenExpiry) {
             return {
               success: false,
-              message: "Your return link has expired for security reasons. I can help you start a new application or look up your information with your phone number.",
+              message: "I see your return link has expired for security reasons - that's actually a good thing because it means your information is protected! No worries at all though. I can help you pick up right where you left off. Could you provide your phone number so I can locate your information?",
             };
           }
 
-          const stepMessage = this.getRecoveryMessage(visitor.abandonmentStep || 1);
+          const stepMessage = this.getEmpathethicRecoveryMessage(visitor.abandonmentStep || 1);
           
           // Log recovery activity
           await storage.createAgentActivity({
             agentType: 'realtime_chat',
             action: 'application_recovery',
-            description: 'Helped recover abandoned application',
+            description: 'Cathy provided empathetic application recovery assistance',
             targetId: visitor.id.toString(),
             metadata: { 
               abandonmentStep: visitor.abandonmentStep,
@@ -212,7 +305,7 @@ export class RealtimeChatAgent {
           return {
             success: false,
             error: error instanceof Error ? error.message : 'Unknown error',
-            message: "I'm having trouble accessing your application. Let me help you start fresh or find your information another way.",
+            message: "I'm having a little trouble accessing your information right now, but don't worry - this happens sometimes! Let me help you in a different way. I can get you set up fresh in just a couple of minutes, or if you prefer, I can connect you with one of our specialists. What would work better for you?",
           };
         }
       },
@@ -230,11 +323,11 @@ export class RealtimeChatAgent {
     return phone; // Return original if we can't format
   }
 
-  private getRecoveryMessage(step: number): string {
+  private getEmpathethicRecoveryMessage(step: number): string {
     const messages = {
-      1: "Great! I found your application. You were just getting started with your car loan application. I can help you continue right where you left off. Would you like me to proceed?",
-      2: "Perfect! I found your application. You had already provided some basic information and were working on the vehicle details. Shall we continue from where you left off?",
-      3: "Excellent! I found your application. You were almost finished - just needed to complete the final verification steps. Let's get you approved! Should I continue with your application?",
+      1: "Welcome back! I'm so glad you decided to continue with us. I can see you were just getting started with your car loan application, and I want you to know that taking this step again shows real determination. Life gets busy, and sometimes we need to step away - that's completely normal. I'm here to make this as smooth as possible for you. Should we pick up right where you left off?",
+      2: "It's wonderful to see you back! I can see you had already shared some information with us and were working on the vehicle details. I really appreciate you giving us another chance to help you. Sometimes the process can feel overwhelming, but you're doing great. Let me help you continue from exactly where you left off - no need to repeat anything you've already done.",
+      3: "Welcome back! I'm thrilled you're ready to finish this up. I can see you were so close to completing everything - you had made it through most of the process already! That shows real commitment, and I'm confident we can get you approved. You're literally just steps away from having your financing in place. Should I help you complete the final verification steps right now?",
     };
     return messages[step as keyof typeof messages] || messages[1];
   }
@@ -270,7 +363,8 @@ export class RealtimeChatAgent {
       };
       currentMessages.push(userMessage);
 
-      // Process message and generate response
+      // Generate empathetic response using personality system
+      const isFirstMessage = currentMessages.filter(m => m.type === 'user').length === 1;
       const phoneRegex = /(?:\+1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/;
       const phoneMatch = message.match(phoneRegex);
       
@@ -278,7 +372,7 @@ export class RealtimeChatAgent {
       let shouldHandoff = false;
 
       if (phoneMatch) {
-        response = "Thank you for providing your phone number! I'm now connecting you with our credit check system to get you pre-approved. This will just take a moment...";
+        response = this.generatePhoneNumberResponse();
         shouldHandoff = true;
         
         // Update visitor with phone number
@@ -287,14 +381,10 @@ export class RealtimeChatAgent {
             phoneNumber: this.formatPhoneNumber(phoneMatch[0]),
           });
         }
-      } else if (message.toLowerCase().includes('abandon') || message.toLowerCase().includes('application')) {
-        response = "I'd be happy to help you continue your car loan application! Can you provide your email address or phone number so I can look up your previous application?";
-      } else if (message.toLowerCase().includes('rate') || message.toLowerCase().includes('interest')) {
-        response = "Our current car loan rates start as low as 3.9% APR for qualified borrowers. Rates depend on your credit score, loan term, and vehicle. Would you like me to check what rate you qualify for? I'll just need your phone number to run a quick credit check.";
-      } else if (message.toLowerCase().includes('help') || message.toLowerCase().includes('hello') || message.toLowerCase().includes('hi')) {
-        response = "Hello! I'm here to help you with your car loan. Whether you're looking to start a new application or continue an existing one, I can assist you. What can I help you with today?";
+      } else if (isFirstMessage) {
+        response = this.generateWelcomeResponse(message);
       } else {
-        response = "I understand you're interested in a car loan. I can help you get pre-approved quickly! To provide you with the best rates and terms, I'll need to run a soft credit check. Can you please provide your phone number?";
+        response = this.generateContextualResponse(message, currentMessages);
       }
 
       // Add agent response to session
@@ -312,7 +402,7 @@ export class RealtimeChatAgent {
         updatedAt: new Date(),
       });
 
-      console.log(`[RealtimeChatAgent] Processed message for session: ${sessionId}`);
+      console.log(`[RealtimeChatAgent] Cathy processed message for session: ${sessionId}`);
       
       return {
         success: true,
@@ -324,7 +414,7 @@ export class RealtimeChatAgent {
       console.error('[RealtimeChatAgent] Error handling chat message:', error);
       return {
         success: false,
-        response: "I apologize, but I'm experiencing technical difficulties. Please try again in a moment.",
+        response: "I'm so sorry, but I'm experiencing some technical difficulties right now. This is frustrating for both of us! Could you give me just a moment to get this sorted out?",
         error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
