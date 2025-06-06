@@ -1,8 +1,9 @@
+
 import express, { type Request, Response, NextFunction } from "express";
 import { setupVite, serveStatic } from "./vite";
 import { handleApiError } from "./utils/error-handler";
 import { storage } from "./database-storage";
-import { sanitizeCampaignName, sanitizeEmail, sanitizeText, sanitizeJsonData } from "./utils/input-sanitizer";
+import { sanitizeCampaignName, sanitizeEmail, sanitizeJsonData } from "./utils/input-sanitizer";
 import config from "./config/environment";
 import monitoringRoutes from "./routes/monitoring";
 import promptTestingRoutes from "./routes/prompt-testing";
@@ -28,14 +29,14 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: false, limit: "10mb" }));
 app.use(validateJsonPayload());
 
-// API key authentication for internal use
+// API key authentication
 const API_KEY = config.get().INTERNAL_API_KEY;
 
 const authenticate = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
   const apiKey = req.headers['x-api-key'];
 
-  // Allow health check without auth
+  // Allow health checks without auth
   if (req.path === '/health' || req.path === '/api/system/health') {
     return next();
   }
@@ -59,15 +60,7 @@ const authenticate = (req: Request, res: Response, next: NextFunction) => {
 // Apply authentication to API routes
 app.use('/api', authenticate);
 
-// Centralized error handling middleware
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
-  if (res.headersSent) {
-    return next(err);
-  }
-  handleApiError(res, err);
-});
-
-// Basic routes
+// Health endpoints
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
@@ -98,6 +91,7 @@ app.get('/api/system/health', async (req, res) => {
   }
 });
 
+// Core API endpoints
 app.get('/api/agents/status', async (req, res) => {
   try {
     const agents = await storage.getAgents();
@@ -154,7 +148,6 @@ app.post('/api/leads/process', async (req, res) => {
       });
     }
 
-    // Sanitize inputs to prevent security vulnerabilities
     const sanitizedEmail = sanitizeEmail(email);
     const sanitizedData = sanitizeJsonData({ vehicleInterest, firstName, lastName });
 
@@ -175,7 +168,7 @@ app.post('/api/leads/process', async (req, res) => {
       success: true,
       data: {
         leadId: lead.id,
-        message: 'Lead processed and email automation triggered'
+        message: 'Lead processed successfully'
       },
       timestamp: new Date().toISOString()
     });
@@ -201,7 +194,6 @@ app.post('/api/email-campaigns/bulk-send', async (req, res) => {
       });
     }
 
-    // Sanitize campaign name to prevent path traversal attacks
     const sanitizedCampaignName = sanitizeCampaignName(campaignName);
     const sanitizedData = sanitizeJsonData(data);
 
@@ -216,7 +208,7 @@ app.post('/api/email-campaigns/bulk-send', async (req, res) => {
       success: true,
       data: {
         processed: Array.isArray(sanitizedData) ? sanitizedData.length : 0,
-        message: `${sanitizedCampaignName} campaign processed ${Array.isArray(sanitizedData) ? sanitizedData.length : 0} records`
+        message: `Campaign processed successfully`
       },
       timestamp: new Date().toISOString()
     });
@@ -225,10 +217,8 @@ app.post('/api/email-campaigns/bulk-send', async (req, res) => {
   }
 });
 
-// Monitoring routes
+// Monitoring and testing routes
 app.use('/api/monitoring', monitoringRoutes);
-
-// Prompt testing routes
 app.use('/api/test', promptTestingRoutes);
 
 // Error handling middleware (must be last)
@@ -237,9 +227,8 @@ app.use(errorHandler());
 const PORT = parseInt(process.env.PORT || "5000", 10);
 const server = app.listen(PORT, "0.0.0.0", () => {
   console.log(`CCL Agent System running on port ${PORT}`);
-  console.log(`Database persistence enabled`);
-  console.log(`API Key authentication: ${API_KEY}`);
-  console.log(`Health check: http://localhost:${PORT}/health`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Health check: http://0.0.0.0:${PORT}/health`);
 });
 
 function shutdown() {
