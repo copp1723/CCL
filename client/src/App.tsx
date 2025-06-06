@@ -7,6 +7,7 @@ import { Sidebar } from "@/components/sidebar";
 import Dashboard from "@/pages/dashboard-streamlined";
 import EmailCampaigns from "@/pages/email-campaigns-streamlined";
 import PromptTesting from "@/pages/prompt-testing-clean";
+import PromptVariables from "@/pages/prompt-variables";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -20,6 +21,7 @@ function Router() {
             <Route path="/dashboard" component={Dashboard} />
             <Route path="/email-campaigns" component={EmailCampaigns} />
             <Route path="/prompt-testing" component={PromptTesting} />
+            <Route path="/prompt-variables" component={PromptVariables} />
             <Route component={NotFound} />
           </Switch>
         </div>

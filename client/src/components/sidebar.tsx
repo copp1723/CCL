@@ -37,6 +37,12 @@ const navItems: NavItem[] = [
     href: "/prompt-testing",
     icon: MessageSquare,
     description: "Test and refine AI agent responses"
+  },
+  {
+    title: "Prompt Variables",
+    href: "/prompt-variables",
+    icon: Settings,
+    description: "Configure dynamic AI response parameters"
   }
 ];
 

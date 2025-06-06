@@ -64,7 +64,7 @@ export default function PromptVariables() {
     try {
       await apiRequest('/api/test/variables', {
         method: 'POST',
-        body: variables,
+        data: variables,
       });
       
       toast({
