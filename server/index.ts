@@ -221,6 +221,7 @@ app.post('/api/email-campaigns/bulk-send', async (req, res) => {
 // Monitoring and testing routes
 app.use('/api/monitoring', monitoringRoutes);
 app.use('/api/test', promptTestingRoutes);
+app.use('/api/staging', stagingDeploymentRoutes);
 
 // Error handling middleware (must be last)
 app.use(errorHandler());

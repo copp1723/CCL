@@ -18,7 +18,7 @@ const environmentSchema = z.object({
   
   // Email Services
   MAILGUN_API_KEY: z.string().optional(),
-  MAILGUN_DOMAIN: z.string().default("onerylie.com"),
+  MAILGUN_DOMAIN: z.string().default("mail.onerylie.com"),
   MAILGUN_FROM_EMAIL: z.string().default("noreply@onerylie.com"),
   
   // External APIs
