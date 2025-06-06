@@ -1,6 +1,7 @@
 import express from 'express';
 import { Request, Response } from 'express';
 import { CATHY_SYSTEM_PROMPT } from '../agents/cathy-system-prompt';
+import { promptVariableManager, PromptVariables } from '../config/prompt-variables';
 
 const router = express.Router();
 
