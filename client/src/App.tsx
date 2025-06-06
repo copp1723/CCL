@@ -6,7 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Sidebar } from "@/components/sidebar";
 import Dashboard from "@/pages/dashboard-streamlined";
 import EmailCampaigns from "@/pages/email-campaigns-streamlined";
-import DataProcessing from "@/pages/data-processing";
+import PromptTesting from "@/pages/prompt-testing-clean";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -19,6 +19,7 @@ function Router() {
             <Route path="/" component={Dashboard} />
             <Route path="/dashboard" component={Dashboard} />
             <Route path="/email-campaigns" component={EmailCampaigns} />
+            <Route path="/prompt-testing" component={PromptTesting} />
             <Route component={NotFound} />
           </Switch>
         </div>

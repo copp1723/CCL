@@ -8,7 +8,8 @@ import {
   Bot,
   BarChart3,
   FileText,
-  Webhook
+  Webhook,
+  MessageSquare
 } from "lucide-react";
 
 interface NavItem {
@@ -30,6 +31,12 @@ const navItems: NavItem[] = [
     href: "/email-campaigns",
     icon: Mail,
     description: "Manage re-engagement email campaigns"
+  },
+  {
+    title: "Prompt Testing",
+    href: "/prompt-testing",
+    icon: MessageSquare,
+    description: "Test and refine AI agent responses"
   }
 ];
 
