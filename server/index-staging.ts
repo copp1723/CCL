@@ -268,17 +268,17 @@ app.use(errorHandler());
 
 // Setup static file serving and Vite in development
 async function startServer() {
-  if (process.env.NODE_ENV === "production") {
-    serveStatic(app);
-  } else {
-    await setupVite(app, server);
-  }
-
   const server = app.listen(PORT, "0.0.0.0", () => {
     console.log(`CCL Agent System running on port ${PORT}`);
     console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
     console.log(`Health check: http://0.0.0.0:${PORT}/health`);
   });
+
+  if (process.env.NODE_ENV === "production") {
+    serveStatic(app);
+  } else {
+    await setupVite(app, server);
+  }
 
   // Graceful shutdown
   function gracefulShutdown() {
