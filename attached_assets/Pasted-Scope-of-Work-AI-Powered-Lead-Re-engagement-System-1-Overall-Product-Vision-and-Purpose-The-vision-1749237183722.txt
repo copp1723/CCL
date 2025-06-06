@@ -1,0 +1,94 @@
+Scope of Work: AI-Powered Lead Re-engagement System
+1. Overall Product Vision and Purpose
+The vision is to create an intelligent system that specializes in re-engaging potential customers who have shown interest in automotive financing through Complete Car Loans (CCL) but did not complete their initial application. The core purpose of this system is to significantly increase the number of fully qualified leads passed to car dealerships by transforming these incomplete interactions into successful applications.
+This system will use sophisticated, human-like AI personas to create personalized and empathetic interactions. It aims to guide potential borrowers back to complete their applications, thereby overcoming common drop-off points in the customer journey. The ultimate goal is a scalable platform that uses data-driven insights to connect subprime borrowers with the financing options they need, maximizing conversion opportunities for CCL.
+2. The Business/User Problem It Solves
+This system addresses several critical challenges in the subprime automotive lending market:
+High Application Abandonment: A significant majority (approximately 80%) of users who start a loan application on the CCL website leave before completing it. This represents a substantial loss of potential business.
+Trust and Hesitancy in Subprime Borrowers: Potential customers in the subprime category may be hesitant to share extensive personal information due to past negative experiences or concerns about judgment. They often require additional reassurance and a supportive engagement process.
+Lost Re-engagement Opportunities: Without a dedicated system to follow up effectively, many interested individuals who initially abandon the process are never successfully brought back.
+Inefficient Manual Follow-Up: Manual attempts to re-engage these users are often not scalable, timely, or personalized enough to be effective, leading to poor conversion rates.
+3. Intended Users and Value Delivered
+This system serves three primary groups:
+Potential Borrowers (End-Users):
+Who they are: Individuals, often with subprime credit histories (e.g., credit scores below 620), seeking automotive financing. They may have faced difficulties with traditional lending processes.
+Value they receive: A non-judgmental, supportive, and personalized experience. The system aims to assist them in navigating the application process, answer their questions, and help them get pre-qualified for a loan without negatively impacting their credit score, all through a respectful and understanding interaction.
+Car Dealerships (CCL's Clients):
+Who they are: Automotive dealerships looking for qualified buyers who are ready to purchase a vehicle and secure financing.
+Value they receive: A more consistent stream of pre-qualified leads, including individuals whose creditworthiness has been preliminarily assessed. This saves dealerships time and resources by focusing their efforts on more viable prospects.
+Complete Car Loans (CCL - The Business):
+Who they are: The platform owner aiming to generate and sell qualified leads to dealerships.
+Value they receive: A significant increase in lead conversion rates from existing website traffic. This directly translates to increased revenue and strengthens CCL's position as a key connector in the subprime auto finance market. The system also provides a foundation for future expansion into new lead sources.
+4. Main Features and Capabilities
+The system will provide the following core features and capabilities:
+Automated Detection of Incomplete Applications: The system will be alerted by CCL's primary platform when a user starts but does not complete the online loan application process.
+Personalized Email Outreach (First AI Engagement Capability):
+Upon notification of an abandoned application, an AI persona will initiate contact with the user via email.
+These emails will be personalized based on available user information and designed to be empathetic and encouraging.
+The goal is to motivate the user to return to the CCL website to complete their application, providing a direct link for them to do so.
+Emails will be dispatched through a specialized, high-deliverability email service to ensure they reliably reach the user's inbox.
+Interactive On-Site Chat Assistance (Second AI Engagement Capability):
+When a user returns to the CCL website (e.g., via a link in a re-engagement email), they will be greeted by an AI persona through an embedded chat interface.
+This AI persona will engage the user in a natural, conversational manner, aiming to build trust and assist them.
+A primary objective of this chat interaction is to comfortably persuade the user to provide their phone number.
+The chat system will maintain awareness of previous interactions to provide a seamless and contextually relevant experience.
+Collection of Key User Information: The system, particularly through the chat interface, is designed to collect critical pieces of information, with a strong focus on obtaining the user's phone number.
+Facilitation of Credit Pre-Qualification:
+Once a phone number is provided by the user via the chat interface and submitted to CCL's primary system, CCL's system will then use this information to initiate a soft credit check through an external, third-party credit verification partner. This check will not adversely affect the user's credit score.
+CCL's primary system will inform the AI system of the credit check outcome (e.g., approved or not approved).
+Communication of Credit Check Outcomes: The AI persona (via chat) will then communicate the result of the credit check to the user in an appropriate and supportive manner.
+Configurable AI Personalities and Responses: The system will allow for the use of different AI personalities and tailored conversation flows based on the user's context or the stage of interaction.
+Secure Communication Interface with CCL's Systems: CCL's primary system will have a defined and secure method to:
+Notify the AI system to initiate a conversation with a specific user, providing necessary user details and context (like which AI personality and capability to use).
+Inform the AI system about the outcomes of credit checks.
+Query the available AI personalities and capabilities within the AI system.
+5. End-to-End Workflow
+The system operates through a sequence of steps, focusing on re-engaging users who drop off during the initial application:
+Step 1: User Initiates Application & Abandons:
+A potential borrower visits the CCL website and begins filling out a loan application, providing some initial pieces of information.
+A significant number of these users (approximately 80%) leave the website at various stages before submitting the complete application. CCL's primary system identifies these incomplete sessions.
+Step 2: AI Re-Engagement via Email:
+CCL's primary system sends a notification to the AI re-engagement system. This notification includes the user's email address and other relevant details from the incomplete application. It also specifies which AI personality and initial engagement capability to use.
+The AI system, acting as the selected AI persona, crafts and sends a personalized email to the user.
+This email is designed to be encouraging, address potential concerns, and provide a simple way (e.g., a direct link) for the user to return to a specific page on the CCL website to continue and complete their application.
+This email is sent using a specialized email delivery service to maximize the chances of it reaching the user's inbox.
+Step 3: User Returns to Website & Engages with Chat AI:
+The user clicks the link in the re-engagement email and is directed to a designated page on the CCL website.
+Upon arrival, an AI-powered chat interface, embedded on the page, automatically greets the user. This chat is managed by the second AI engagement capability.
+The AI persona introduces itself and offers assistance, aiming to create a helpful and trustworthy interaction. The chat interface is configured with the necessary identifiers to ensure the correct AI personality and conversational logic are used.
+Step 4: AI Chat Gathers Information (Focus on Phone Number):
+The AI persona engages the user in conversation. Its primary goal during this interaction is to build rapport and persuade the user to provide their phone number.
+The user can type their phone number into a designated input field within the chat or on the webpage, which is linked to CCL's primary system.
+Step 5: Credit Check Initiation and Processing:
+Once the user submits their phone number, CCL's primary system receives it.
+CCL's primary system then initiates a soft credit check using this phone number through its integrated third-party credit verification service.
+This service processes the request and returns a credit check outcome (e.g., "approved" or "not approved") to CCL's primary system.
+Step 6: AI Communicates Credit Outcome & Concludes Interaction:
+CCL's primary system relays the credit check outcome to the AI system.
+The AI persona in the chat window then delivers an appropriate message to the user based on this outcome (e.g., congratulations if approved, or other supportive messaging if not).
+This generally marks the end of this specific AI-driven re-engagement flow. A successful conversion (obtaining the phone number and processing the credit check) is a key performance indicator.
+Step 7: Lead Fulfillment (Managed by CCL):
+If the user is successfully pre-qualified, their completed information, now forming a more valuable lead, is processed by CCL and subsequently sold/passed to a car dealership.
+6. Key Dependencies or Integrations (Conceptual)
+For the AI re-engagement system to function effectively, it relies on the following:
+CCL's Primary Online Platform:
+Must be able to identify users who abandon the application process.
+Must be able to send user data (e.g., email, name, partial application details) and trigger instructions to the AI re-engagement system.
+Must receive the phone number collected via the AI-assisted chat interaction.
+Must inform the AI re-engagement system about the results of the credit check.
+Specialized Email Delivery Service: Integration with an external service is required to ensure that re-engagement emails are reliably delivered to users' inboxes and not caught by spam filters.
+Website Chat Interface: The AI's chat capability must be integrated (e.g., embedded) into relevant pages on the CCL website to allow direct interaction with returning users.
+Third-Party Credit Verification Service: CCL's primary system will integrate with an external service to perform soft credit checks. The AI system itself does not perform the credit check but is informed of the outcome.
+Future Centralized Data Environment: Looking ahead, the system should be designed with the potential to connect to a central data repository that will unify customer data from various sources (e.g., CCL website, dealership partner sites, other third-party lead sources).
+7. Business-Critical Requirements (Outcomes)
+The success of this system will be measured by its ability to achieve the following outcomes:
+Significant Increase in Application Completions: The system must demonstrably convert a substantial percentage of previously abandoned applications into completed, qualified leads.
+Effective User Re-engagement: Emails and chat interactions must be compelling enough to bring users back and keep them engaged through the process of providing further information.
+High Rate of Phone Number Acquisition: The AI chat interactions must be highly effective at building sufficient trust for users to provide their phone numbers.
+Extremely Fast Chat Response Times: The AI chat system must respond to user inputs almost instantaneously to maintain user engagement and prevent frustration or further abandonment.
+Seamless and Positive User Experience: Interactions with the AI (both email and chat) must feel natural, helpful, empathetic, and intelligent. Users should feel supported, not processed. Context from previous interactions should be maintained.
+Clear and Appropriate Communication of Outcomes: The AI must deliver information, such as credit check results, in a clear, understandable, and sensitive manner.
+Reliable System Performance and Scalability: The system must operate reliably and be capable of handling a growing volume of users and interactions as CCL's business expands and more data sources are integrated.
+High Email Deliverability: Re-engagement emails must consistently reach users' primary inboxes.
+Adherence to Compliance and Data Privacy Standards: All aspects of user data handling and communication must strictly conform to relevant legal and ethical standards for privacy and consumer protection, particularly concerning personally identifiable information and credit-related data.
+

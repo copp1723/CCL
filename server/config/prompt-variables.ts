@@ -23,6 +23,12 @@ export interface PromptVariables {
   never_mention: string[];
   always_include: string[];
   compliance_level: 'basic' | 'enhanced' | 'strict';
+  
+  // Phone Collection Settings
+  phone_collection_enabled: boolean;
+  phone_collection_priority: 'required' | 'optional' | 'disabled';
+  phone_collection_approach: 'soft_ask' | 'incentivized' | 'direct';
+  phone_collection_timing: 'early' | 'mid_conversation' | 'end';
 }
 
 export const DEFAULT_PROMPT_VARIABLES: PromptVariables = {

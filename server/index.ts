@@ -9,6 +9,7 @@ import monitoringRoutes from "./routes/monitoring";
 import promptTestingRoutes from "./routes/prompt-testing";
 import stagingDeploymentRoutes from "./routes/staging-deployment";
 import emailCampaignRoutes from "./routes/email-campaigns";
+import dataIngestionRoutes from "./routes/data-ingestion-simple";
 import { 
   securityHeaders, 
   requestLogging, 
@@ -224,6 +225,7 @@ app.use('/api/monitoring', monitoringRoutes);
 app.use('/api/test', promptTestingRoutes);
 app.use('/api/staging', stagingDeploymentRoutes);
 app.use('/api/email-campaigns', emailCampaignRoutes);
+app.use('/api/data-ingestion', dataIngestionRoutes);
 
 // Error handling middleware (must be last)
 app.use(errorHandler());
