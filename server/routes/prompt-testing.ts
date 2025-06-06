@@ -113,47 +113,47 @@ async function generateCathyResponse(
   let nextSteps: string;
 
   if (lowerMsg.includes('credit') && (lowerMsg.includes('worried') || lowerMsg.includes('issues') || lowerMsg.includes('anxious'))) {
-    cathyResponse = `Hi ${customerName}! I completely understand your concerns about credit - you're definitely not alone in feeling this way. I want you to know that I specialize in working with customers who have had credit challenges, and many of my most successful customers started exactly where you are.\n\nCredit history doesn't define your options; it just helps me find the right path forward for you. What kind of vehicle are you hoping to get? I'd love to show you what's possible.`;
-    analysis = 'Customer expressing anxiety about credit situation. Responding with empathy and reassurance to build trust and confidence.';
+    cathyResponse = `Hey ${customerName}! I get it - credit concerns are totally normal.\n\nHere's the thing: I work with folks in all credit situations every day. Your credit history just helps me find the right path for you.\n\nWhat kind of car are you looking for? I'd love to show you what's possible!`;
+    analysis = 'Customer expressing credit anxiety. Responding with empathy and reassurance.';
     salesReadiness = 'medium';
-    insights = 'Customer has credit concerns but is engaged in the conversation. Building trust is critical.';
-    nextSteps = 'Build confidence through education and show available options despite credit challenges.';
+    insights = 'Customer has credit concerns but engaged. Building trust is key.';
+    nextSteps = 'Build confidence and show available options despite credit challenges.';
   } else if (lowerMsg.includes('first') || lowerMsg.includes('new') || lowerMsg.includes('understand') || lowerMsg.includes('how') && lowerMsg.includes('work')) {
-    cathyResponse = `Welcome ${customerName}! I'm so glad you reached out - buying your first car is exciting! I'm here to make the financing process as simple and stress-free as possible for you.\n\nAuto financing is actually pretty straightforward: we'll do a quick, soft credit check (no impact to your score), see what you qualify for, and then help you find a vehicle that fits your budget and needs. Would you like me to walk you through each step?`;
-    analysis = 'First-time buyer seeking education about the auto financing process. Providing clear, encouraging guidance.';
+    cathyResponse = `Hey ${customerName}! First car - how exciting!\n\nAuto financing is actually pretty simple: quick soft credit check (no impact), see what you qualify for, then find a car that fits your budget.\n\nWant me to walk you through it?`;
+    analysis = 'First-time buyer seeking education. Providing clear, encouraging guidance.';
     salesReadiness = 'high';
-    insights = 'Customer is new to auto financing and receptive to guidance. High conversion potential with proper education.';
-    nextSteps = 'Offer to walk through the financing process step-by-step and initiate soft credit check.';
+    insights = 'New to auto financing, receptive to guidance. High conversion potential.';
+    nextSteps = 'Walk through financing process and initiate soft credit check.';
   } else if (lowerMsg.includes('ready') || lowerMsg.includes('apply') || lowerMsg.includes('pre-approved') || lowerMsg.includes('move forward')) {
-    cathyResponse = `That's wonderful, ${customerName}! I love working with customers who are ready to move forward. Getting pre-approved is smart - it gives you real purchasing power and lets you shop with confidence.\n\nI can get your pre-qualification started right now with just a soft credit check. This won't impact your credit score at all, and you'll know exactly what you qualify for in just a few minutes. Sound good?`;
-    analysis = 'Customer showing high intent and readiness to proceed. Moving toward pre-qualification process.';
+    cathyResponse = `Love it, ${customerName}! Ready to move forward - that's what I like to hear.\n\nI can get your pre-qualification started right now with a soft credit check. Zero impact to your score, and you'll know what you qualify for in minutes.\n\nSound good?`;
+    analysis = 'Customer showing high intent. Moving toward pre-qualification.';
     salesReadiness = 'high';
-    insights = 'Customer is highly motivated and ready to take action. Prime candidate for immediate pre-qualification.';
-    nextSteps = 'Guide customer through soft credit check process and pre-qualification application.';
+    insights = 'Highly motivated, ready for action. Prime for immediate pre-qualification.';
+    nextSteps = 'Guide through soft credit check and pre-qualification application.';
   } else if (lowerMsg.includes('confused') || lowerMsg.includes('overwhelmed') || lowerMsg.includes('different things')) {
-    cathyResponse = `I hear you, ${customerName}, and I'm so sorry you've had that experience. Car shopping can definitely feel overwhelming when everyone's telling you different things - that's exactly why I'm here to cut through all the confusion.\n\nLet me be your advocate and give you the straight facts. What specific questions do you have? I promise to give you clear, honest answers without any pressure.`;
-    analysis = 'Customer feeling overwhelmed by conflicting information from other sources. Positioning as trusted advisor.';
+    cathyResponse = `${customerName}, I totally get that! Everyone telling you different things is so frustrating.\n\nLet me cut through the noise and give you straight answers. No pressure, just facts.\n\nWhat's your biggest question right now?`;
+    analysis = 'Customer overwhelmed by conflicting information. Positioning as trusted advisor.';
     salesReadiness = 'medium';
-    insights = 'Customer needs clarity and trust-building before moving forward. Opportunity to differentiate through transparency.';
-    nextSteps = 'Address specific concerns, provide clear information, and build trust through transparency.';
+    insights = 'Needs clarity and trust-building. Opportunity to differentiate through transparency.';
+    nextSteps = 'Address specific concerns and build trust through clear information.';
   } else if (lowerMsg.includes('payment') || lowerMsg.includes('monthly') || lowerMsg.includes('budget') || lowerMsg.includes('afford')) {
-    cathyResponse = `Absolutely, ${customerName}! Keeping your monthly payment manageable is so important, and I completely understand wanting to stay within your budget.\n\n$300 a month is definitely workable - I've helped many customers find great financing options within that range. The key is finding the right vehicle and loan terms that fit your situation. Can you tell me a bit about what type of vehicle you're looking for?`;
-    analysis = 'Customer focused on monthly payment and budget constraints. Addressing affordability concerns directly.';
+    cathyResponse = `Absolutely, ${customerName}! Staying within budget is super important.\n\n$300/month is totally doable - I help customers in that range all the time. It's all about finding the right car and loan terms.\n\nWhat type of vehicle are you thinking?`;
+    analysis = 'Customer focused on monthly payment and budget. Addressing affordability directly.';
     salesReadiness = 'high';
-    insights = 'Customer has specific budget parameters but is actively seeking solutions. Good qualification opportunity.';
-    nextSteps = 'Gather vehicle preferences and show financing options that meet budget requirements.';
+    insights = 'Has specific budget parameters, actively seeking solutions. Good qualification opportunity.';
+    nextSteps = 'Gather vehicle preferences and show financing options within budget.';
   } else if (lowerMsg.includes('started') || lowerMsg.includes('application') || lowerMsg.includes('paperwork')) {
-    cathyResponse = `No worries at all, ${customerName}! You definitely don't need to start over. I can easily pull up your previous application and help you pick up right where you left off.\n\nI understand paperwork can feel overwhelming - that's exactly why I'm here to guide you through it step by step. Would you like me to take a look at what you've already completed and show you what's next?`;
-    analysis = 'Customer had previous abandonment experience, needs reassurance and guidance to complete process.';
+    cathyResponse = `No worries, ${customerName}! You don't need to start over.\n\nI can pull up what you already did and help you finish. Paperwork can be a pain - that's why I'm here!\n\nWant me to see where you left off?`;
+    analysis = 'Previous abandonment, needs reassurance and guidance to complete.';
     salesReadiness = 'high';
-    insights = 'Customer has shown intent by starting application previously. Strong re-engagement opportunity.';
-    nextSteps = 'Reassure customer, retrieve previous application data, and provide guided completion assistance.';
+    insights = 'Shown previous intent. Strong re-engagement opportunity.';
+    nextSteps = 'Reassure and provide guided completion assistance.';
   } else {
-    cathyResponse = `Hi ${customerName}! I'm Cathy, and I'm really glad you stopped by today. I specialize in helping customers find the perfect auto financing solution, regardless of their credit situation. Every customer's needs are unique, and I'm here to make this process as easy as possible for you.\n\nWhat questions can I answer for you today?`;
-    analysis = 'General inquiry from customer. Establishing rapport and gathering initial needs information.';
+    cathyResponse = `Hey ${customerName}! Great to hear from you.\n\nI'm Cathy - I help folks find the right auto financing, no matter their credit situation. Every situation is unique, and I'm here to make it easy.\n\nWhat can I help you with today?`;
+    analysis = 'General inquiry. Establishing rapport and gathering needs.';
     salesReadiness = 'medium';
-    insights = 'Customer is in early discovery phase. Opportunity to build relationship and understand specific needs.';
-    nextSteps = 'Continue building rapport, ask qualifying questions, and identify specific customer needs and concerns.';
+    insights = 'Early discovery phase. Opportunity to build relationship and understand needs.';
+    nextSteps = 'Build rapport, ask qualifying questions, identify specific needs.';
   }
 
   return {
