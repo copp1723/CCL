@@ -26,11 +26,16 @@ interface TestResponse {
   nextSteps?: string;
 }
 
-// Get current system prompt
+// Get current system prompt (dynamic)
 router.get('/system-prompt', (req: Request, res: Response) => {
   try {
+    const dynamicPrompt = promptVariableManager.generateSystemPrompt();
+    const currentVariables = promptVariableManager.getVariables();
+    
     res.json({
-      prompt: CATHY_SYSTEM_PROMPT,
+      prompt: dynamicPrompt,
+      staticPrompt: CATHY_SYSTEM_PROMPT,
+      variables: currentVariables,
       timestamp: new Date().toISOString()
     });
   } catch (error) {
@@ -39,25 +44,53 @@ router.get('/system-prompt', (req: Request, res: Response) => {
   }
 });
 
-// Update system prompt (for testing purposes)
-router.post('/system-prompt', (req: Request, res: Response) => {
+// Get current prompt variables
+router.get('/variables', (req: Request, res: Response) => {
   try {
-    const { prompt } = req.body;
-    
-    if (!prompt || typeof prompt !== 'string') {
-      return res.status(400).json({ error: 'Valid prompt string is required' });
-    }
+    const variables = promptVariableManager.getVariables();
+    res.json(variables);
+  } catch (error) {
+    console.error('Error fetching prompt variables:', error);
+    res.status(500).json({ error: 'Failed to fetch prompt variables' });
+  }
+});
 
-    // In a real implementation, you might want to save this to a database
-    // For now, we'll just acknowledge the update
+// Update prompt variables
+router.post('/variables', (req: Request, res: Response) => {
+  try {
+    const updates: Partial<PromptVariables> = req.body;
+    promptVariableManager.updateVariables(updates);
+    
+    const updatedVariables = promptVariableManager.getVariables();
+    const newSystemPrompt = promptVariableManager.generateSystemPrompt();
+    
     res.json({
       success: true,
-      message: 'System prompt updated successfully',
-      timestamp: new Date().toISOString()
+      variables: updatedVariables,
+      systemPrompt: newSystemPrompt,
+      message: 'Prompt variables updated successfully'
     });
   } catch (error) {
-    console.error('Error updating system prompt:', error);
-    res.status(500).json({ error: 'Failed to update system prompt' });
+    console.error('Error updating prompt variables:', error);
+    res.status(500).json({ error: 'Failed to update prompt variables' });
+  }
+});
+
+// Reset variables to defaults
+router.post('/variables/reset', (req: Request, res: Response) => {
+  try {
+    const { DEFAULT_PROMPT_VARIABLES } = require('../config/prompt-variables');
+    promptVariableManager.updateVariables(DEFAULT_PROMPT_VARIABLES);
+    const defaultVariables = promptVariableManager.getVariables();
+    
+    res.json({
+      success: true,
+      variables: defaultVariables,
+      message: 'Prompt variables reset to defaults'
+    });
+  } catch (error) {
+    console.error('Error resetting prompt variables:', error);
+    res.status(500).json({ error: 'Failed to reset prompt variables' });
   }
 });
 
@@ -160,9 +193,14 @@ async function generateCathyResponse(
     nextSteps = 'Build rapport, ask qualifying questions, identify specific needs.';
   }
 
+  // Apply dynamic prompt variables to response
+  const finalResponse = promptVariableManager.applyToResponse(cathyResponse, {
+    customerName: customerName
+  });
+
   return {
     customerMessage: userMessage,
-    cathyResponse,
+    cathyResponse: finalResponse,
     analysis,
     salesReadiness,
     customerName,
