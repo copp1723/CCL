@@ -1,188 +1,206 @@
-import type { Request, Response, NextFunction } from 'express';
-import { createHash } from 'crypto';
+import { Request, Response, NextFunction } from 'express';
+import config from '../config/environment';
 
-interface RateLimitEntry {
-  count: number;
-  windowStart: number;
+interface RateLimitStore {
+  [key: string]: {
+    count: number;
+    resetTime: number;
+  };
 }
 
 class RateLimiter {
-  private limits: Map<string, RateLimitEntry> = new Map();
+  private store: RateLimitStore = {};
   private windowMs: number;
   private maxRequests: number;
 
-  constructor(windowMs: number = 60000, maxRequests: number = 100) {
-    this.windowMs = windowMs;
-    this.maxRequests = maxRequests;
+  constructor() {
+    const rateLimitConfig = config.getRateLimitConfig();
+    this.windowMs = rateLimitConfig.windowMs;
+    this.maxRequests = rateLimitConfig.max;
     
     // Clean up expired entries every minute
     setInterval(() => this.cleanup(), 60000);
   }
 
-  isAllowed(identifier: string): boolean {
+  private cleanup() {
     const now = Date.now();
-    const entry = this.limits.get(identifier);
-    
-    if (!entry || now - entry.windowStart > this.windowMs) {
-      // New window
-      this.limits.set(identifier, {
-        count: 1,
-        windowStart: now,
-      });
-      return true;
-    }
-    
-    if (entry.count >= this.maxRequests) {
-      return false;
-    }
-    
-    entry.count++;
-    return true;
+    Object.keys(this.store).forEach(key => {
+      if (this.store[key].resetTime < now) {
+        delete this.store[key];
+      }
+    });
   }
 
-  private cleanup(): void {
-    const now = Date.now();
-    for (const [key, entry] of this.limits.entries()) {
-      if (now - entry.windowStart > this.windowMs) {
-        this.limits.delete(key);
+  middleware() {
+    return (req: Request, res: Response, next: NextFunction) => {
+      const key = req.ip || req.connection.remoteAddress || 'unknown';
+      const now = Date.now();
+      
+      if (!this.store[key] || this.store[key].resetTime < now) {
+        this.store[key] = {
+          count: 1,
+          resetTime: now + this.windowMs
+        };
+      } else {
+        this.store[key].count++;
       }
-    }
+
+      const remaining = Math.max(0, this.maxRequests - this.store[key].count);
+      const resetTime = Math.ceil((this.store[key].resetTime - now) / 1000);
+
+      // Set rate limit headers
+      res.set({
+        'X-RateLimit-Limit': this.maxRequests.toString(),
+        'X-RateLimit-Remaining': remaining.toString(),
+        'X-RateLimit-Reset': resetTime.toString()
+      });
+
+      if (this.store[key].count > this.maxRequests) {
+        return res.status(429).json({
+          success: false,
+          error: {
+            code: 'RATE_LIMIT_EXCEEDED',
+            message: 'Too many requests, please try again later',
+            category: 'rate_limit',
+            retryable: true,
+            retryAfter: resetTime
+          },
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      next();
+    };
   }
 }
 
-// Rate limiters for different endpoints
-const chatRateLimiter = new RateLimiter(60000, 30); // 30 requests per minute for chat
-const apiRateLimiter = new RateLimiter(60000, 100); // 100 requests per minute for API
-const webhookRateLimiter = new RateLimiter(60000, 10); // 10 requests per minute for webhooks
+export function securityHeaders() {
+  return (req: Request, res: Response, next: NextFunction) => {
+    // Security headers
+    res.set({
+      'X-Content-Type-Options': 'nosniff',
+      'X-Frame-Options': 'DENY',
+      'X-XSS-Protection': '1; mode=block',
+      'Referrer-Policy': 'strict-origin-when-cross-origin',
+      'Permissions-Policy': 'geolocation=(), microphone=(), camera=()',
+      'Strict-Transport-Security': 'max-age=31536000; includeSubDomains'
+    });
 
-export function rateLimitMiddleware(type: 'chat' | 'api' | 'webhook' = 'api') {
-  return (req: Request, res: Response, next: NextFunction): void => {
-    const identifier = req.ip || 'unknown';
-    
-    let limiter: RateLimiter;
-    switch (type) {
-      case 'chat':
-        limiter = chatRateLimiter;
-        break;
-      case 'webhook':
-        limiter = webhookRateLimiter;
-        break;
-      default:
-        limiter = apiRateLimiter;
-        break;
+    // CORS configuration
+    const corsOrigin = config.get().CORS_ORIGIN;
+    if (corsOrigin !== '*') {
+      res.set('Access-Control-Allow-Origin', corsOrigin);
     }
-    
-    if (!limiter.isAllowed(identifier)) {
-      res.status(429).json({
-        error: 'Rate limit exceeded',
-        message: 'Too many requests, please try again later',
-      });
-      return;
+
+    next();
+  };
+}
+
+export function requestLogging() {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const start = Date.now();
+    const { method, url, ip } = req;
+    const userAgent = req.get('User-Agent') || 'unknown';
+
+    res.on('finish', () => {
+      const duration = Date.now() - start;
+      const { statusCode } = res;
+      
+      // Log format: timestamp method url status duration ip userAgent
+      console.log(`${new Date().toISOString()} ${method} ${url} ${statusCode} ${duration}ms ${ip} "${userAgent}"`);
+      
+      // Log errors and slow requests
+      if (statusCode >= 400) {
+        console.error(`Error response: ${method} ${url} - ${statusCode} - ${duration}ms`);
+      }
+      
+      if (duration > 1000) {
+        console.warn(`Slow request: ${method} ${url} - ${duration}ms`);
+      }
+    });
+
+    next();
+  };
+}
+
+export function errorHandler() {
+  return (err: any, req: Request, res: Response, next: NextFunction) => {
+    if (res.headersSent) {
+      return next(err);
+    }
+
+    // Log the error
+    console.error('Unhandled error:', {
+      error: err.message,
+      stack: err.stack,
+      method: req.method,
+      url: req.url,
+      ip: req.ip,
+      userAgent: req.get('User-Agent'),
+      timestamp: new Date().toISOString()
+    });
+
+    // Determine error type and response
+    let statusCode = 500;
+    let errorCode = 'INTERNAL_SERVER_ERROR';
+    let message = 'An unexpected error occurred';
+
+    if (err.name === 'ValidationError') {
+      statusCode = 400;
+      errorCode = 'VALIDATION_ERROR';
+      message = 'Invalid request data';
+    } else if (err.name === 'UnauthorizedError') {
+      statusCode = 401;
+      errorCode = 'UNAUTHORIZED';
+      message = 'Authentication required';
+    } else if (err.code === 'ENOTFOUND') {
+      statusCode = 503;
+      errorCode = 'SERVICE_UNAVAILABLE';
+      message = 'External service unavailable';
+    }
+
+    // Don't expose internal errors in production
+    if (config.isProductionMode()) {
+      message = statusCode === 500 ? 'Internal server error' : message;
+    }
+
+    res.status(statusCode).json({
+      success: false,
+      error: {
+        code: errorCode,
+        message,
+        category: 'server_error',
+        retryable: statusCode >= 500,
+        ...(config.isDevelopment() && { stack: err.stack })
+      },
+      timestamp: new Date().toISOString()
+    });
+  };
+}
+
+export function validateJsonPayload() {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
+      const contentType = req.get('Content-Type');
+      
+      if (contentType && contentType.includes('application/json')) {
+        if (!req.body || typeof req.body !== 'object') {
+          return res.status(400).json({
+            success: false,
+            error: {
+              code: 'INVALID_JSON',
+              message: 'Invalid JSON payload',
+              category: 'validation',
+              retryable: false
+            },
+            timestamp: new Date().toISOString()
+          });
+        }
+      }
     }
     
     next();
   };
 }
 
-export function sanitizeInput(input: string): string {
-  if (typeof input !== 'string') {
-    return '';
-  }
-  
-  // Remove potentially dangerous characters
-  return input
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '') // Remove script tags
-    .replace(/javascript:/gi, '') // Remove javascript: protocol
-    .replace(/on\w+\s*=/gi, '') // Remove event handlers
-    .trim()
-    .slice(0, 1000); // Limit length
-}
-
-export function hashEmail(email: string): string {
-  if (!email || typeof email !== 'string') {
-    throw new Error('Invalid email provided for hashing');
-  }
-  
-  const normalizedEmail = email.toLowerCase().trim();
-  return createHash('sha256').update(normalizedEmail).digest('hex');
-}
-
-export function validatePhoneNumber(phone: string): boolean {
-  if (!phone || typeof phone !== 'string') {
-    return false;
-  }
-  
-  // E.164 format validation
-  const e164Regex = /^\+[1-9]\d{1,14}$/;
-  return e164Regex.test(phone);
-}
-
-export function validateReturnToken(token: string): boolean {
-  if (!token || typeof token !== 'string') {
-    return false;
-  }
-  
-  // UUID v4 format validation
-  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  return uuidRegex.test(token);
-}
-
-export function stripPII(data: any): any {
-  if (typeof data !== 'object' || data === null) {
-    return data;
-  }
-  
-  const piiFields = ['email', 'phone', 'ssn', 'address', 'firstName', 'lastName', 'fullName'];
-  const cleaned = { ...data };
-  
-  for (const field of piiFields) {
-    if (cleaned[field]) {
-      delete cleaned[field];
-    }
-  }
-  
-  // Recursively clean nested objects
-  for (const [key, value] of Object.entries(cleaned)) {
-    if (typeof value === 'object' && value !== null) {
-      cleaned[key] = stripPII(value);
-    }
-  }
-  
-  return cleaned;
-}
-
-export function logSecurityEvent(event: string, details: any, req?: Request): void {
-  const timestamp = new Date().toISOString();
-  const ip = req?.ip || 'unknown';
-  const userAgent = req?.get('User-Agent') || 'unknown';
-  
-  console.log(`[SECURITY] ${timestamp} - ${event}`, {
-    ip,
-    userAgent,
-    details: stripPII(details),
-  });
-}
-
-export function corsMiddleware(req: Request, res: Response, next: NextFunction): void {
-  const allowedOrigins = [
-    'http://localhost:5000',
-    'https://app.completecarloans.com',
-    ...(process.env.ALLOWED_ORIGINS?.split(',') || []),
-  ];
-  
-  const origin = req.get('Origin');
-  if (origin && allowedOrigins.includes(origin)) {
-    res.header('Access-Control-Allow-Origin', origin);
-  }
-  
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  
-  if (req.method === 'OPTIONS') {
-    res.sendStatus(200);
-    return;
-  }
-  
-  next();
-}
+export const rateLimiter = new RateLimiter();
