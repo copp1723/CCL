@@ -1,325 +1,192 @@
-
-import type { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction } from 'express';
 import { z } from 'zod';
-import { logSecurityEvent } from './security-enhanced';
 
-interface ValidationSchema {
-  body?: z.ZodSchema;
-  query?: z.ZodSchema;
-  params?: z.ZodSchema;
-  headers?: z.ZodSchema;
-}
-
-// Common validation schemas
-const emailSchema = z.string().email().max(254);
-const phoneSchema = z.string().regex(/^\+[1-9]\d{1,14}$/);
-const uuidSchema = z.string().uuid();
-const sanitizedStringSchema = z.string().max(1000).regex(/^[a-zA-Z0-9\s\-_.@]+$/);
-
-// Request validation schemas
-const leadCreationSchema = z.object({
-  email: emailSchema,
+// Enhanced input validation schemas
+export const leadValidationSchema = z.object({
+  email: z.string().email().max(254),
   status: z.enum(['new', 'contacted', 'qualified', 'closed']),
-  leadData: z.object({
-    firstName: sanitizedStringSchema.optional(),
-    lastName: sanitizedStringSchema.optional(),
-    phone: phoneSchema.optional(),
-    source: sanitizedStringSchema.optional(),
-  }),
+  leadData: z.object({}).passthrough().refine(
+    data => JSON.stringify(data).length <= 10000,
+    'Lead data too large'
+  )
 });
 
-const chatMessageSchema = z.object({
-  sessionId: uuidSchema,
-  message: z.string().min(1).max(2000),
-  type: z.enum(['user', 'agent']).optional(),
+export const emailCampaignSchema = z.object({
+  campaignName: z.string().min(1).max(100).regex(/^[a-zA-Z0-9\s\-_]+$/),
+  recipients: z.array(z.string().email()).min(1).max(1000),
+  template: z.string().optional()
 });
 
-const emailCampaignSchema = z.object({
-  visitorId: z.number().positive(),
-  campaignType: z.enum(['reengagement', 'followup', 'promotional']),
-  personalizedContent: z.boolean().optional(),
+export const webhookLeadSchema = z.object({
+  email: z.string().email().optional(),
+  phone: z.string().regex(/^\+?[1-9]\d{1,14}$/).optional(),
+  firstName: z.string().max(50).optional(),
+  lastName: z.string().max(50).optional(),
+  vehicleInterest: z.string().max(100).optional(),
+  creditScore: z.number().int().min(300).max(850).optional(),
+  source: z.string().max(50).optional()
+}).refine(
+  data => data.email || data.phone,
+  'Either email or phone is required'
+);
+
+export const searchParamsSchema = z.object({
+  email: z.string().email().optional(),
+  status: z.enum(['new', 'contacted', 'qualified', 'closed']).optional(),
+  limit: z.string().transform(val => parseInt(val)).refine(val => val > 0 && val <= 1000).optional(),
+  offset: z.string().transform(val => parseInt(val)).refine(val => val >= 0).optional()
 });
 
-// Common query parameter schemas
-const paginationSchema = z.object({
-  page: z.string().regex(/^\d+$/).transform(Number).refine(n => n > 0).optional(),
-  limit: z.string().regex(/^\d+$/).transform(Number).refine(n => n <= 100).optional(),
-  sortBy: sanitizedStringSchema.optional(),
-  sortOrder: z.enum(['asc', 'desc']).optional(),
-});
-
-const dateRangeSchema = z.object({
-  startDate: z.string().datetime().optional(),
-  endDate: z.string().datetime().optional(),
-  timeZone: z.string().max(50).optional(),
-});
-
-// Header validation schema
-const securityHeadersSchema = z.object({
-  'content-type': z.string().optional(),
-  'user-agent': z.string().max(500).optional(),
-  'accept': z.string().max(200).optional(),
-  'accept-language': z.string().max(100).optional(),
-  'authorization': z.string().max(1000).optional(),
-});
-
-export function validateRequest(schemas: ValidationSchema) {
-  return (req: Request, res: Response, next: NextFunction): void => {
+// Validation middleware factory
+export function validateBody(schema: z.ZodSchema) {
+  return (req: Request, res: Response, next: NextFunction) => {
     try {
-      // Validate request body
-      if (schemas.body && req.body) {
-        const bodyResult = schemas.body.safeParse(req.body);
-        if (!bodyResult.success) {
-          logSecurityEvent('validation_failed', {
-            type: 'body',
-            errors: bodyResult.error.errors,
-            url: req.url,
-          }, req, 'medium');
-          
-          res.status(400).json({
-            success: false,
-            error: {
-              code: 'VALIDATION_ERROR',
-              message: 'Invalid request body',
-              category: 'validation',
-              details: bodyResult.error.errors.map(err => ({
-                field: err.path.join('.'),
-                message: err.message,
-              })),
-              retryable: false,
-            },
-            timestamp: new Date().toISOString(),
-          });
-          return;
-        }
-        req.body = bodyResult.data;
-      }
-
-      // Validate query parameters
-      if (schemas.query && req.query) {
-        const queryResult = schemas.query.safeParse(req.query);
-        if (!queryResult.success) {
-          logSecurityEvent('validation_failed', {
-            type: 'query',
-            errors: queryResult.error.errors,
-            url: req.url,
-          }, req, 'medium');
-          
-          res.status(400).json({
-            success: false,
-            error: {
-              code: 'VALIDATION_ERROR',
-              message: 'Invalid query parameters',
-              category: 'validation',
-              details: queryResult.error.errors.map(err => ({
-                field: err.path.join('.'),
-                message: err.message,
-              })),
-              retryable: false,
-            },
-            timestamp: new Date().toISOString(),
-          });
-          return;
-        }
-        req.query = queryResult.data;
-      }
-
-      // Validate URL parameters
-      if (schemas.params && req.params) {
-        const paramsResult = schemas.params.safeParse(req.params);
-        if (!paramsResult.success) {
-          logSecurityEvent('validation_failed', {
-            type: 'params',
-            errors: paramsResult.error.errors,
-            url: req.url,
-          }, req, 'medium');
-          
-          res.status(400).json({
-            success: false,
-            error: {
-              code: 'VALIDATION_ERROR',
-              message: 'Invalid URL parameters',
-              category: 'validation',
-              details: paramsResult.error.errors.map(err => ({
-                field: err.path.join('.'),
-                message: err.message,
-              })),
-              retryable: false,
-            },
-            timestamp: new Date().toISOString(),
-          });
-          return;
-        }
-        req.params = paramsResult.data;
-      }
-
-      // Validate headers
-      if (schemas.headers) {
-        const headersResult = schemas.headers.safeParse(req.headers);
-        if (!headersResult.success) {
-          logSecurityEvent('validation_failed', {
-            type: 'headers',
-            errors: headersResult.error.errors,
-            url: req.url,
-          }, req, 'high');
-          
-          res.status(400).json({
-            success: false,
-            error: {
-              code: 'VALIDATION_ERROR',
-              message: 'Invalid request headers',
-              category: 'validation',
-              retryable: false,
-            },
-            timestamp: new Date().toISOString(),
-          });
-          return;
-        }
-      }
-
+      const validated = schema.parse(req.body);
+      req.body = validated;
       next();
     } catch (error) {
-      logSecurityEvent('validation_error', {
-        error: error instanceof Error ? error.message : 'Unknown validation error',
-        url: req.url,
-      }, req, 'high');
-      
-      res.status(500).json({
-        success: false,
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Request validation failed',
-          category: 'server',
-          retryable: true,
-        },
-        timestamp: new Date().toISOString(),
-      });
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_ERROR',
+            message: 'Invalid request data',
+            category: 'validation',
+            retryable: false,
+            details: error.errors.map(err => ({
+              field: err.path.join('.'),
+              message: err.message,
+              received: err.input
+            }))
+          },
+          timestamp: new Date().toISOString()
+        });
+      }
+      next(error);
     }
   };
 }
 
-// Pre-configured validation middleware for common endpoints
-export const validateLeadCreation = validateRequest({
-  body: leadCreationSchema,
-  query: paginationSchema,
-});
+export function validateQuery(schema: z.ZodSchema) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const validated = schema.parse(req.query);
+      req.query = validated;
+      next();
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'QUERY_VALIDATION_ERROR',
+            message: 'Invalid query parameters',
+            category: 'validation',
+            retryable: false,
+            details: error.errors.map(err => ({
+              field: err.path.join('.'),
+              message: err.message,
+              received: err.input
+            }))
+          },
+          timestamp: new Date().toISOString()
+        });
+      }
+      next(error);
+    }
+  };
+}
 
-export const validateChatMessage = validateRequest({
-  body: chatMessageSchema,
-});
-
-export const validateEmailCampaign = validateRequest({
-  body: emailCampaignSchema,
-});
-
-export const validatePagination = validateRequest({
-  query: paginationSchema,
-});
-
-export const validateDateRange = validateRequest({
-  query: dateRangeSchema,
-});
-
-export const validateSecurityHeaders = validateRequest({
-  headers: securityHeadersSchema,
-});
-
-// Enhanced input sanitization with better logging
-export function enhancedSanitizationMiddleware(req: Request, res: Response, next: NextFunction): void {
-  try {
-    const originalBody = JSON.stringify(req.body);
-    const originalQuery = JSON.stringify(req.query);
-
-    // Apply sanitization
+// Enhanced input sanitization
+export function sanitizeInput() {
+  return (req: Request, res: Response, next: NextFunction) => {
     if (req.body && typeof req.body === 'object') {
-      req.body = sanitizeObject(req.body, req);
+      req.body = sanitizeObject(req.body);
     }
-
-    if (req.query && typeof req.query === 'object') {
-      req.query = sanitizeObject(req.query, req);
-    }
-
-    // Log if significant changes were made
-    const sanitizedBody = JSON.stringify(req.body);
-    const sanitizedQuery = JSON.stringify(req.query);
-
-    if (originalBody !== sanitizedBody || originalQuery !== sanitizedQuery) {
-      logSecurityEvent('input_sanitized', {
-        bodyChanged: originalBody !== sanitizedBody,
-        queryChanged: originalQuery !== sanitizedQuery,
-        url: req.url,
-      }, req, 'low');
-    }
-
-    next();
-  } catch (error) {
-    logSecurityEvent('sanitization_error', {
-      error: error instanceof Error ? error.message : 'Unknown sanitization error',
-    }, req, 'high');
     
-    res.status(400).json({
-      success: false,
-      error: {
-        code: 'SANITIZATION_ERROR',
-        message: 'Request processing failed',
-        category: 'validation',
-        retryable: false,
-      },
-      timestamp: new Date().toISOString(),
-    });
-  }
+    if (req.query && typeof req.query === 'object') {
+      req.query = sanitizeObject(req.query);
+    }
+    
+    next();
+  };
 }
 
-function sanitizeObject(obj: any, req?: Request): any {
-  if (typeof obj !== 'object' || obj === null) {
-    return sanitizeValue(obj, req);
-  }
-
+function sanitizeObject(obj: any): any {
   if (Array.isArray(obj)) {
-    return obj.map(item => sanitizeObject(item, req));
+    return obj.map(sanitizeObject);
   }
-
-  const sanitized: any = {};
-  for (const [key, value] of Object.entries(obj)) {
-    if (key.includes('__proto__') || key.includes('constructor') || key.includes('prototype')) {
-      logSecurityEvent('prototype_pollution_attempt', { key, value }, req, 'critical');
-      continue;
+  
+  if (obj && typeof obj === 'object') {
+    const sanitized: any = {};
+    for (const [key, value] of Object.entries(obj)) {
+      // Prevent prototype pollution
+      if (key === '__proto__' || key === 'constructor' || key === 'prototype') {
+        continue;
+      }
+      
+      sanitized[sanitizeString(key)] = sanitizeObject(value);
     }
-
-    sanitized[sanitizeValue(key, req)] = sanitizeObject(value, req);
+    return sanitized;
   }
-
-  return sanitized;
+  
+  if (typeof obj === 'string') {
+    return sanitizeString(obj);
+  }
+  
+  return obj;
 }
 
-function sanitizeValue(value: any, req?: Request): any {
-  if (typeof value !== 'string') {
-    return value;
-  }
-
-  const original = value;
-  
-  // Remove dangerous patterns
-  value = value.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
-  value = value.replace(/javascript:/gi, '');
-  value = value.replace(/on\w+\s*=/gi, '');
-  value = value.replace(/data:/gi, '');
-  
-  // SQL injection prevention
-  const sqlPatterns = [
-    /(\b(SELECT|INSERT|UPDATE|DELETE|DROP|CREATE|ALTER|EXEC|UNION)\b)/gi,
-    /(--|\||\/\*|\*\/)/g,
-    /(\b(OR|AND)\s+\d+\s*=\s*\d+)/gi,
-  ];
-
-  for (const pattern of sqlPatterns) {
-    if (pattern.test(value)) {
-      logSecurityEvent('sql_injection_attempt', { original, sanitized: value }, req, 'critical');
-      break;
-    }
-  }
-
-  return value.trim().slice(0, 1000);
+function sanitizeString(str: string): string {
+  return str
+    .replace(/[<>'"&]/g, '') // Remove potential XSS characters
+    .replace(/\\/g, '') // Remove backslashes
+    .replace(/\.\./g, '') // Remove path traversal
+    .trim()
+    .substring(0, 10000); // Limit string length
 }
 
-export { emailSchema, phoneSchema, uuidSchema, sanitizedStringSchema };
+// Request size validation
+export function validateRequestSize(maxSizeBytes: number = 10 * 1024 * 1024) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const contentLength = parseInt(req.get('content-length') || '0');
+    
+    if (contentLength > maxSizeBytes) {
+      return res.status(413).json({
+        success: false,
+        error: {
+          code: 'REQUEST_TOO_LARGE',
+          message: `Request size exceeds limit of ${maxSizeBytes} bytes`,
+          category: 'validation',
+          retryable: false
+        },
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    next();
+  };
+}
+
+// Content type validation
+export function validateContentType(allowedTypes: string[] = ['application/json']) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    const contentType = req.get('content-type');
+    
+    if (req.method !== 'GET' && req.method !== 'DELETE') {
+      if (!contentType || !allowedTypes.some(type => contentType.includes(type))) {
+        return res.status(415).json({
+          success: false,
+          error: {
+            code: 'UNSUPPORTED_MEDIA_TYPE',
+            message: `Content-Type must be one of: ${allowedTypes.join(', ')}`,
+            category: 'validation',
+            retryable: false
+          },
+          timestamp: new Date().toISOString()
+        });
+      }
+    }
+    
+    next();
+  };
+}

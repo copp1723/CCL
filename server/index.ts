@@ -3,10 +3,16 @@ import { setupVite, serveStatic } from "./vite";
 import { handleApiError } from "./utils/error-handler";
 import { storage } from "./database-storage";
 import { sanitizeCampaignName, sanitizeEmail, sanitizeText, sanitizeJsonData } from "./utils/input-sanitizer";
-import { applySecurityMiddleware } from "./middleware/security-enhanced";
-import { dbOptimizer } from "./utils/database-optimizer";
-import securityAuditRoutes from "./routes/security-audit";
-import { validateSecurityHeaders, enhancedSanitizationMiddleware } from "./middleware/request-validation";
+import config from "./config/environment";
+import monitoringRoutes from "./routes/monitoring";
+import { 
+  securityHeaders, 
+  requestLogging, 
+  errorHandler, 
+  validateJsonPayload, 
+  rateLimiter 
+} from "./middleware/security";
+import { requestMetricsMiddleware } from "./monitoring/metrics";
 
 const app = express();
 app.use(express.json({ limit: "50mb" }));

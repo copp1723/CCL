@@ -204,3 +204,4 @@ export function validateJsonPayload() {
 }
 
 export const rateLimiter = new RateLimiter();
+export const rateLimitMiddleware = rateLimiter.middleware();
