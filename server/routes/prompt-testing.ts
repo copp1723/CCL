@@ -116,7 +116,7 @@ async function generateCathyResponse(
   let nextSteps: string;
 
   if (lowerMsg.includes('credit') && (lowerMsg.includes('worried') || lowerMsg.includes('issues') || lowerMsg.includes('anxious'))) {
-    cathyResponse = `Hey ${firstName}! I get it - credit concerns are totally normal.\n\nHere's the thing: I work with folks in all credit situations every day. Your credit history just helps me find the right path for you.\n\nWhat kind of car are you looking for? I'd love to show you what's possible!`;
+    cathyResponse = `Hey ${firstName}! I get it - credit concerns are totally normal.\n\nHere's the thing: I work with customers in all credit situations every day. Your credit history just helps me find the right path for you.\n\nWhat kind of car are you looking for? I'd love to show you what's possible!`;
     analysis = 'Customer expressing credit anxiety. Responding with empathy and reassurance.';
     salesReadiness = 'medium';
     insights = 'Customer has credit concerns but engaged. Building trust is key.';
@@ -152,7 +152,7 @@ async function generateCathyResponse(
     insights = 'Shown previous intent. Strong re-engagement opportunity.';
     nextSteps = 'Reassure and provide guided completion assistance.';
   } else {
-    cathyResponse = `Hey ${firstName}! Great to hear from you.\n\nI'm Cathy - I help folks find the right auto financing, no matter their credit situation. Every situation is unique, and I'm here to make it easy.\n\nWhat can I help you with today?`;
+    cathyResponse = `Hey ${firstName}! Great to hear from you.\n\nI'm Cathy - I help people find the right auto financing, no matter their credit situation. Every situation is unique, and I'm here to make it easy.\n\nWhat can I help you with today?`;
     analysis = 'General inquiry. Establishing rapport and gathering needs.';
     salesReadiness = 'medium';
     insights = 'Early discovery phase. Opportunity to build relationship and understand needs.';
