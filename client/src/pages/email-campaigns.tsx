@@ -64,7 +64,7 @@ export default function EmailCampaigns() {
   const createTemplateMutation = useMutation({
     mutationFn: (templateData: any) => apiRequest('/api/email-campaigns/templates', {
       method: 'POST',
-      body: JSON.stringify(templateData),
+      data: templateData,
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/email-campaigns/templates'] });
@@ -95,7 +95,7 @@ export default function EmailCampaigns() {
     mutationFn: ({ templateId, testEmail, variables }: any) => 
       apiRequest(`/api/email-campaigns/templates/${templateId}/test-send`, {
         method: 'POST',
-        body: JSON.stringify({ testEmail, variables }),
+        data: { testEmail, variables },
       }),
     onSuccess: () => {
       toast({
@@ -113,8 +113,8 @@ export default function EmailCampaigns() {
     },
   });
 
-  const templates: EmailTemplate[] = templatesData?.data || [];
-  const campaigns: Campaign[] = campaignsData?.data || [];
+  const templates: EmailTemplate[] = (templatesData as any)?.data || [];
+  const campaigns: Campaign[] = (campaignsData as any)?.data || [];
 
   const handleCreateTemplate = () => {
     if (!newTemplate.name || !newTemplate.subject || !newTemplate.html) {

@@ -220,6 +220,32 @@ ${this.getComplianceConstraints()}`;
 
     constraints += `- ${complianceLevels[this.variables.compliance_level]}`;
 
+    // Add phone collection guidelines based on settings
+    if (this.variables.phone_collection_enabled) {
+      const phoneApproach = {
+        soft_ask: 'Gently ask for phone number if conversation flows naturally',
+        incentivized: 'Offer value in exchange for phone number',
+        direct: 'Directly request phone number for faster service'
+      };
+
+      const phoneTimings = {
+        early: 'Ask for phone early in conversation',
+        mid_conversation: 'Ask for phone during middle of conversation',
+        end: 'Ask for phone at end of conversation'
+      };
+
+      const phonePriority = {
+        required: 'Phone number is required to proceed',
+        optional: 'Phone number is helpful but not required',
+        disabled: 'Do not ask for phone number'
+      };
+
+      constraints += `\n\nPhone Collection Guidelines:
+- Priority: ${phonePriority[this.variables.phone_collection_priority]}
+- Approach: ${phoneApproach[this.variables.phone_collection_approach]}
+- Timing: ${phoneTimings[this.variables.phone_collection_timing]}`;
+    }
+
     return constraints;
   }
 
