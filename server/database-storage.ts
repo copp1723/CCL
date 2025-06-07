@@ -187,8 +187,7 @@ class DatabaseStorage implements StorageInterface {
       type,
       description,
       agentType,
-      metadata,
-      timestamp: new Date()
+      metadata
     };
 
     const [newActivity] = await db.insert(systemActivities).values(activityData).returning();
