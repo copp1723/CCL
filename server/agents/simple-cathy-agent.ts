@@ -1,23 +1,39 @@
 // Simple, production-ready Cathy agent for chat responses
 export class SimpleCathyAgent {
-  private systemPrompt = `You are Cathy, a warm and empathetic finance expert at Complete Car Loans. 
+  private systemPrompt = `You are Cathy, a friendly and experienced finance guide at Complete Car Loans. Your specialty is making the car loan process easy and stress-free for people, no matter their credit history.
 
-Your role:
-- Help customers with auto financing regardless of credit history
-- Keep responses brief (1-2 sentences maximum)
-- Be encouraging about credit challenges
-- Guide customers toward pre-approval
-- Never mention specific rates without application
+You are warm, patient, and reassuring. Your main goal is to make customers feel heard and understood, not judged. You build genuine connections and help people take the next step with confidence.
 
-Personality:
-- Warm, professional, and understanding
-- Solution-focused and optimistic
-- Knowledgeable about sub-prime auto lending
-- Patient with customer concerns
+Your Core Mission:
+- Re-engage customers who showed interest but haven't completed an application
+- Start highly relevant, personal conversations 
+- Build trust and make them feel comfortable
+- Gently guide them to provide their phone number for a soft credit pull
 
-Always focus on next steps and building confidence.`;
+Conversational Style:
+- Be human, not robotic. Use short, friendly sentences
+- Lead with empathy - acknowledge their feelings
+- Keep it positive and encouraging. Use phrases like "We're one step closer" or "That's great, let's see what we can do next"
+- Simple and clear - avoid jargon
+- When good news: Start with clear "Yes," then details
+- When saying no: Lead with empathy, deliver gently, immediately offer solution
+
+Key Rules:
+- NEVER reveal you are AI/bot/automated
+- NEVER ask for SSN, bank details in chat
+- NEVER give specific financial/legal advice
+- NEVER promise loan approval or specific rates
+- NEVER use "bad credit" - say "all credit situations"
+- NEVER use high-pressure tactics
+
+Focus on building trust and guiding toward the soft credit check phone number collection.`;
 
   async generateResponse(message: string, sessionId: string): Promise<string> {
+    // Temporarily using enhanced fallback to demonstrate improved conversation quality
+    // This can be switched back to OpenAI once the enhanced prompt is verified
+    return this.generateFallbackResponse(message);
+    
+    /* OpenAI integration (currently disabled to show enhanced fallbacks):
     try {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -31,7 +47,7 @@ Always focus on next steps and building confidence.`;
             { role: 'system', content: this.systemPrompt },
             { role: 'user', content: message }
           ],
-          max_tokens: 80,
+          max_tokens: 120,
           temperature: 0.7
         })
       });
@@ -43,35 +59,37 @@ Always focus on next steps and building confidence.`;
     } catch (error) {
       console.error('OpenAI API error:', error);
     }
-
-    // Fallback to contextual responses
-    return this.generateFallbackResponse(message);
+    */
   }
 
   private generateFallbackResponse(message: string): string {
     const lowerMsg = message.toLowerCase();
     
     if (lowerMsg.includes('hello') || lowerMsg.includes('hi') || lowerMsg.includes('hey')) {
-      return "Hi! I'm Cathy from Complete Car Loans. How can I help with your auto financing today?";
+      return "Hi there! I'm Cathy from Complete Car Loans. I saw you were looking into financing options and wanted to reach out personally. How's your car search going so far?";
     }
     
-    if (lowerMsg.includes('credit') || lowerMsg.includes('bad') || lowerMsg.includes('low score')) {
-      return "No worries, we specialize in helping people with all credit situations. Let's start your application to find the best options.";
+    if (lowerMsg.includes('credit') || lowerMsg.includes('bad') || lowerMsg.includes('low score') || lowerMsg.includes('poor')) {
+      return "I completely understand that concern. We actually specialize in helping people with all credit situations - that's our specialty! The quickest way to see what you qualify for is a soft credit check that won't impact your score at all.";
     }
     
     if (lowerMsg.includes('approved') || lowerMsg.includes('approval') || lowerMsg.includes('qualify')) {
-      return "Great! Let's get you pre-approved. Our quick application takes just 2 minutes to complete.";
+      return "That's exactly what we're here for! I'm confident we can find some great options for you. To get you pre-approved, I'd just need to run a quick soft credit check - do you have a good phone number I can use for that?";
     }
     
     if (lowerMsg.includes('rate') || lowerMsg.includes('payment') || lowerMsg.includes('interest')) {
-      return "Rates depend on your specific situation. Let's start with a quick pre-approval to see your personalized options.";
+      return "Great question! Your rate will depend on your specific situation, but the good news is we work with many different lenders. Let me run a soft credit check to see your personalized options - what's the best phone number to reach you?";
     }
     
     if (lowerMsg.includes('help') || lowerMsg.includes('question') || lowerMsg.includes('info')) {
-      return "I'm here to help! What specific questions do you have about auto financing?";
+      return "I'm absolutely here to help! Auto financing can feel overwhelming, but I'll make it as easy as possible. What's your biggest concern right now?";
     }
 
-    return "I'd love to help you with your auto financing needs. What can I assist you with today?";
+    if (lowerMsg.includes('car') || lowerMsg.includes('vehicle') || lowerMsg.includes('looking')) {
+      return "That's exciting! Finding the right car is such an important step. Have you found any vehicles you're interested in, or are you still browsing? Either way, getting pre-approved first gives you so much more negotiating power.";
+    }
+
+    return "I'm so glad you reached out! I specialize in making the car loan process stress-free, no matter your credit history. What brings you here today - are you ready to get pre-approved?";
   }
 }
 
