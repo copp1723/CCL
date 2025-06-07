@@ -36,43 +36,12 @@ app.use(validateJsonPayload());
 // API key authentication
 const API_KEY = config.get().INTERNAL_API_KEY;
 
-// Cathy's intelligent response generator with OpenAI integration
+// Import the simplified Cathy agent
+import { simpleCathyAgent } from './agents/simple-cathy-agent';
+
+// Cathy's intelligent response generator
 async function generateCathyResponse(message: string, sessionId: string): Promise<string> {
-  // Try OpenAI first
-  try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'gpt-4',
-        messages: [
-          {
-            role: 'system',
-            content: `You are Cathy, a finance expert at Complete Car Loans. Keep responses brief (1-2 sentences), friendly, and focused on helping with auto financing. Be encouraging about credit challenges.`
-          },
-          {
-            role: 'user',
-            content: message
-          }
-        ],
-        max_tokens: 80,
-        temperature: 0.7
-      })
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      return data.choices[0].message.content.trim();
-    }
-  } catch (error) {
-    console.error('OpenAI API error:', error);
-  }
-
-  // Use concise fallback responses
-  return generateConciseResponse(message);
+  return await simpleCathyAgent.generateResponse(message, sessionId);
 }
 
 // Concise fallback responses
