@@ -28,52 +28,34 @@ export default function DataIngestion() {
     { email: '', firstName: '', lastName: '', vehicleInterest: '', phoneNumber: '', notes: '' }
   ]);
 
-  // Fetch ingestion stats
-  const { data: statsData, isLoading: statsLoading } = useQuery({
-    queryKey: ['/api/data-ingestion/stats'],
+  // Fetch leads data for stats
+  const { data: leadsData } = useQuery({
+    queryKey: ['/api/leads'],
   });
 
-  // CSV upload mutation
+  // CSV upload mutation using working bulk email endpoint
   const csvUploadMutation = useMutation({
     mutationFn: (file: File) => {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const csvData = e.target?.result as string;
-          const lines = csvData.split('\n').filter(line => line.trim());
-          const headers = lines[0].split(',').map(h => h.trim().toLowerCase());
-          
-          const leads = lines.slice(1).map(line => {
-            const values = line.split(',').map(v => v.trim());
-            const lead: any = {};
-            
-            headers.forEach((header, index) => {
-              if (header === 'email') lead.email = values[index];
-              if (header === 'firstname' || header === 'first_name') lead.firstName = values[index];
-              if (header === 'lastname' || header === 'last_name') lead.lastName = values[index];
-              if (header === 'phone' || header === 'phonenumber' || header === 'phone_number') lead.phoneNumber = values[index];
-              if (header === 'vehicle' || header === 'vehicleinterest' || header === 'vehicle_interest') lead.vehicleInterest = values[index];
-              if (header === 'notes') lead.notes = values[index];
-            });
-            
-            return lead;
-          }).filter(lead => lead.email);
-          
-          apiRequest('/api/data-ingestion/leads/manual', {
-            method: 'POST',
-            data: { leads }
-          }).then(resolve).catch(reject);
-        };
-        reader.onerror = reject;
-        reader.readAsText(file);
+      const formData = new FormData();
+      formData.append('csvFile', file);
+      formData.append('campaignName', `CSV Upload ${new Date().toISOString().split('T')[0]}`);
+      formData.append('scheduleType', 'immediate');
+      
+      return fetch('/api/bulk-email/send', {
+        method: 'POST',
+        body: formData
+      }).then(response => {
+        if (!response.ok) {
+          throw new Error('Upload failed');
+        }
+        return response.json();
       });
     },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/data-ingestion/stats'] });
       queryClient.invalidateQueries({ queryKey: ['/api/leads'] });
       toast({
         title: "CSV Upload Complete",
-        description: `Processed ${data.data?.totalProcessed || 0} leads: ${data.data?.successCount || 0} successful, ${data.data?.failureCount || 0} failed`,
+        description: `Processed ${data.data?.processed || 0} leads successfully`,
       });
       setCsvFile(null);
     },
@@ -86,18 +68,26 @@ export default function DataIngestion() {
     },
   });
 
-  // Manual upload mutation
+  // Manual lead processing
   const manualUploadMutation = useMutation({
-    mutationFn: (leads: Lead[]) => apiRequest('/api/data-ingestion/leads/manual', {
-      method: 'POST',
-      data: { leads }
-    }),
+    mutationFn: (leads: Lead[]) => {
+      return Promise.all(leads.map(lead => 
+        apiRequest('/api/process-lead', {
+          method: 'POST',
+          data: {
+            email: lead.email,
+            firstName: lead.firstName,
+            lastName: lead.lastName,
+            vehicleInterest: lead.vehicleInterest
+          }
+        })
+      ));
+    },
     onSuccess: (data: any) => {
-      queryClient.invalidateQueries({ queryKey: ['/api/data-ingestion/stats'] });
       queryClient.invalidateQueries({ queryKey: ['/api/leads'] });
       toast({
         title: "Manual Upload Complete",
-        description: `Processed ${data.data?.totalProcessed || 0} leads: ${data.data?.successCount || 0} successful, ${data.data?.failureCount || 0} failed`,
+        description: `Processed ${data.length} leads successfully`,
       });
       setManualLeads([{ email: '', firstName: '', lastName: '', vehicleInterest: '', phoneNumber: '', notes: '' }]);
     },
@@ -123,11 +113,11 @@ export default function DataIngestion() {
   };
 
   const handleManualUpload = () => {
-    const validLeads = manualLeads.filter(lead => lead.email.trim() !== '');
+    const validLeads = manualLeads.filter(lead => lead.email && lead.firstName && lead.lastName);
     if (validLeads.length === 0) {
       toast({
         title: "Error",
-        description: "Please add at least one lead with an email address",
+        description: "Please provide at least one complete lead (email, first name, last name required)",
         variant: "destructive",
       });
       return;
@@ -140,9 +130,7 @@ export default function DataIngestion() {
   };
 
   const removeManualLead = (index: number) => {
-    if (manualLeads.length > 1) {
-      setManualLeads(manualLeads.filter((_, i) => i !== index));
-    }
+    setManualLeads(manualLeads.filter((_, i) => i !== index));
   };
 
   const updateManualLead = (index: number, field: keyof Lead, value: string) => {
@@ -151,126 +139,89 @@ export default function DataIngestion() {
     setManualLeads(updated);
   };
 
-  const stats = (statsData as any)?.data || {};
+  const totalLeads = leadsData?.data?.length || 0;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Data Ingestion</h1>
-          <p className="text-muted-foreground">
-            Import lead data from various sources for campaign processing
-          </p>
-        </div>
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Data Ingestion</h1>
+        <p className="text-muted-foreground">Upload lead data via CSV or manual entry</p>
       </div>
 
-      {/* Statistics Overview */}
-      <div className="grid gap-4 md:grid-cols-4">
+      {/* Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
             <Database className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalLeads || 0}</div>
+            <div className="text-2xl font-bold">{totalLeads}</div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Recent Imports</CardTitle>
+            <CardTitle className="text-sm font-medium">Upload Status</CardTitle>
             <Upload className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.recentIngestionActivities || 0}</div>
+            <div className="text-2xl font-bold">
+              {csvUploadMutation.isPending || manualUploadMutation.isPending ? 'Processing' : 'Ready'}
+            </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Data Sources</CardTitle>
+            <CardTitle className="text-sm font-medium">Last Upload</CardTitle>
             <FileText className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{Object.keys(stats.ingestionSources || {}).length}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Last Import</CardTitle>
-            <Mail className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-sm">
-              {stats.lastIngestion ? new Date(stats.lastIngestion).toLocaleDateString() : 'None'}
+            <div className="text-2xl font-bold">
+              {csvFile ? 'CSV Ready' : 'None'}
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Data Sources Breakdown */}
-      {stats.ingestionSources && Object.keys(stats.ingestionSources).length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Data Sources</CardTitle>
-            <CardDescription>Breakdown of leads by ingestion source</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(stats.ingestionSources || {}).map(([source, count]) => (
-                <Badge key={source} variant="outline">
-                  {source}: {count as number}
-                </Badge>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      <Tabs defaultValue="csv" className="w-full">
-        <TabsList className="grid w-full grid-cols-4">
+      <Tabs defaultValue="csv" className="space-y-4">
+        <TabsList>
           <TabsTrigger value="csv">CSV Upload</TabsTrigger>
           <TabsTrigger value="manual">Manual Entry</TabsTrigger>
-          <TabsTrigger value="sftp">SFTP/API</TabsTrigger>
-          <TabsTrigger value="email">Email Capture</TabsTrigger>
         </TabsList>
 
         <TabsContent value="csv" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5" />
-                CSV File Upload
-              </CardTitle>
+              <CardTitle>CSV File Upload</CardTitle>
               <CardDescription>
-                Upload a CSV file with lead data. Required columns: email. Optional: firstName, lastName, vehicleInterest, phoneNumber, notes
+                Upload a CSV file with lead data. Expected columns: email, firstName, lastName, phone, vehicleInterest, creditScore
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="csv-file">Select CSV File</Label>
+              <div className="grid w-full max-w-sm items-center gap-1.5">
+                <Label htmlFor="csvFile">CSV File</Label>
                 <Input
-                  id="csv-file"
+                  id="csvFile"
                   type="file"
                   accept=".csv"
                   onChange={(e) => setCsvFile(e.target.files?.[0] || null)}
                 />
               </div>
+              
               {csvFile && (
-                <div className="p-4 bg-muted rounded-lg">
-                  <p className="text-sm">
-                    <strong>Selected file:</strong> {csvFile.name}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    Size: {(csvFile.size / 1024).toFixed(1)} KB
-                  </p>
+                <div className="rounded-lg border p-4">
+                  <h4 className="font-medium">Selected File:</h4>
+                  <p className="text-sm text-muted-foreground">{csvFile.name}</p>
+                  <p className="text-sm text-muted-foreground">Size: {(csvFile.size / 1024).toFixed(2)} KB</p>
                 </div>
               )}
+
               <Button 
-                onClick={handleCsvUpload}
+                onClick={handleCsvUpload} 
                 disabled={!csvFile || csvUploadMutation.isPending}
                 className="w-full"
               >
-                <Upload className="h-4 w-4 mr-2" />
-                {csvUploadMutation.isPending ? 'Uploading...' : 'Upload CSV'}
+                {csvUploadMutation.isPending ? 'Processing...' : 'Upload CSV'}
               </Button>
             </CardContent>
           </Card>
@@ -279,18 +230,15 @@ export default function DataIngestion() {
         <TabsContent value="manual" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Plus className="h-5 w-5" />
-                Manual Lead Entry
-              </CardTitle>
+              <CardTitle>Manual Lead Entry</CardTitle>
               <CardDescription>
-                Manually enter lead information. Email address is required.
+                Enter lead information manually
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               {manualLeads.map((lead, index) => (
-                <div key={index} className="p-4 border rounded-lg space-y-3">
-                  <div className="flex items-center justify-between">
+                <div key={index} className="rounded-lg border p-4 space-y-4">
+                  <div className="flex justify-between items-center">
                     <h4 className="font-medium">Lead {index + 1}</h4>
                     {manualLeads.length > 1 && (
                       <Button
@@ -302,60 +250,68 @@ export default function DataIngestion() {
                       </Button>
                     )}
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
+                  
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Email *</Label>
+                      <Label htmlFor={`email-${index}`}>Email *</Label>
                       <Input
+                        id={`email-${index}`}
                         type="email"
                         value={lead.email}
                         onChange={(e) => updateManualLead(index, 'email', e.target.value)}
-                        placeholder="customer@example.com"
+                        placeholder="john@example.com"
                       />
                     </div>
                     <div>
-                      <Label>Phone Number</Label>
+                      <Label htmlFor={`firstName-${index}`}>First Name *</Label>
                       <Input
-                        value={lead.phoneNumber || ''}
-                        onChange={(e) => updateManualLead(index, 'phoneNumber', e.target.value)}
-                        placeholder="(555) 123-4567"
-                      />
-                    </div>
-                    <div>
-                      <Label>First Name</Label>
-                      <Input
+                        id={`firstName-${index}`}
                         value={lead.firstName}
                         onChange={(e) => updateManualLead(index, 'firstName', e.target.value)}
                         placeholder="John"
                       />
                     </div>
                     <div>
-                      <Label>Last Name</Label>
+                      <Label htmlFor={`lastName-${index}`}>Last Name *</Label>
                       <Input
+                        id={`lastName-${index}`}
                         value={lead.lastName}
                         onChange={(e) => updateManualLead(index, 'lastName', e.target.value)}
-                        placeholder="Smith"
+                        placeholder="Doe"
                       />
                     </div>
                     <div>
-                      <Label>Vehicle Interest</Label>
+                      <Label htmlFor={`phoneNumber-${index}`}>Phone Number</Label>
                       <Input
+                        id={`phoneNumber-${index}`}
+                        value={lead.phoneNumber || ''}
+                        onChange={(e) => updateManualLead(index, 'phoneNumber', e.target.value)}
+                        placeholder="555-0123"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Label htmlFor={`vehicleInterest-${index}`}>Vehicle Interest</Label>
+                      <Input
+                        id={`vehicleInterest-${index}`}
                         value={lead.vehicleInterest}
                         onChange={(e) => updateManualLead(index, 'vehicleInterest', e.target.value)}
-                        placeholder="SUV, Truck, Sedan..."
+                        placeholder="Toyota Camry"
                       />
                     </div>
-                    <div>
-                      <Label>Notes</Label>
-                      <Input
+                    <div className="col-span-2">
+                      <Label htmlFor={`notes-${index}`}>Notes</Label>
+                      <Textarea
+                        id={`notes-${index}`}
                         value={lead.notes || ''}
                         onChange={(e) => updateManualLead(index, 'notes', e.target.value)}
                         placeholder="Additional notes..."
+                        rows={2}
                       />
                     </div>
                   </div>
                 </div>
               ))}
-              
+
               <div className="flex gap-2">
                 <Button variant="outline" onClick={addManualLead}>
                   <Plus className="h-4 w-4 mr-2" />
@@ -366,91 +322,8 @@ export default function DataIngestion() {
                   disabled={manualUploadMutation.isPending}
                   className="flex-1"
                 >
-                  {manualUploadMutation.isPending ? 'Processing...' : `Upload ${manualLeads.filter(l => l.email.trim()).length} Leads`}
+                  {manualUploadMutation.isPending ? 'Processing...' : 'Upload Leads'}
                 </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="sftp" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>SFTP/API Integration</CardTitle>
-              <CardDescription>
-                Configure automated data ingestion from external sources
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="p-4 bg-muted rounded-lg">
-                <h4 className="font-medium mb-2">SFTP Webhook Endpoint</h4>
-                <code className="text-sm bg-background p-2 rounded block">
-                  POST /api/data-ingestion/leads/sftp-webhook
-                </code>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Send lead data in JSON format with required API key authentication
-                </p>
-              </div>
-              
-              <div className="p-4 bg-muted rounded-lg">
-                <h4 className="font-medium mb-2">Expected JSON Format</h4>
-                <pre className="text-sm bg-background p-2 rounded overflow-x-auto">
-{`{
-  "fileName": "leads_batch_001.csv",
-  "source": "dealer_portal",
-  "leads": [
-    {
-      "email": "customer@example.com",
-      "firstName": "John",
-      "lastName": "Smith", 
-      "vehicleInterest": "SUV",
-      "phoneNumber": "(555) 123-4567",
-      "metadata": {}
-    }
-  ]
-}`}
-                </pre>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="email" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Mail className="h-5 w-5" />
-                Email-Based Lead Capture
-              </CardTitle>
-              <CardDescription>
-                Capture leads from emails sent to designated addresses
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="p-4 bg-muted rounded-lg">
-                <h4 className="font-medium mb-2">Mailgun Webhook Endpoint</h4>
-                <code className="text-sm bg-background p-2 rounded block">
-                  POST /api/data-ingestion/leads/email-capture
-                </code>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Automatically extracts lead information from incoming emails
-                </p>
-              </div>
-              
-              <div className="space-y-2">
-                <h4 className="font-medium">Email Processing Features</h4>
-                <ul className="text-sm text-muted-foreground space-y-1">
-                  <li>• Automatic phone number extraction</li>
-                  <li>• Vehicle interest keyword detection</li>
-                  <li>• Name pattern recognition</li>
-                  <li>• Subject line analysis</li>
-                </ul>
-              </div>
-              
-              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  <strong>Setup Required:</strong> Configure Mailgun webhook to forward emails from leads@onerylie.com to this endpoint
-                </p>
               </div>
             </CardContent>
           </Card>

@@ -26,7 +26,7 @@ const upload = multer({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? false : true,
+  origin: true,
   credentials: true
 }));
 
