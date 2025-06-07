@@ -199,19 +199,21 @@ Current message: "${message}"`;
   }
 });
 
-// Catch-all for React app (must be last)
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../client/index.html'));
-});
-
 // Error handling
 app.use(errorHandler());
 
 const PORT = config.get().PORT;
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', async () => {
   console.log(`CCL Agent System running on port ${PORT}`);
   console.log(`Environment: ${config.get().NODE_ENV}`);
   console.log(`Health check: http://0.0.0.0:${PORT}/health`);
+  
+  // Setup Vite development server for frontend
+  if (isDevelopment) {
+    await setupVite(app, server);
+  } else {
+    serveStatic(app);
+  }
 });
 
 export default app;
