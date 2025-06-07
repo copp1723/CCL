@@ -26,12 +26,13 @@ app.use(express.urlencoded({
 }));
 
 // CORS configuration
+const allowedOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173'];
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(process.env.FRONTEND_URL);
+}
+
 app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-    process.env.FRONTEND_URL
-  ].filter(Boolean),
+  origin: allowedOrigins,
   credentials: true,
   optionsSuccessStatus: 200
 }));
@@ -54,8 +55,7 @@ const sanitizeInput = (req: any, res: any, next: any) => {
     /on\w+\s*=/gi,
     /eval\s*\(/gi,
     /expression\s*\(/gi,
-    /../g, // Path traversal
-    /\.\.\//g,
+    /\.\./g, // Path traversal
     /union\s+select/gi,
     /drop\s+table/gi,
     /insert\s+into/gi,
