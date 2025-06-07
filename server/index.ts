@@ -9,6 +9,8 @@ const __dirname = dirname(__filename);
 import config from './config/environment';
 import { securityMonitor, requestLogging, errorHandler } from './middleware/security-consolidated';
 import { authenticateToken, createAuthRoutes } from './middleware/auth';
+import { storage } from './database-storage';
+import { setupVite, serveStatic } from './vite';
 import emailCampaignsRouter from './routes/email-campaigns';
 import promptTestingRouter from './routes/prompt-testing';
 import dataIngestionRouter from './routes/data-ingestion-simple';
@@ -31,8 +33,8 @@ app.use(securityMonitor.rateLimitMiddleware());
 app.use(securityMonitor.inputValidationMiddleware());
 app.use(requestLogging());
 
-// Serve static files
-app.use(express.static(path.join(__dirname, '../client')));
+// Development Vite integration or production static files
+const isDevelopment = config.get().NODE_ENV === 'development';
 
 // Auth routes (no auth required)
 app.use('/api/auth', createAuthRoutes());
@@ -99,7 +101,105 @@ app.get('/api/activity', authenticateToken, (req, res) => {
   });
 });
 
-// Catch-all for React app
+// Chat endpoint (no auth required for public access)
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { message, sessionId = `session_${Date.now()}` } = req.body;
+
+    if (!message) {
+      return res.status(400).json({
+        success: false,
+        error: 'Message is required',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    // Create visitor record if needed
+    const visitorId = await storage.createVisitor({
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent'),
+      metadata: { sessionId }
+    });
+
+    // Enhanced Cathy persona prompt with empathetic finance expertise
+    const systemPrompt = `You are Cathy, a warm and knowledgeable finance expert at Complete Car Loans. You specialize in helping people with all types of credit situations, especially those who have been turned down elsewhere.
+
+Your personality:
+- Empathetic and understanding, never judgmental about past financial difficulties
+- Confident and knowledgeable about auto financing options
+- Friendly but professional
+- Focused on helping people move forward, not dwelling on past mistakes
+
+Your expertise:
+- Sub-prime auto loans and credit rehabilitation
+- Working with customers who have bad credit, no credit, bankruptcy, or repo history
+- Explaining loan terms in simple, understandable language
+- Guiding customers through the application process
+
+Response guidelines:
+- Keep responses conversational and encouraging
+- Ask for phone number to begin the soft credit check process when appropriate
+- Explain that soft credit checks don't hurt their credit score
+- Emphasize Complete Car Loans' expertise with challenging credit situations
+- Be helpful but guide toward getting their contact information for follow-up
+
+Current message: "${message}"`;
+
+    // Call OpenAI for intelligent response
+    let response = "I understand you're looking for auto financing help. At Complete Car Loans, we specialize in working with all credit situations. Could you share your phone number so we can begin with a soft credit check that won't impact your credit score?";
+
+    try {
+      const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'gpt-4',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: message }
+          ],
+          max_tokens: 300,
+          temperature: 0.7
+        })
+      });
+
+      if (openaiResponse.ok) {
+        const data = await openaiResponse.json();
+        response = data.choices[0]?.message?.content || response;
+      }
+    } catch (openaiError) {
+      console.log('OpenAI fallback used for chat response');
+    }
+
+    // Log the interaction
+    await storage.createActivity(
+      'chat_interaction',
+      `Chat message processed for session ${sessionId}`,
+      'RealtimeChatAgent',
+      { message: message.substring(0, 100), response: response.substring(0, 100) }
+    );
+
+    res.json({
+      success: true,
+      response,
+      sessionId,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Chat error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Chat service temporarily unavailable',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Catch-all for React app (must be last)
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../client/index.html'));
 });
