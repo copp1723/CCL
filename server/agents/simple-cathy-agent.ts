@@ -49,17 +49,13 @@ Focus on building trust and guiding toward the soft credit check phone number co
 
       if (response.ok) {
         const data = await response.json();
-        const aiResponse = data.choices[0].message.content.trim();
-        console.log('OpenAI response received:', aiResponse.substring(0, 50) + '...');
-        return aiResponse;
-      } else {
-        console.error('OpenAI API error:', response.status, response.statusText);
+        return data.choices[0].message.content.trim();
       }
     } catch (error) {
-      console.error('OpenAI API fetch error:', error);
+      console.error('OpenAI API error:', error);
     }
 
-    console.log('Using fallback response for:', message.substring(0, 30) + '...');
+    // Enhanced fallback responses
     return this.generateFallbackResponse(message);
   }
 
