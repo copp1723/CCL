@@ -29,11 +29,6 @@ Key Rules:
 Focus on building trust and guiding toward the soft credit check phone number collection.`;
 
   async generateResponse(message: string, sessionId: string): Promise<string> {
-    // Temporarily using enhanced fallback to demonstrate improved conversation quality
-    // This can be switched back to OpenAI once the enhanced prompt is verified
-    return this.generateFallbackResponse(message);
-    
-    /* OpenAI integration (currently disabled to show enhanced fallbacks):
     try {
       const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
@@ -47,19 +42,25 @@ Focus on building trust and guiding toward the soft credit check phone number co
             { role: 'system', content: this.systemPrompt },
             { role: 'user', content: message }
           ],
-          max_tokens: 120,
-          temperature: 0.7
+          max_tokens: 150,
+          temperature: 0.8
         })
       });
 
       if (response.ok) {
         const data = await response.json();
-        return data.choices[0].message.content.trim();
+        const aiResponse = data.choices[0].message.content.trim();
+        console.log('OpenAI response received:', aiResponse.substring(0, 50) + '...');
+        return aiResponse;
+      } else {
+        console.error('OpenAI API error:', response.status, response.statusText);
       }
     } catch (error) {
-      console.error('OpenAI API error:', error);
+      console.error('OpenAI API fetch error:', error);
     }
-    */
+
+    console.log('Using fallback response for:', message.substring(0, 30) + '...');
+    return this.generateFallbackResponse(message);
   }
 
   private generateFallbackResponse(message: string): string {
