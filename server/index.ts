@@ -5,6 +5,7 @@ import { dirname } from 'path';
 import cors from 'cors';
 import { createServer } from 'http';
 import { WebSocketServer } from 'ws';
+import multer from 'multer';
 import { storage } from './database-storage';
 import { setupVite, serveStatic } from './vite';
 import { systemMonitor } from './services/error-monitor';
@@ -14,6 +15,12 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
+
+// Configure multer for file uploads
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
 
 // Basic middleware
 app.use(express.json({ limit: '10mb' }));

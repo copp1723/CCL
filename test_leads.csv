@@ -1,0 +1,6 @@
+email,firstName,lastName,phone,vehicleInterest,creditScore
+john.doe@example.com,John,Doe,555-0101,Toyota Camry,650
+jane.smith@example.com,Jane,Smith,555-0102,Honda Civic,580
+mike.wilson@example.com,Mike,Wilson,555-0103,Ford F-150,720
+sarah.brown@example.com,Sarah,Brown,555-0104,Nissan Altima,540
+david.jones@example.com,David,Jones,555-0105,Chevrolet Malibu,610
