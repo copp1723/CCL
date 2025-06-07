@@ -125,6 +125,30 @@ class DatabaseOptimizer {
   clearCache(): void {
     this.cache.clear();
   }
+
+  async createActivityOptimized(type: string, description: string, agentType?: string, metadata?: any): Promise<any> {
+    return this.withMetrics('createActivity', async () => {
+      // This will be implemented by the storage layer
+      const { db } = await import('../db');
+      const { systemActivities } = await import('../../shared/schema');
+      
+      const activityId = `activity_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      const [activity] = await db
+        .insert(systemActivities)
+        .values({
+          id: activityId,
+          type,
+          description,
+          agentType,
+          metadata,
+          timestamp: new Date()
+        })
+        .returning();
+      
+      return activity;
+    });
+  }
 }
 
 export const dbOptimizer = new DatabaseOptimizer();

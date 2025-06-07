@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction, Router } from 'express';
 import jwt from 'jsonwebtoken';
 import config from '../config/environment';
 
@@ -88,7 +88,6 @@ export function requireRole(role: string) {
 
 // Simple login endpoint for testing
 export function createAuthRoutes() {
-  const { Router } = await import('express');
   const router = Router();
 
   router.post('/login', (req: Request, res: Response) => {
