@@ -219,6 +219,59 @@ app.post('/api/email-campaigns/bulk-send', async (req, res) => {
   }
 });
 
+// Chat endpoint for widget (public access)
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { message, sessionId } = req.body;
+    
+    if (!message || !sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Message and sessionId are required'
+      });
+    }
+
+    // Import RealtimeChatAgent dynamically to avoid circular dependencies
+    const { realtimeChatAgent } = await import('./agents/realtime-chat');
+    
+    // Process message with Cathy AI agent
+    const response = await realtimeChatAgent.processMessage(sessionId, message);
+    
+    // Check if a phone number was captured
+    const phoneRegex = /(?:\+1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/;
+    const phoneMatch = message.match(phoneRegex);
+    
+    if (phoneMatch) {
+      // Create visitor record with phone number
+      await storage.createVisitor({
+        phoneNumber: phoneMatch[0],
+        metadata: { sessionId, capturedViaChat: true }
+      });
+      
+      await storage.createActivity(
+        'phone_capture',
+        `Phone number captured via chat: ${phoneMatch[0]}`,
+        'RealtimeChatAgent',
+        { sessionId, phoneNumber: phoneMatch[0] }
+      );
+    }
+
+    res.json({
+      success: true,
+      response,
+      sessionId,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('[Chat API] Error:', error);
+    res.status(500).json({
+      success: false,
+      response: "I'm sorry, I'm experiencing some technical difficulties right now. Please try again in a moment.",
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // Monitoring and testing routes
 app.use('/api/monitoring', monitoringRoutes);
 app.use('/api/test', promptTestingRoutes);
