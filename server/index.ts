@@ -1,207 +1,300 @@
-
 import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 import cors from 'cors';
-import helmet from 'helmet';
-import compression from 'compression';
-import { WebSocketServer } from 'ws';
-import { createServer } from 'http';
-import config from './config/environment';
-import { dbManager } from './db';
-import { securityMonitor, requestLogging, errorHandler } from './middleware/security-consolidated';
-import { authMiddleware } from './middleware/auth';
+import { storage } from './database-storage';
+import { setupVite, serveStatic } from './vite';
+import { systemMonitor } from './services/error-monitor';
+import { dbOptimizer } from './services/performance-optimizer';
 
-// Route imports
-import emailCampaignsRouter from './routes/email-campaigns';
-import monitoringRouter from './routes/monitoring';
-import promptTestingRouter from './routes/prompt-testing';
-import dataIngestionRouter from './routes/data-ingestion-simple';
-import securityMonitoringRouter from './routes/security-monitoring';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
-// Services
-import { setupWebSocketServer } from './websocket';
-import { startHealthChecks } from './monitoring/health-checks';
+const app = express();
 
-class ProductionServer {
-  private app: express.Application;
-  private server: any;
-  private wss: WebSocketServer | null = null;
-  private isShuttingDown = false;
+// Basic middleware
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true }));
+app.use(cors({
+  origin: process.env.NODE_ENV === 'production' ? false : true,
+  credentials: true
+}));
 
-  constructor() {
-    this.app = express();
-    this.setupMiddleware();
-    this.setupRoutes();
-    this.setupErrorHandling();
+// Simple API key authentication for internal endpoints
+const apiKeyAuth = (req: any, res: any, next: any) => {
+  const apiKey = req.headers['x-api-key'];
+  if (apiKey === 'ccl-internal-2025') {
+    return next();
   }
+  return res.status(401).json({
+    success: false,
+    error: {
+      code: 'AUTH_001',
+      message: 'Unauthorized access - API key required',
+      category: 'authentication',
+      retryable: false
+    },
+    timestamp: new Date().toISOString()
+  });
+};
 
-  private setupMiddleware(): void {
-    // Security headers
-    this.app.use(helmet({
-      contentSecurityPolicy: {
-        directives: {
-          defaultSrc: ["'self'"],
-          scriptSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
-          styleSrc: ["'self'", "'unsafe-inline'"],
-          imgSrc: ["'self'", "data:", "https:"],
-          connectSrc: ["'self'", "wss:", "ws:"],
-          fontSrc: ["'self'", "https://fonts.gstatic.com"],
-        },
+// Health check endpoint
+app.get('/health', async (req, res) => {
+  try {
+    const stats = await storage.getStats();
+    res.json({
+      success: true,
+      data: {
+        status: 'healthy',
+        uptime: stats.uptime,
+        memoryUsage: stats.memory,
+        agents: [
+          { name: 'VisitorIdentifierAgent', status: 'active' },
+          { name: 'RealtimeChatAgent', status: 'active' },
+          { name: 'EmailReengagementAgent', status: 'active' },
+          { name: 'LeadPackagingAgent', status: 'active' }
+        ],
+        totalLeads: stats.leads,
+        totalActivities: stats.activities,
+        timestamp: new Date().toISOString()
       },
-      hsts: {
-        maxAge: 31536000,
-        includeSubDomains: true,
-        preload: true
-      }
-    }));
-
-    // Rate limiting and security monitoring
-    this.app.use(securityMonitor.ipBlockingMiddleware());
-    this.app.use(securityMonitor.rateLimitMiddleware());
-    this.app.use(securityMonitor.inputValidationMiddleware());
-    this.app.use(securityMonitor.securityHeadersMiddleware());
-
-    // Request logging
-    this.app.use(requestLogging());
-
-    // Compression and parsing
-    this.app.use(compression());
-    this.app.use(express.json({ limit: '10mb' }));
-    this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-    // CORS configuration
-    const corsOrigin = config.get().CORS_ORIGIN;
-    this.app.use(cors({
-      origin: corsOrigin === '*' ? true : corsOrigin,
-      credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
-    }));
-  }
-
-  private setupRoutes(): void {
-    // Health check (no auth required)
-    this.app.get('/api/health', (req, res) => {
-      res.json({
-        success: true,
-        data: {
-          status: 'healthy',
-          timestamp: new Date().toISOString(),
-          version: process.env.npm_package_version || '1.0.0',
-          environment: config.get().NODE_ENV
-        }
-      });
+      timestamp: new Date().toISOString()
     });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: 'Health check failed',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
 
-    // Public routes (no auth required)
-    this.app.use('/api/monitoring', monitoringRouter);
-    this.app.use('/api/security', securityMonitoringRouter);
+// Chat endpoint
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { message, sessionId = `session_${Date.now()}` } = req.body;
 
-    // Protected routes (require auth)
-    this.app.use('/api/email-campaigns', authMiddleware, emailCampaignsRouter);
-    this.app.use('/api/prompt-testing', authMiddleware, promptTestingRouter);
-    this.app.use('/api/data-ingestion', authMiddleware, dataIngestionRouter);
-
-    // Static files in production
-    if (config.isProduction()) {
-      this.app.use(express.static('dist'));
-      this.app.get('*', (req, res) => {
-        res.sendFile(path.join(process.cwd(), 'dist', 'index.html'));
-      });
-    }
-
-    // 404 handler
-    this.app.use((req, res) => {
-      res.status(404).json({
+    if (!message) {
+      return res.status(400).json({
         success: false,
-        error: {
-          code: 'NOT_FOUND',
-          message: 'Resource not found',
-          category: 'client',
-          retryable: false
-        }
+        error: 'Message is required',
+        timestamp: new Date().toISOString()
       });
-    });
-  }
+    }
 
-  private setupErrorHandling(): void {
-    this.app.use(errorHandler());
-
-    // Global error handlers
-    process.on('uncaughtException', (error) => {
-      console.error('Uncaught Exception:', error);
-      this.gracefulShutdown('UNCAUGHT_EXCEPTION');
+    // Create visitor record
+    const visitorId = await storage.createVisitor({
+      ipAddress: req.ip,
+      userAgent: req.get('User-Agent'),
+      metadata: { sessionId }
     });
 
-    process.on('unhandledRejection', (reason, promise) => {
-      console.error('Unhandled Rejection at:', promise, 'reason:', reason);
-      this.gracefulShutdown('UNHANDLED_REJECTION');
-    });
+    // Enhanced Cathy persona response
+    let response = "Hi! I'm Cathy from Complete Car Loans. I understand you're looking for auto financing help. We specialize in working with all credit situations, including those who have been turned down elsewhere. Could you share your phone number so we can begin with a soft credit check that won't impact your credit score?";
 
-    // Graceful shutdown signals
-    process.on('SIGTERM', () => this.gracefulShutdown('SIGTERM'));
-    process.on('SIGINT', () => this.gracefulShutdown('SIGINT'));
-  }
-
-  async start(): Promise<void> {
+    // Try OpenAI for enhanced responses
     try {
-      // Initialize database
-      await dbManager.connect();
-
-      // Create HTTP server
-      this.server = createServer(this.app);
-
-      // Setup WebSocket server
-      this.wss = setupWebSocketServer(this.server);
-
-      // Start health monitoring
-      startHealthChecks();
-
-      const port = config.get().PORT;
-      this.server.listen(port, '0.0.0.0', () => {
-        console.log(`🚀 Server running on port ${port}`);
-        console.log(`📊 Environment: ${config.get().NODE_ENV}`);
-        console.log(`🔒 Security monitoring: Active`);
-        console.log(`💾 Database: ${dbManager.getDb() ? 'Connected' : 'In-memory'}`);
+      const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: 'gpt-4',
+          messages: [
+            {
+              role: 'system',
+              content: 'You are Cathy, a warm and knowledgeable finance expert at Complete Car Loans. You specialize in helping people with all types of credit situations, especially sub-prime auto loans. Be empathetic, professional, and guide customers toward providing their phone number for a soft credit check.'
+            },
+            { role: 'user', content: message }
+          ],
+          max_tokens: 300,
+          temperature: 0.7
+        })
       });
 
-    } catch (error) {
-      console.error('Failed to start server:', error);
-      process.exit(1);
+      if (openaiResponse.ok) {
+        const data = await openaiResponse.json();
+        response = data.choices[0]?.message?.content || response;
+      }
+    } catch (openaiError) {
+      console.log('Using fallback response for chat');
+    }
+
+    // Log the interaction
+    await storage.createActivity(
+      'chat_interaction',
+      `Chat message processed for session ${sessionId}`,
+      'RealtimeChatAgent',
+      { message: message.substring(0, 100), response: response.substring(0, 100) }
+    );
+
+    res.json({
+      success: true,
+      response,
+      sessionId,
+      timestamp: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('Chat error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Chat service temporarily unavailable',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Lead processing endpoint
+app.post('/api/process-lead', async (req, res) => {
+  try {
+    const { email, vehicleInterest, firstName, lastName } = req.body;
+
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        error: 'Email is required',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    const lead = await storage.createLead({
+      email,
+      status: 'new',
+      leadData: { vehicleInterest, firstName, lastName }
+    });
+
+    await storage.createActivity(
+      'lead_processing',
+      `Lead processed for ${email.replace(/@.*/, '@...')}`,
+      'LeadPackagingAgent',
+      { leadId: lead.id }
+    );
+
+    res.json({
+      success: true,
+      data: {
+        leadId: lead.id,
+        message: 'Lead processed successfully'
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Lead processing error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Lead processing failed',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// System health endpoints (protected)
+app.get('/api/system/health', apiKeyAuth, async (req, res) => {
+  try {
+    const health = systemMonitor.getHealthStatus();
+    const performance = dbOptimizer.getPerformanceMetrics();
+    const stats = await storage.getStats();
+    
+    res.json({
+      success: true,
+      data: {
+        status: health.status,
+        uptime: health.uptime,
+        memoryUsage: health.memoryUsage,
+        errorRate: health.errorRate,
+        lastError: health.lastError,
+        performance: performance.queryPerformance,
+        cache: performance.cache,
+        systemStats: stats
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    systemMonitor.logError(error as Error, 'health_check');
+    res.status(500).json({
+      success: false,
+      error: { message: 'Health check failed' },
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Performance metrics endpoint (protected)
+app.get('/api/system/performance', apiKeyAuth, async (req, res) => {
+  try {
+    const report = systemMonitor.getPerformanceReport();
+    const dbMetrics = dbOptimizer.getPerformanceMetrics();
+    
+    res.json({
+      success: true,
+      data: {
+        systemHealth: report.health,
+        errorMetrics: report.topErrors,
+        databasePerformance: dbMetrics.queryPerformance,
+        cacheStats: dbMetrics.cache,
+        recommendations: generateRecommendations(report, dbMetrics)
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    systemMonitor.logError(error as Error, 'performance_check');
+    res.status(500).json({
+      success: false,
+      error: { message: 'Performance check failed' },
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+function generateRecommendations(systemReport: any, dbMetrics: any): string[] {
+  const recommendations = [];
+  
+  if (systemReport.health.errorRate > 5) {
+    recommendations.push('High error rate detected - investigate recent changes');
+  }
+  
+  if (systemReport.health.memoryUsage.heapUsed > 150) {
+    recommendations.push('Memory usage elevated - consider cache optimization');
+  }
+  
+  for (const [operation, metrics] of Object.entries(dbMetrics.queryPerformance)) {
+    if ((metrics as any).avgMs > 500) {
+      recommendations.push(`Slow database queries detected in ${operation} - review indexing`);
     }
   }
-
-  private async gracefulShutdown(signal: string): Promise<void> {
-    if (this.isShuttingDown) return;
-    this.isShuttingDown = true;
-
-    console.log(`Received ${signal}. Starting graceful shutdown...`);
-
-    try {
-      // Close WebSocket server
-      if (this.wss) {
-        this.wss.close();
-      }
-
-      // Close HTTP server
-      if (this.server) {
-        await new Promise<void>((resolve) => {
-          this.server.close(resolve);
-        });
-      }
-
-      // Close database connections
-      await dbManager.close();
-
-      console.log('Graceful shutdown completed');
-      process.exit(0);
-
-    } catch (error) {
-      console.error('Error during shutdown:', error);
-      process.exit(1);
-    }
-  }
+  
+  return recommendations.length > 0 ? recommendations : ['System performance is optimal'];
 }
 
-// Start server
-const server = new ProductionServer();
-server.start();
+// Error handling middleware
+app.use((error: any, req: any, res: any, next: any) => {
+  console.error('Server error:', error);
+  res.status(500).json({
+    success: false,
+    error: 'Internal server error',
+    timestamp: new Date().toISOString()
+  });
+});
+
+// Environment configuration
+const isDevelopment = process.env.NODE_ENV === 'development';
+const PORT = process.env.PORT || 5000;
+
+const server = app.listen(PORT, '0.0.0.0', async () => {
+  console.log(`CCL Agent System running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`Health check: http://0.0.0.0:${PORT}/health`);
+  
+  // Setup Vite development server for frontend
+  if (isDevelopment) {
+    await setupVite(app, server);
+  } else {
+    serveStatic(app);
+  }
+});
+
+export default app;
