@@ -36,9 +36,9 @@ export class ProductionCathyAgent {
         },
         required: ['userMessage']
       }
-    }, async (params) => {
+    }, async (params: any) => {
       try {
-        const response = await this.generateCathyResponse(params);
+        const response = await this.generateResponseFromMessage(params.userMessage, params.conversationHistory);
         
         return {
           watermark: "CCL",
