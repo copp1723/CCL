@@ -10,18 +10,118 @@ const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
 
 // Middleware
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-app.use(cors({
-  origin: ['http://localhost:5173', 'http://127.0.0.1:5173'],
-  credentials: true
+// Security middleware
+app.use(express.json({ 
+  limit: '10mb',
+  verify: (req: any, res, buf) => {
+    if (buf.length > 10 * 1024 * 1024) {
+      throw new Error('Request too large');
+    }
+  }
 }));
+app.use(express.urlencoded({ 
+  extended: true, 
+  limit: '10mb',
+  parameterLimit: 100
+}));
+
+// CORS configuration
+app.use(cors({
+  origin: [
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
+    process.env.FRONTEND_URL
+  ].filter(Boolean),
+  credentials: true,
+  optionsSuccessStatus: 200
+}));
+
+// Security headers
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
+
+// Input sanitization middleware
+const sanitizeInput = (req: any, res: any, next: any) => {
+  const dangerousPatterns = [
+    /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
+    /javascript:/gi,
+    /on\w+\s*=/gi,
+    /eval\s*\(/gi,
+    /expression\s*\(/gi,
+    /../g, // Path traversal
+    /\.\.\//g,
+    /union\s+select/gi,
+    /drop\s+table/gi,
+    /insert\s+into/gi,
+    /delete\s+from/gi
+  ];
+
+  const sanitize = (obj: any): any => {
+    if (typeof obj === 'string') {
+      for (const pattern of dangerousPatterns) {
+        if (pattern.test(obj)) {
+          return res.status(400).json({
+            error: 'Invalid input detected',
+            code: 'SECURITY_VIOLATION'
+          });
+        }
+      }
+      return obj.trim();
+    } else if (typeof obj === 'object' && obj !== null) {
+      for (const key in obj) {
+        obj[key] = sanitize(obj[key]);
+      }
+    }
+    return obj;
+  };
+
+  if (req.body) {
+    try {
+      req.body = sanitize(req.body);
+    } catch (error) {
+      return res.status(400).json({
+        error: 'Invalid request data',
+        code: 'SANITIZATION_ERROR'
+      });
+    }
+  }
+
+  if (req.query) {
+    try {
+      req.query = sanitize(req.query);
+    } catch (error) {
+      return res.status(400).json({
+        error: 'Invalid query parameters',
+        code: 'SANITIZATION_ERROR'
+      });
+    }
+  }
+
+  next();
+};
+
+app.use(sanitizeInput);
 
 // API Key validation middleware
 const apiKeyAuth = (req: any, res: any, next: any) => {
   const apiKey = req.headers['x-api-key'] || req.query.apiKey;
-  if (process.env.FLEXPATH_API_KEY && apiKey !== process.env.FLEXPATH_API_KEY) {
-    return res.status(401).json({ error: 'Unauthorized' });
+  const validApiKey = process.env.CCL_API_KEY || process.env.FLEXPATH_API_KEY;
+  
+  if (!validApiKey) {
+    return res.status(500).json({ error: 'Server configuration error' });
+  }
+  
+  if (!apiKey || apiKey !== validApiKey) {
+    return res.status(401).json({ 
+      error: 'Unauthorized',
+      message: 'Valid API key required'
+    });
   }
   next();
 };
@@ -35,8 +135,8 @@ app.get('/health', (req, res) => {
   });
 });
 
-// System stats endpoint
-app.get('/api/system/stats', async (req, res) => {
+// System stats endpoint (protected)
+app.get('/api/system/stats', apiKeyAuth, async (req, res) => {
   try {
     const stats = await storage.getStats();
     res.json({ success: true, data: stats });

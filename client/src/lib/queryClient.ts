@@ -17,9 +17,15 @@ export async function apiRequest<T = any>(
 ): Promise<T> {
   const { method = "GET", data } = options || {};
   
-  const headers: Record<string, string> = {
-    'x-api-key': 'ccl-internal-2025'
-  };
+  const headers: Record<string, string> = {};
+  
+  // Only add API key for protected endpoints
+  if (url.includes('/api/system/')) {
+    const apiKey = import.meta.env.VITE_CCL_API_KEY;
+    if (apiKey) {
+      headers['x-api-key'] = apiKey;
+    }
+  }
   
   if (data) {
     headers['Content-Type'] = 'application/json';
@@ -42,10 +48,19 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey[0] as string, {
-      headers: {
-        'x-api-key': 'ccl-internal-2025'
-      },
+    const headers: Record<string, string> = {};
+    const url = queryKey[0] as string;
+    
+    // Only add API key for protected endpoints
+    if (url.includes('/api/system/')) {
+      const apiKey = import.meta.env.VITE_CCL_API_KEY;
+      if (apiKey) {
+        headers['x-api-key'] = apiKey;
+      }
+    }
+    
+    const res = await fetch(url, {
+      headers,
       credentials: "include",
     });
 
