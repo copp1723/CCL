@@ -1,16 +1,23 @@
 
-import { Request } from 'express';
-
 declare global {
   namespace Express {
     interface Request {
-      requestId?: string;
       user?: {
         id: string;
         email: string;
-        role: string;
-        permissions: string[];
+        name?: string;
+      };
+      session: {
+        userId?: string;
+        [key: string]: any;
+      };
+      apiKey?: string;
+      rateLimit?: {
+        remaining: number;
+        resetTime: Date;
       };
     }
   }
 }
+
+export {};

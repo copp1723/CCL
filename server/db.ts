@@ -6,6 +6,12 @@ import config from "./config/environment";
 
 neonConfig.webSocketConstructor = ws;
 
+// Database connection with error handling
+if (!process.env.DATABASE_URL && process.env.NODE_ENV === 'production') {
+  console.error('DATABASE_URL is required in production');
+  process.exit(1);
+}
+
 if (!process.env.DATABASE_URL) {
   throw new Error(
     "DATABASE_URL must be set. Did you forget to provision a database?",

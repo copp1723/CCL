@@ -17,6 +17,8 @@ import {
   rateLimiter 
 } from "./middleware/security";
 import { requestMetricsMiddleware } from "./monitoring/metrics";
+import { validateEnvironment } from './config/env-validation';
+import path from 'path';
 
 const app = express();
 
@@ -38,8 +40,8 @@ const authenticate = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
   const apiKey = req.headers['x-api-key'];
 
-  // Allow health checks without auth
-  if (req.path === '/health' || req.path === '/api/system/health') {
+  // Allow health checks and chat without auth
+  if (req.path === '/health' || req.path === '/api/system/health' || req.path === '/api/chat') {
     return next();
   }
 
@@ -59,66 +61,13 @@ const authenticate = (req: Request, res: Response, next: NextFunction) => {
   });
 };
 
-// Health endpoints (public access)
+// Apply authentication to API routes
+app.use('/api', authenticate);
+
+// Health endpoints
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
-
-// Chat endpoint for widget (public access)
-app.post('/api/chat', async (req, res) => {
-  try {
-    const { message, sessionId } = req.body;
-    
-    if (!message || !sessionId) {
-      return res.status(400).json({
-        success: false,
-        error: 'Message and sessionId are required'
-      });
-    }
-
-    // Generate intelligent response using Cathy's persona
-    const { generateCathyResponse } = await import('./agents/production-cathy-agent');
-    
-    // Process message with Cathy AI agent
-    const aiResponse = await generateCathyResponse(message, sessionId);
-    
-    // Check if a phone number was captured
-    const phoneRegex = /(?:\+1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/;
-    const phoneMatch = message.match(phoneRegex);
-    
-    if (phoneMatch) {
-      // Create visitor record with phone number
-      await storage.createVisitor({
-        phoneNumber: phoneMatch[0],
-        metadata: { sessionId, capturedViaChat: true }
-      });
-      
-      await storage.createActivity(
-        'phone_capture',
-        `Phone number captured via chat: ${phoneMatch[0]}`,
-        'RealtimeChatAgent',
-        { sessionId, phoneNumber: phoneMatch[0] }
-      );
-    }
-
-    res.json({
-      success: true,
-      response: aiResponse,
-      sessionId,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    console.error('[Chat API] Error:', error);
-    res.status(500).json({
-      success: false,
-      response: "I'm sorry, I'm experiencing some technical difficulties right now. Please try again in a moment.",
-      error: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
-
-// Apply authentication to remaining API routes
-app.use('/api', authenticate);
 
 app.get('/api/system/health', async (req, res) => {
   try {
@@ -276,7 +225,7 @@ app.post('/api/email-campaigns/bulk-send', async (req, res) => {
 app.post('/api/chat', async (req, res) => {
   try {
     const { message, sessionId } = req.body;
-    
+
     if (!message || !sessionId) {
       return res.status(400).json({
         success: false,
@@ -284,23 +233,23 @@ app.post('/api/chat', async (req, res) => {
       });
     }
 
-    // Generate intelligent response using Cathy's persona
-    const { generateCathyResponse } = await import('./agents/production-cathy-agent');
-    
+    // Import RealtimeChatAgent dynamically to avoid circular dependencies
+    const { realtimeChatAgent } = await import('./agents/realtime-chat');
+
     // Process message with Cathy AI agent
-    const aiResponse = await generateCathyResponse(message, sessionId);
-    
+    const response = await realtimeChatAgent.processMessage(sessionId, message);
+
     // Check if a phone number was captured
     const phoneRegex = /(?:\+1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/;
     const phoneMatch = message.match(phoneRegex);
-    
+
     if (phoneMatch) {
       // Create visitor record with phone number
       await storage.createVisitor({
         phoneNumber: phoneMatch[0],
         metadata: { sessionId, capturedViaChat: true }
       });
-      
+
       await storage.createActivity(
         'phone_capture',
         `Phone number captured via chat: ${phoneMatch[0]}`,
@@ -311,7 +260,7 @@ app.post('/api/chat', async (req, res) => {
 
     res.json({
       success: true,
-      response: aiResponse,
+      response,
       sessionId,
       timestamp: new Date().toISOString()
     });
@@ -335,8 +284,10 @@ app.use('/api/data-ingestion', dataIngestionRoutes);
 // Error handling middleware (must be last)
 app.use(errorHandler());
 
-const PORT = parseInt(process.env.PORT || "5000", 10);
-const server = app.listen(PORT, "0.0.0.0", () => {
+// Validate environment before starting
+const env = validateEnvironment();
+const PORT = env.PORT;
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`CCL Agent System running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Health check: http://0.0.0.0:${PORT}/health`);
@@ -358,3 +309,10 @@ if (process.env.NODE_ENV === "development") {
 } else {
   serveStatic(app);
 }
+
+// Serve static files from the client build
+const staticPath = path.join(__dirname, '../dist/public');
+app.use(express.static(staticPath, {
+  maxAge: process.env.NODE_ENV === 'production' ? '1y' : '0',
+  etag: true
+}));
