@@ -14,6 +14,7 @@ import {
 } from "../shared/schema";
 import { db } from "./db";
 import { eq, desc, count } from "drizzle-orm";
+import { dbOptimizer } from "./services/performance-optimizer";
 
 interface LeadData {
   id: string;
@@ -160,15 +161,7 @@ class DatabaseStorage implements StorageInterface {
   }
 
   async getLeads(): Promise<LeadData[]> {
-    const dbLeads = await db.select().from(systemLeads).orderBy(desc(systemLeads.createdAt));
-    
-    return dbLeads.map(lead => ({
-      id: lead.id,
-      email: lead.email,
-      status: lead.status as 'new' | 'contacted' | 'qualified' | 'closed',
-      leadData: lead.leadData,
-      createdAt: lead.createdAt?.toISOString() || new Date().toISOString()
-    }));
+    return await dbOptimizer.getLeadsOptimized();
   }
 
   async updateLead(id: string, updates: Partial<LeadData>): Promise<void> {
@@ -182,59 +175,15 @@ class DatabaseStorage implements StorageInterface {
   }
 
   async createActivity(type: string, description: string, agentType?: string, metadata?: any): Promise<Activity> {
-    this.activityCounter++;
-    const activityId = `activity_${this.activityCounter}_${Date.now()}`;
-    
-    const insertData: InsertSystemActivity = {
-      id: activityId,
-      type,
-      description,
-      agentType,
-      metadata
-    };
-
-    await db.insert(systemActivities).values(insertData);
-    
-    const newActivity: Activity = {
-      id: activityId,
-      type,
-      description,
-      agentType,
-      metadata,
-      timestamp: new Date().toISOString()
-    };
-    
-    return newActivity;
+    return await dbOptimizer.createActivityOptimized(type, description, agentType, metadata);
   }
 
   async getActivities(limit: number = 20): Promise<Activity[]> {
-    const dbActivities = await db.select()
-      .from(systemActivities)
-      .orderBy(desc(systemActivities.timestamp))
-      .limit(limit);
-    
-    return dbActivities.map(activity => ({
-      id: activity.id,
-      type: activity.type,
-      description: activity.description,
-      agentType: activity.agentType || undefined,
-      metadata: activity.metadata,
-      timestamp: activity.timestamp?.toISOString() || new Date().toISOString()
-    }));
+    return await dbOptimizer.getActivitiesOptimized(limit);
   }
 
   async getAgents(): Promise<Agent[]> {
-    const dbAgents = await db.select().from(systemAgents);
-    
-    return dbAgents.map(agent => ({
-      id: agent.id,
-      name: agent.name,
-      status: agent.status as 'active' | 'inactive' | 'error',
-      processedToday: agent.processedToday || 0,
-      description: agent.description,
-      icon: agent.icon,
-      color: agent.color
-    }));
+    return await dbOptimizer.getAgentsOptimized();
   }
 
   async updateAgent(id: string, updates: Partial<Agent>): Promise<void> {
