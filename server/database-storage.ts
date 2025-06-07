@@ -200,7 +200,32 @@ class DatabaseStorage implements StorageInterface {
   }
 
   async getStats(): Promise<SystemStats> {
-    return await dbOptimizer.getStatsOptimized();
+    try {
+      const [leads, activities, agents] = await Promise.all([
+        db.select().from(systemLeads),
+        db.select().from(systemActivities),
+        db.select().from(systemAgents)
+      ]);
+
+      return {
+        leads: leads.length,
+        activities: activities.length,
+        agents: agents.length,
+        uptime: Math.round(process.uptime()),
+        memory: process.memoryUsage(),
+        timestamp: new Date().toISOString()
+      };
+    } catch (error) {
+      console.error('Database stats error:', error);
+      return {
+        leads: 0,
+        activities: 0,
+        agents: 4,
+        uptime: Math.round(process.uptime()),
+        memory: process.memoryUsage(),
+        timestamp: new Date().toISOString()
+      };
+    }
   }
 
   async createVisitor(data: { ipAddress?: string; userAgent?: string; phoneNumber?: string; email?: string; metadata?: any }): Promise<{ id: string }> {
