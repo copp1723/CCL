@@ -128,7 +128,6 @@ class DatabaseOptimizer {
 
   async createActivityOptimized(type: string, description: string, agentType?: string, metadata?: any): Promise<any> {
     return this.withMetrics('createActivity', async () => {
-      // This will be implemented by the storage layer
       const { db } = await import('../db');
       const { systemActivities } = await import('../../shared/schema');
       
@@ -147,6 +146,28 @@ class DatabaseOptimizer {
         .returning();
       
       return activity;
+    });
+  }
+
+  async getStatsOptimized(): Promise<any> {
+    return this.withMetrics('getStats', async () => {
+      const { db } = await import('../db');
+      const { systemLeads, systemActivities, systemAgents } = await import('../../shared/schema');
+      
+      const [leads, activities, agents] = await Promise.all([
+        db.select().from(systemLeads),
+        db.select().from(systemActivities),
+        db.select().from(systemAgents)
+      ]);
+
+      return {
+        leads: leads.length,
+        activities: activities.length,
+        agents: agents.length,
+        uptime: Math.round(process.uptime()),
+        memory: process.memoryUsage(),
+        timestamp: new Date().toISOString()
+      };
     });
   }
 }
