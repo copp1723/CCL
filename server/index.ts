@@ -231,11 +231,23 @@ app.post('/api/chat', async (req, res) => {
       });
     }
 
-    // Import RealtimeChatAgent dynamically to avoid circular dependencies
-    const { realtimeChatAgent } = await import('./agents/realtime-chat');
+    // Import OpenAI Agents directly
+    const { Agent } = await import('@openai/agents');
+    const { CATHY_SYSTEM_PROMPT } = await import('./agents/cathy-system-prompt');
+    
+    // Create Cathy AI agent
+    const cathyAgent = new Agent({
+      name: "Cathy - Complete Car Loans Finance Expert",
+      instructions: CATHY_SYSTEM_PROMPT,
+    });
     
     // Process message with Cathy AI agent
-    const response = await realtimeChatAgent.processMessage(sessionId, message);
+    const response = await cathyAgent.completion({
+      messages: [{ role: 'user', content: message }]
+    });
+    
+    const aiResponse = response.choices[0]?.message?.content || 
+      "I'm here to help you with your car financing needs. Could you tell me more about what you're looking for?";
     
     // Check if a phone number was captured
     const phoneRegex = /(?:\+1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/;
@@ -258,7 +270,7 @@ app.post('/api/chat', async (req, res) => {
 
     res.json({
       success: true,
-      response,
+      response: aiResponse,
       sessionId,
       timestamp: new Date().toISOString()
     });

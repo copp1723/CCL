@@ -10,8 +10,16 @@ export const users = pgTable("users", {
 
 export const visitors = pgTable("visitors", {
   id: serial("id").primaryKey(),
-  emailHash: text("email_hash").notNull().unique(),
+  emailHash: text("email_hash").unique(),
   sessionId: text("session_id").notNull(),
+  phoneNumber: text("phone_number"),
+  email: text("email"),
+  ipAddress: text("ip_address"),
+  userAgent: text("user_agent"),
+  metadata: jsonb("metadata"),
+  returnToken: text("return_token").unique(),
+  returnTokenExpiry: timestamp("return_token_expiry"),
+  abandonmentStep: integer("abandonment_step").default(1),
   lastActivity: timestamp("last_activity").notNull().defaultNow(),
   abandonmentDetected: boolean("abandonment_detected").default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),

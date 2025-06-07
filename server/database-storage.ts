@@ -65,7 +65,7 @@ export interface StorageInterface {
   updateAgent(id: string, updates: Partial<Agent>): Promise<void>;
 
   // Visitors
-  createVisitor(data: { ipAddress?: string; userAgent?: string; metadata?: any }): Promise<{ id: string }>;
+  createVisitor(data: { ipAddress?: string; userAgent?: string; phoneNumber?: string; email?: string; metadata?: any }): Promise<{ id: string }>;
   updateVisitor(id: string, updates: { phoneNumber?: string; email?: string; metadata?: any }): Promise<void>;
 
   // Stats
@@ -267,9 +267,20 @@ class DatabaseStorage implements StorageInterface {
     };
   }
 
-  async createVisitor(data: { ipAddress?: string; userAgent?: string; metadata?: any }): Promise<{ id: string }> {
+  async createVisitor(data: { ipAddress?: string; userAgent?: string; phoneNumber?: string; email?: string; metadata?: any }): Promise<{ id: string }> {
     const visitorId = randomUUID();
-    // Visitor creation logic would go here when needed
+    
+    // Insert visitor into database
+    const insertData = {
+      sessionId: visitorId,
+      phoneNumber: data.phoneNumber || null,
+      email: data.email || null,
+      ipAddress: data.ipAddress || null,
+      userAgent: data.userAgent || null,
+      metadata: data.metadata || null,
+    };
+    
+    await db.insert(visitors).values(insertData);
     return { id: visitorId };
   }
 
