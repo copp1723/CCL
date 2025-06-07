@@ -36,8 +36,9 @@ app.use(validateJsonPayload());
 // API key authentication
 const API_KEY = config.get().INTERNAL_API_KEY;
 
-// OpenAI-powered Cathy response generator
-async function generateOpenAICathyResponse(message: string, sessionId: string): Promise<string> {
+// Cathy's intelligent response generator with OpenAI integration
+async function generateCathyResponse(message: string, sessionId: string): Promise<string> {
+  // Try OpenAI first
   try {
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -50,33 +51,32 @@ async function generateOpenAICathyResponse(message: string, sessionId: string): 
         messages: [
           {
             role: 'system',
-            content: `You are Cathy, a warm and empathetic finance expert at Complete Car Loans. You specialize in helping customers with all credit situations find auto financing. Keep responses conversational, brief (1-2 sentences max), and focused on next steps. Always be encouraging about credit challenges. Never mention specific rates without pre-approval.`
+            content: `You are Cathy, a finance expert at Complete Car Loans. Keep responses brief (1-2 sentences), friendly, and focused on helping with auto financing. Be encouraging about credit challenges.`
           },
           {
             role: 'user',
             content: message
           }
         ],
-        max_tokens: 100,
+        max_tokens: 80,
         temperature: 0.7
       })
     });
 
-    if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`);
+    if (response.ok) {
+      const data = await response.json();
+      return data.choices[0].message.content.trim();
     }
-
-    const data = await response.json();
-    return data.choices[0].message.content.trim();
   } catch (error) {
     console.error('OpenAI API error:', error);
-    // Fallback to concise responses
-    return generateFallbackResponse(message);
   }
+
+  // Use concise fallback responses
+  return generateConciseResponse(message);
 }
 
 // Concise fallback responses
-function generateFallbackResponse(message: string): string {
+function generateConciseResponse(message: string): string {
   const lowerMsg = message.toLowerCase();
   
   if (lowerMsg.includes('hello') || lowerMsg.includes('hi') || lowerMsg.includes('hey')) {
@@ -139,8 +139,8 @@ app.post('/api/chat', async (req, res) => {
       });
     }
 
-    // Generate Cathy's response using OpenAI
-    const aiResponse = await generateOpenAICathyResponse(message, sessionId);
+    // Generate Cathy's response
+    const aiResponse = await generateCathyResponse(message, sessionId);
     
     // Check if a phone number was captured
     const phoneRegex = /(?:\+1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/;
