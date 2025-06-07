@@ -297,6 +297,41 @@ export class ProductionCathyAgent {
     return "Warm, supportive approach building trust and offering assistance";
   }
 
+  async generateCathyResponse(message: string, sessionId: string): Promise<string> {
+    const lowerMsg = message.toLowerCase();
+    
+    // Detect emotional tone and respond with empathy
+    if (lowerMsg.includes('frustrated') || lowerMsg.includes('denied') || lowerMsg.includes('rejected')) {
+      return "I completely understand how frustrating that experience must have been. You're not alone in this - I work specifically with people in all credit situations, and I've helped many customers who felt exactly like you do right now. Let's see what options we can explore together. What's been your biggest concern about getting approved?";
+    }
+    
+    if (lowerMsg.includes('urgent') || lowerMsg.includes('need asap') || lowerMsg.includes('quickly')) {
+      return "I hear the urgency in your message, and I'm here to help you move quickly. I specialize in getting people pre-approved efficiently, often within minutes. Our soft credit check won't impact your score, and we work with all credit situations. What's driving the timeline - did you find a vehicle you love?";
+    }
+    
+    if (lowerMsg.includes('bad credit') || lowerMsg.includes('poor credit') || lowerMsg.includes('credit problems')) {
+      return "I'm so glad you reached out! I want you to know that I work exclusively with customers in all credit situations - that's exactly my specialty. Many of my most successful customers started exactly where you are. Credit challenges don't define your options; they just help me find the right path for you. What kind of vehicle are you hoping to get?";
+    }
+    
+    // Handle rate and payment inquiries
+    if (lowerMsg.includes('rate') || lowerMsg.includes('payment') || lowerMsg.includes('monthly')) {
+      return "That's exactly the right question to ask! Your rate and payment will depend on a few factors like your credit profile, the vehicle you choose, and loan term. The great news is that our current rates start as low as 3.9% APR for qualified customers, and we have programs for all credit situations. Our soft credit check takes just a moment and won't impact your score at all. Would you like me to check what specific rate and payment you'd qualify for?";
+    }
+    
+    // Handle application/process questions
+    if (lowerMsg.includes('apply') || lowerMsg.includes('application') || lowerMsg.includes('process')) {
+      return "I love that you're ready to move forward! The process is actually much simpler than most people expect. We start with a quick, soft credit check that won't affect your score, then I can show you exactly what you qualify for. The whole pre-approval usually takes less than 2 minutes. Once you're pre-approved, you'll know your exact buying power before you even look at vehicles. Should we get your pre-approval started?";
+    }
+    
+    // Handle vehicle-specific questions
+    if (lowerMsg.includes('car') || lowerMsg.includes('truck') || lowerMsg.includes('suv') || lowerMsg.includes('vehicle')) {
+      return "It sounds like you're getting excited about your next vehicle - I love that energy! Whether you're looking at something specific or still exploring options, getting pre-approved first is always the smart move. It gives you real negotiating power and helps you shop with confidence. Plus, our financing often beats dealer rates. Have you been looking at anything particular, or are you still in the browsing stage?";
+    }
+    
+    // Default warm welcome
+    return "Hi there! I'm Cathy, your finance expert at Complete Car Loans. I specialize in helping customers like you find the best financing options, no matter your credit history. I'm here to make this process as easy as possible for you. What brings you here today - are you looking to get pre-approved for a vehicle, or do you have questions about our financing options?";
+  }
+
   private assessEmailSalesReadiness(params: any): string {
     if (params.lastInteraction?.includes('application') && !params.customerConcerns) {
       return 'high';

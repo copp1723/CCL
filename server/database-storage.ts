@@ -4,6 +4,7 @@ import {
   systemLeads,
   systemActivities,
   systemAgents,
+  visitors,
   type SystemLead,
   type SystemActivity,
   type SystemAgent,

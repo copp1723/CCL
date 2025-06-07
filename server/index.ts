@@ -38,8 +38,8 @@ const authenticate = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
   const apiKey = req.headers['x-api-key'];
 
-  // Allow health checks and chat without auth
-  if (req.path === '/health' || req.path === '/api/system/health' || req.path === '/api/chat') {
+  // Allow health checks without auth
+  if (req.path === '/health' || req.path === '/api/system/health') {
     return next();
   }
 
@@ -59,13 +59,66 @@ const authenticate = (req: Request, res: Response, next: NextFunction) => {
   });
 };
 
-// Apply authentication to API routes
-app.use('/api', authenticate);
-
-// Health endpoints
+// Health endpoints (public access)
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// Chat endpoint for widget (public access)
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { message, sessionId } = req.body;
+    
+    if (!message || !sessionId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Message and sessionId are required'
+      });
+    }
+
+    // Generate intelligent response using Cathy's persona
+    const { generateCathyResponse } = await import('./agents/production-cathy-agent');
+    
+    // Process message with Cathy AI agent
+    const aiResponse = await generateCathyResponse(message, sessionId);
+    
+    // Check if a phone number was captured
+    const phoneRegex = /(?:\+1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/;
+    const phoneMatch = message.match(phoneRegex);
+    
+    if (phoneMatch) {
+      // Create visitor record with phone number
+      await storage.createVisitor({
+        phoneNumber: phoneMatch[0],
+        metadata: { sessionId, capturedViaChat: true }
+      });
+      
+      await storage.createActivity(
+        'phone_capture',
+        `Phone number captured via chat: ${phoneMatch[0]}`,
+        'RealtimeChatAgent',
+        { sessionId, phoneNumber: phoneMatch[0] }
+      );
+    }
+
+    res.json({
+      success: true,
+      response: aiResponse,
+      sessionId,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('[Chat API] Error:', error);
+    res.status(500).json({
+      success: false,
+      response: "I'm sorry, I'm experiencing some technical difficulties right now. Please try again in a moment.",
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
+// Apply authentication to remaining API routes
+app.use('/api', authenticate);
 
 app.get('/api/system/health', async (req, res) => {
   try {
@@ -231,23 +284,11 @@ app.post('/api/chat', async (req, res) => {
       });
     }
 
-    // Import OpenAI Agents directly
-    const { Agent } = await import('@openai/agents');
-    const { CATHY_SYSTEM_PROMPT } = await import('./agents/cathy-system-prompt');
-    
-    // Create Cathy AI agent
-    const cathyAgent = new Agent({
-      name: "Cathy - Complete Car Loans Finance Expert",
-      instructions: CATHY_SYSTEM_PROMPT,
-    });
+    // Generate intelligent response using Cathy's persona
+    const { generateCathyResponse } = await import('./agents/production-cathy-agent');
     
     // Process message with Cathy AI agent
-    const response = await cathyAgent.completion({
-      messages: [{ role: 'user', content: message }]
-    });
-    
-    const aiResponse = response.choices[0]?.message?.content || 
-      "I'm here to help you with your car financing needs. Could you tell me more about what you're looking for?";
+    const aiResponse = await generateCathyResponse(message, sessionId);
     
     // Check if a phone number was captured
     const phoneRegex = /(?:\+1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/;
