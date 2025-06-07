@@ -1,7 +1,3 @@
-` tags. I will pay close attention to the authentication logic and ensure the updated version is secure and functional, while adhering to all the provided constraints.
-
-```
-<replit_final_file>
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import config from '../config/environment';
@@ -92,7 +88,8 @@ export function requireRole(role: string) {
 
 // Simple login endpoint for testing
 export function createAuthRoutes() {
-  const router = require('express').Router();
+  const { Router } = await import('express');
+  const router = Router();
 
   router.post('/login', (req: Request, res: Response) => {
     const { email, password } = req.body;

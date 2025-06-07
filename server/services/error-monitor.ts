@@ -1,11 +1,9 @@
-import { storage } from '../database-storage';
-
-interface ErrorMetric {
-  errorType: string;
-  count: number;
-  lastOccurrence: Date;
+interface ErrorLog {
   message: string;
   stack?: string;
+  timestamp: number;
+  context?: string;
+  count: number;
 }
 
 interface HealthStatus {
@@ -14,113 +12,106 @@ interface HealthStatus {
   memoryUsage: {
     heapUsed: number;
     heapTotal: number;
-    external: number;
+    external?: number;
   };
   errorRate: number;
   lastError?: string;
-  timestamp: Date;
+  timestamp: string;
 }
 
-export class SystemMonitor {
-  private errors = new Map<string, ErrorMetric>();
+interface PerformanceReport {
+  health: HealthStatus;
+  topErrors: ErrorLog[];
+  totalErrors: number;
+}
+
+class SystemMonitor {
+  private errors: Map<string, ErrorLog> = new Map();
   private startTime = Date.now();
-  private totalRequests = 0;
-  private errorCount = 0;
+  private readonly MAX_ERRORS = 100;
+  private readonly ERROR_RATE_WINDOW = 3600000; // 1 hour
 
   logError(error: Error, context?: string): void {
-    const errorKey = `${error.name}_${context || 'general'}`;
-    const existing = this.errors.get(errorKey);
+    const key = `${error.message}:${context || 'unknown'}`;
+    const existing = this.errors.get(key);
     
     if (existing) {
       existing.count++;
-      existing.lastOccurrence = new Date();
+      existing.timestamp = Date.now();
     } else {
-      this.errors.set(errorKey, {
-        errorType: error.name,
-        count: 1,
-        lastOccurrence: new Date(),
+      this.errors.set(key, {
         message: error.message,
-        stack: error.stack
+        stack: error.stack,
+        timestamp: Date.now(),
+        context,
+        count: 1
       });
     }
 
-    this.errorCount++;
-    
-    // Log critical errors to activity log
-    if (error.name === 'DatabaseError' || error.name === 'OpenAIError') {
-      storage.createActivity(
-        'system_error',
-        `Critical error in ${context || 'system'}: ${error.message}`,
-        'SystemMonitor',
-        {
-          errorType: error.name,
-          context,
-          stack: error.stack?.substring(0, 500)
-        }
-      ).catch(console.error);
+    // Keep only recent errors
+    if (this.errors.size > this.MAX_ERRORS) {
+      const oldestKey = Array.from(this.errors.keys())[0];
+      this.errors.delete(oldestKey);
     }
-  }
 
-  logRequest(): void {
-    this.totalRequests++;
+    console.error(`[SystemMonitor] Error in ${context || 'unknown'}:`, error.message);
   }
 
   getHealthStatus(): HealthStatus {
     const uptime = (Date.now() - this.startTime) / 1000;
-    const memory = process.memoryUsage();
-    const errorRate = this.totalRequests > 0 ? (this.errorCount / this.totalRequests) * 100 : 0;
-
-    let status: 'healthy' | 'degraded' | 'critical' = 'healthy';
+    const memoryUsage = process.memoryUsage();
+    const recentErrors = this.getRecentErrors();
     
-    if (errorRate > 10) {
-      status = 'critical';
-    } else if (errorRate > 5 || memory.heapUsed > 200 * 1024 * 1024) {
-      status = 'degraded';
-    }
-
-    const recentErrors = Array.from(this.errors.values())
-      .filter(e => Date.now() - e.lastOccurrence.getTime() < 300000) // Last 5 minutes
-      .sort((a, b) => b.lastOccurrence.getTime() - a.lastOccurrence.getTime());
+    let status: 'healthy' | 'degraded' | 'critical' = 'healthy';
+    if (recentErrors.length > 10) status = 'degraded';
+    if (recentErrors.length > 50) status = 'critical';
 
     return {
       status,
       uptime,
       memoryUsage: {
-        heapUsed: Math.round(memory.heapUsed / 1024 / 1024),
-        heapTotal: Math.round(memory.heapTotal / 1024 / 1024),
-        external: Math.round(memory.external / 1024 / 1024)
+        heapUsed: Math.round(memoryUsage.heapUsed / 1024 / 1024),
+        heapTotal: Math.round(memoryUsage.heapTotal / 1024 / 1024),
+        external: Math.round(memoryUsage.external / 1024 / 1024)
       },
-      errorRate: Math.round(errorRate * 100) / 100,
+      errorRate: this.calculateErrorRate(),
       lastError: recentErrors[0]?.message,
-      timestamp: new Date()
+      timestamp: new Date().toISOString()
     };
   }
 
-  getErrorMetrics(): ErrorMetric[] {
+  private getRecentErrors(): ErrorLog[] {
+    const cutoff = Date.now() - this.ERROR_RATE_WINDOW;
     return Array.from(this.errors.values())
-      .sort((a, b) => b.count - a.count);
+      .filter(error => error.timestamp > cutoff)
+      .sort((a, b) => b.timestamp - a.timestamp);
   }
 
-  clearMetrics(): void {
-    this.errors.clear();
-    this.totalRequests = 0;
-    this.errorCount = 0;
+  private calculateErrorRate(): number {
+    const recentErrors = this.getRecentErrors();
+    const totalOperations = Math.max(1, recentErrors.length + 100); // Estimate
+    return Math.round((recentErrors.length / totalOperations) * 100);
   }
 
-  getPerformanceReport(): any {
+  getPerformanceReport(): PerformanceReport {
     const health = this.getHealthStatus();
-    const topErrors = this.getErrorMetrics().slice(0, 5);
-    
+    const topErrors = this.getRecentErrors()
+      .slice(0, 10)
+      .sort((a, b) => b.count - a.count);
+
     return {
       health,
       topErrors,
-      metrics: {
-        totalRequests: this.totalRequests,
-        totalErrors: this.errorCount,
-        errorTypes: this.errors.size,
-        uptime: health.uptime
-      }
+      totalErrors: this.errors.size
     };
+  }
+
+  clearErrors(): void {
+    this.errors.clear();
+  }
+
+  getErrorCount(): number {
+    return this.getRecentErrors().length;
   }
 }
 
