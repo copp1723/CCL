@@ -311,7 +311,7 @@ if (process.env.NODE_ENV === "development") {
 }
 
 // Serve static files from the client build
-const staticPath = path.join(__dirname, '../dist/public');
+const staticPath = path.join(import.meta.dirname, '../dist/public');
 app.use(express.static(staticPath, {
   maxAge: process.env.NODE_ENV === 'production' ? '1y' : '0',
   etag: true
