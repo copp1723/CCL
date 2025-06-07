@@ -3,6 +3,8 @@ import { setupVite, serveStatic } from "./vite";
 import { handleApiError } from "./utils/error-handler";
 import { storage } from "./database-storage";
 import { sanitizeCampaignName, sanitizeEmail, sanitizeJsonData } from "./utils/input-sanitizer";
+import { systemMonitor } from "./services/error-monitor";
+import { dbOptimizer } from "./services/performance-optimizer";
 import config from "./config/environment";
 import monitoringRoutes from "./routes/monitoring";
 import promptTestingRoutes from "./routes/prompt-testing";
@@ -28,6 +30,12 @@ app.use(requestLogging());
 app.use(requestMetricsMiddleware());
 app.use(rateLimiter.middleware());
 
+// Request monitoring for error tracking
+app.use((req: Request, res: Response, next: NextFunction) => {
+  systemMonitor.logRequest();
+  next();
+});
+
 // Body parsing with validation
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: false, limit: "10mb" }));
@@ -39,12 +47,70 @@ const API_KEY = config.get().INTERNAL_API_KEY;
 // Import the simplified Cathy agent
 import { simpleCathyAgent } from './agents/simple-cathy-agent';
 
-// Cathy's intelligent response generator
+// Enhanced Cathy response generator with error handling
 async function generateCathyResponse(message: string, sessionId: string): Promise<string> {
-  return await simpleCathyAgent.generateResponse(message, sessionId);
+  try {
+    const startTime = Date.now();
+    const response = await simpleCathyAgent.generateResponse(message, sessionId);
+    const responseTime = Date.now() - startTime;
+    
+    // Log slow responses
+    if (responseTime > 5000) {
+      systemMonitor.logError(new Error(`Slow OpenAI response: ${responseTime}ms`), 'chat_performance');
+    }
+    
+    return response;
+  } catch (error) {
+    systemMonitor.logError(error as Error, 'openai_chat');
+    
+    // Enhanced fallback with context awareness
+    const contextualResponse = generateContextualFallback(message, sessionId);
+    
+    await storage.createActivity(
+      'chat_fallback',
+      `OpenAI error, using fallback response for session ${sessionId}`,
+      'RealtimeChatAgent',
+      { originalMessage: message, error: (error as Error).message }
+    );
+    
+    return contextualResponse;
+  }
 }
 
-// Concise fallback responses
+// Enhanced contextual fallback responses
+function generateContextualFallback(message: string, sessionId: string): string {
+  const lowerMsg = message.toLowerCase();
+  
+  // Phone number collection priority
+  if (lowerMsg.includes('phone') || lowerMsg.includes('number') || lowerMsg.includes('call')) {
+    return "Perfect! To get your pre-approval started, I'll need your phone number. This helps us verify your identity for the soft credit check. What's the best number to reach you?";
+  }
+  
+  // Credit concerns - empathetic approach
+  if (lowerMsg.includes('bad credit') || lowerMsg.includes('poor credit') || lowerMsg.includes('bankruptcy') || lowerMsg.includes('repo')) {
+    return "I completely understand your concern. I work exclusively with customers in all credit situations - that's exactly what Complete Car Loans specializes in. What type of vehicle are you hoping to get into?";
+  }
+  
+  // Application process
+  if (lowerMsg.includes('apply') || lowerMsg.includes('approved') || lowerMsg.includes('approval') || lowerMsg.includes('pre-approve')) {
+    return "Absolutely! I can start your pre-approval right now. It takes under 2 minutes, won't affect your credit score, and you'll know exactly what you qualify for. Ready to begin?";
+  }
+  
+  // Payment and rate questions
+  if (lowerMsg.includes('payment') || lowerMsg.includes('rate') || lowerMsg.includes('interest') || lowerMsg.includes('monthly')) {
+    return "Great question! Your exact payment and rate depend on the vehicle price and your specific situation. Once we get you pre-approved, I can show you exactly what your payments would be. Should we start that process?";
+  }
+  
+  // Vehicle interest
+  if (lowerMsg.includes('car') || lowerMsg.includes('truck') || lowerMsg.includes('suv') || lowerMsg.includes('vehicle')) {
+    return "Exciting! Getting pre-approved first gives you the strongest negotiating position at the dealership. Plus, you'll know your exact budget before you start shopping. Can I get you pre-approved today?";
+  }
+  
+  // Default empathetic response
+  return "I'm here to help you get the auto financing you need, regardless of your credit situation. Complete Car Loans specializes in approvals for everyone. What questions can I answer about getting you pre-approved today?";
+}
+
+// Simple fallback for backward compatibility
 function generateConciseResponse(message: string): string {
   const lowerMsg = message.toLowerCase();
   
@@ -307,6 +373,83 @@ app.post('/api/email-campaigns/bulk-send', async (req, res) => {
 });
 
 
+
+// Enhanced system health endpoints
+app.get('/api/system/health', async (req, res) => {
+  try {
+    const health = systemMonitor.getHealthStatus();
+    const performance = dbOptimizer.getPerformanceMetrics();
+    const stats = await storage.getStats();
+    
+    res.json({
+      success: true,
+      data: {
+        status: health.status,
+        uptime: health.uptime,
+        memoryUsage: health.memoryUsage,
+        errorRate: health.errorRate,
+        lastError: health.lastError,
+        performance: performance.queryPerformance,
+        cache: performance.cache,
+        systemStats: stats
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    systemMonitor.logError(error as Error, 'health_check');
+    res.status(500).json({
+      success: false,
+      error: { message: 'Health check failed' },
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+app.get('/api/system/performance', async (req, res) => {
+  try {
+    const report = systemMonitor.getPerformanceReport();
+    const dbMetrics = dbOptimizer.getPerformanceMetrics();
+    
+    res.json({
+      success: true,
+      data: {
+        systemHealth: report.health,
+        errorMetrics: report.topErrors,
+        databasePerformance: dbMetrics.queryPerformance,
+        cacheStats: dbMetrics.cache,
+        recommendations: generatePerformanceRecommendations(report, dbMetrics)
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    systemMonitor.logError(error as Error, 'performance_check');
+    handleApiError(res, error);
+  }
+});
+
+function generatePerformanceRecommendations(systemReport: any, dbMetrics: any): string[] {
+  const recommendations = [];
+  
+  if (systemReport.health.errorRate > 5) {
+    recommendations.push('High error rate detected - investigate recent changes');
+  }
+  
+  if (systemReport.health.memoryUsage.heapUsed > 150) {
+    recommendations.push('Memory usage elevated - consider cache optimization');
+  }
+  
+  for (const [operation, metrics] of Object.entries(dbMetrics.queryPerformance)) {
+    if ((metrics as any).avgMs > 500) {
+      recommendations.push(`Slow database queries detected in ${operation} - review indexing`);
+    }
+  }
+  
+  if (dbMetrics.cache.size > 100) {
+    recommendations.push('Large cache size - consider cache cleanup or TTL adjustment');
+  }
+  
+  return recommendations.length > 0 ? recommendations : ['System performance is optimal'];
+}
 
 // Monitoring and testing routes
 app.use('/api/monitoring', monitoringRoutes);

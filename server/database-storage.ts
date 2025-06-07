@@ -200,21 +200,7 @@ class DatabaseStorage implements StorageInterface {
   }
 
   async getStats(): Promise<SystemStats> {
-    // Simple count implementation without using count() function
-    const leads = await db.select().from(systemLeads);
-    const activities = await db.select().from(systemActivities);
-    const agents = await db.select().from(systemAgents);
-    
-    const uptime = (Date.now() - this.startTime) / 1000;
-    
-    return {
-      leads: leads.length,
-      activities: activities.length,
-      agents: agents.length,
-      uptime,
-      memory: process.memoryUsage(),
-      timestamp: new Date().toISOString()
-    };
+    return await dbOptimizer.getStatsOptimized();
   }
 
   async createVisitor(data: { ipAddress?: string; userAgent?: string; phoneNumber?: string; email?: string; metadata?: any }): Promise<{ id: string }> {
