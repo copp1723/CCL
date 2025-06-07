@@ -157,6 +157,25 @@ app.post('/api/chat', async (req, res) => {
   }
 });
 
+// Get leads endpoint
+app.get('/api/leads', async (req, res) => {
+  try {
+    const leads = await storage.getLeads();
+    res.json({
+      success: true,
+      data: leads,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Get leads error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch leads',
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Lead processing endpoint
 app.post('/api/process-lead', async (req, res) => {
   try {

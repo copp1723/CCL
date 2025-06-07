@@ -161,7 +161,14 @@ class DatabaseStorage implements StorageInterface {
   }
 
   async getLeads(): Promise<LeadData[]> {
-    return await dbOptimizer.getLeadsOptimized();
+    const leads = await db.select().from(systemLeads).orderBy(systemLeads.createdAt);
+    return leads.map(lead => ({
+      id: lead.id,
+      status: lead.status as 'new' | 'contacted' | 'qualified' | 'closed',
+      createdAt: lead.createdAt?.toISOString() || new Date().toISOString(),
+      email: lead.email,
+      leadData: lead.leadData || {}
+    }));
   }
 
   async updateLead(id: string, updates: Partial<LeadData>): Promise<void> {
@@ -175,15 +182,53 @@ class DatabaseStorage implements StorageInterface {
   }
 
   async createActivity(type: string, description: string, agentType?: string, metadata?: any): Promise<Activity> {
-    return await dbOptimizer.createActivityOptimized(type, description, agentType, metadata);
+    const activityData: InsertSystemActivity = {
+      id: `activity_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      type,
+      description,
+      agentType,
+      metadata,
+      timestamp: new Date()
+    };
+
+    const [newActivity] = await db.insert(systemActivities).values(activityData).returning();
+    
+    return {
+      id: newActivity.id,
+      type: newActivity.type,
+      timestamp: newActivity.timestamp?.toISOString() || new Date().toISOString(),
+      description: newActivity.description,
+      agentType: newActivity.agentType || undefined,
+      metadata: newActivity.metadata || undefined
+    };
   }
 
   async getActivities(limit: number = 20): Promise<Activity[]> {
-    return await dbOptimizer.getActivitiesOptimized(limit);
+    const activities = await db.select().from(systemActivities)
+      .orderBy(systemActivities.timestamp)
+      .limit(limit);
+    
+    return activities.map(activity => ({
+      id: activity.id,
+      type: activity.type,
+      timestamp: activity.timestamp?.toISOString() || new Date().toISOString(),
+      description: activity.description,
+      agentType: activity.agentType || undefined,
+      metadata: activity.metadata || undefined
+    }));
   }
 
   async getAgents(): Promise<Agent[]> {
-    return await dbOptimizer.getAgentsOptimized();
+    const agents = await db.select().from(systemAgents);
+    return agents.map(agent => ({
+      id: agent.id,
+      name: agent.name,
+      status: agent.status as 'active' | 'inactive' | 'error',
+      processedToday: agent.processedToday || 0,
+      description: agent.description,
+      icon: agent.icon,
+      color: agent.color
+    }));
   }
 
   async updateAgent(id: string, updates: Partial<Agent>): Promise<void> {
