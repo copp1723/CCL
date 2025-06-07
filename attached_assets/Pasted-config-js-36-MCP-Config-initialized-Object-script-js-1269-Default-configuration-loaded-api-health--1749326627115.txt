@@ -1,0 +1,80 @@
+config.js:36 MCP Config initialized: Object
+script.js:1269 Default configuration loaded
+/api/health:1 
+            
+            
+           Failed to load resource: the server responded with a status of 404 ()
+script.js:266 Connection error: Error: Server responded with status: 404
+    at MCPExecutiveInterface.connectToServer (script.js:262:23)
+connectToServer @ script.js:266
+script.js:276 Retrying connection in 2000ms (attempt 1)
+fast_loader.js:19 Force loading configuration for instant deployment
+fast_loader.js:173 Fast configuration loaded - 6 models, 9 tools available
+/favicon.ico:1 
+            
+            
+           Failed to load resource: the server responded with a status of 404 ()
+/api/health:1 
+            
+            
+           Failed to load resource: the server responded with a status of 404 ()
+script.js:266 Connection error: Error: Server responded with status: 404
+    at MCPExecutiveInterface.connectToServer (script.js:262:23)
+connectToServer @ script.js:266
+script.js:276 Retrying connection in 4000ms (attempt 2)
+/api/health:1 
+            
+            
+           Failed to load resource: the server responded with a status of 404 ()
+script.js:266 Connection error: Error: Server responded with status: 404
+    at MCPExecutiveInterface.connectToServer (script.js:262:23)
+connectToServer @ script.js:266
+script.js:276 Retrying connection in 8000ms (attempt 3)
+/api/health:1 
+            
+            
+           Failed to load resource: the server responded with a status of 404 ()
+script.js:266 Connection error: Error: Server responded with status: 404
+    at MCPExecutiveInterface.connectToServer (script.js:262:23)
+    at async MCPExecutiveInterface.retryServerConnection (script.js:703:9)
+connectToServer @ script.js:266
+script.js:276 Retrying connection in 2000ms (attempt 1)
+/api/health:1 
+            
+            
+           Failed to load resource: the server responded with a status of 404 ()
+script.js:266 Connection error: Error: Server responded with status: 404
+    at MCPExecutiveInterface.connectToServer (script.js:262:23)
+connectToServer @ script.js:266
+script.js:276 Retrying connection in 4000ms (attempt 2)
+/api/health:1 
+            
+            
+           Failed to load resource: the server responded with a status of 404 ()
+script.js:266 Connection error: Error: Server responded with status: 404
+    at MCPExecutiveInterface.connectToServer (script.js:262:23)
+connectToServer @ script.js:266
+script.js:276 Retrying connection in 8000ms (attempt 3)
+/api/health:1 
+            
+            
+           Failed to load resource: the server responded with a status of 404 ()
+script.js:266 Connection error: Error: Server responded with status: 404
+    at MCPExecutiveInterface.connectToServer (script.js:262:23)
+connectToServer @ script.js:266
+script.js:283 Fast deployment mode activated
+/api/health:1 
+            
+            
+           Failed to load resource: the server responded with a status of 404 ()
+script.js:266 Connection error: Error: Server responded with status: 404
+    at MCPExecutiveInterface.connectToServer (script.js:262:23)
+connectToServer @ script.js:266
+script.js:283 Fast deployment mode activated
+/api/chat:1 
+            
+            
+           Failed to load resource: the server responded with a status of 501 ()
+script.js:383 Send message error: Error: Server error: 501 
+    at MCPExecutiveInterface.sendMessage (script.js:369:23)
+sendMessage @ script.js:383
