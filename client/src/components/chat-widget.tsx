@@ -33,61 +33,8 @@ export function ChatWidget({ className }: ChatWidgetProps) {
   const sessionId = useRef<string>(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
 
   useEffect(() => {
-    if (isOpen && !ws.current) {
-      initializeWebSocket();
-    }
-    
-    return () => {
-      if (ws.current) {
-        ws.current.close();
-      }
-    };
-  }, [isOpen]);
-
-  useEffect(() => {
     scrollToBottom();
   }, [messages]);
-
-  const initializeWebSocket = () => {
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/chat?sessionId=${sessionId.current}`;
-    
-    ws.current = new WebSocket(wsUrl);
-    
-    ws.current.onopen = () => {
-      console.log('WebSocket connected');
-      // Send session initialization
-      ws.current?.send(JSON.stringify({
-        type: 'init',
-        sessionId: sessionId.current
-      }));
-    };
-    
-    ws.current.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        
-        if (data.type === 'message') {
-          setIsTyping(false);
-          addMessage(data.content, 'agent');
-        } else if (data.type === 'typing') {
-          setIsTyping(true);
-        }
-      } catch (error) {
-        console.error('Error parsing WebSocket message:', error);
-      }
-    };
-    
-    ws.current.onerror = (error) => {
-      console.error('WebSocket error:', error);
-      setIsTyping(false);
-    };
-    
-    ws.current.onclose = () => {
-      console.log('WebSocket disconnected');
-      ws.current = null;
-    };
-  };
 
   const addMessage = (content: string, sender: 'user' | 'agent') => {
     const newMessage: Message = {
@@ -108,16 +55,8 @@ export function ChatWidget({ className }: ChatWidgetProps) {
     addMessage(userMessage, 'user');
     setIsTyping(true);
     
-    // Send via WebSocket if connected
-    if (ws.current?.readyState === WebSocket.OPEN) {
-      ws.current.send(JSON.stringify({
-        type: 'message',
-        content: userMessage,
-        sessionId: sessionId.current
-      }));
-    } else {
-      // Fallback to HTTP if WebSocket not available
-      try {
+    // Use HTTP API for reliable messaging
+    try {
         const response = await fetch('/api/chat', {
           method: 'POST',
           headers: {
@@ -142,7 +81,6 @@ export function ChatWidget({ className }: ChatWidgetProps) {
         setIsTyping(false);
         addMessage("I'm sorry, I'm having trouble connecting right now. Please try again in a moment.", 'agent');
       }
-    }
   };
 
   const scrollToBottom = () => {
