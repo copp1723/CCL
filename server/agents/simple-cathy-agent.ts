@@ -17,6 +17,7 @@ Conversational Style:
 - Simple and clear - avoid jargon
 - When good news: Start with clear "Yes," then details
 - When saying no: Lead with empathy, deliver gently, immediately offer solution
+- Break longer responses into natural paragraphs using double line breaks (\n\n) for better readability
 
 Key Rules:
 - NEVER reveal you are AI/bot/automated
@@ -63,30 +64,30 @@ Focus on building trust and guiding toward the soft credit check phone number co
     const lowerMsg = message.toLowerCase();
     
     if (lowerMsg.includes('hello') || lowerMsg.includes('hi') || lowerMsg.includes('hey')) {
-      return "Hi there! I'm Cathy from Complete Car Loans. I saw you were looking into financing options and wanted to reach out personally. How's your car search going so far?";
+      return "Hi there! I'm Cathy from Complete Car Loans.\n\nI saw you were looking into financing options and wanted to reach out personally.\n\nHow's your car search going so far?";
     }
     
     if (lowerMsg.includes('credit') || lowerMsg.includes('bad') || lowerMsg.includes('low score') || lowerMsg.includes('poor')) {
-      return "I completely understand that concern. We actually specialize in helping people with all credit situations - that's our specialty! The quickest way to see what you qualify for is a soft credit check that won't impact your score at all.";
+      return "I completely understand that concern. We actually specialize in helping people with all credit situations - that's our specialty!\n\nThe quickest way to see what you qualify for is a soft credit check that won't impact your score at all.";
     }
     
     if (lowerMsg.includes('approved') || lowerMsg.includes('approval') || lowerMsg.includes('qualify')) {
-      return "That's exactly what we're here for! I'm confident we can find some great options for you. To get you pre-approved, I'd just need to run a quick soft credit check - do you have a good phone number I can use for that?";
+      return "That's exactly what we're here for! I'm confident we can find some great options for you.\n\nTo get you pre-approved, I'd just need to run a quick soft credit check - do you have a good phone number I can use for that?";
     }
     
     if (lowerMsg.includes('rate') || lowerMsg.includes('payment') || lowerMsg.includes('interest')) {
-      return "Great question! Your rate will depend on your specific situation, but the good news is we work with many different lenders. Let me run a soft credit check to see your personalized options - what's the best phone number to reach you?";
+      return "Great question! Your rate will depend on your specific situation, but the good news is we work with many different lenders.\n\nLet me run a soft credit check to see your personalized options - what's the best phone number to reach you?";
     }
     
     if (lowerMsg.includes('help') || lowerMsg.includes('question') || lowerMsg.includes('info')) {
-      return "I'm absolutely here to help! Auto financing can feel overwhelming, but I'll make it as easy as possible. What's your biggest concern right now?";
+      return "I'm absolutely here to help! Auto financing can feel overwhelming, but I'll make it as easy as possible.\n\nWhat's your biggest concern right now?";
     }
 
     if (lowerMsg.includes('car') || lowerMsg.includes('vehicle') || lowerMsg.includes('looking')) {
-      return "That's exciting! Finding the right car is such an important step. Have you found any vehicles you're interested in, or are you still browsing? Either way, getting pre-approved first gives you so much more negotiating power.";
+      return "That's exciting! Finding the right car is such an important step.\n\nHave you found any vehicles you're interested in, or are you still browsing? Either way, getting pre-approved first gives you so much more negotiating power.";
     }
 
-    return "I'm so glad you reached out! I specialize in making the car loan process stress-free, no matter your credit history. What brings you here today - are you ready to get pre-approved?";
+    return "I'm so glad you reached out! I specialize in making the car loan process stress-free, no matter your credit history.\n\nWhat brings you here today - are you ready to get pre-approved?";
   }
 }
 

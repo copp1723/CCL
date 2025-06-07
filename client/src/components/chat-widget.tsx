@@ -21,7 +21,7 @@ export function ChatWidget({ className }: ChatWidgetProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      content: "Hi! I'm Cathy from Complete Car Loans. How can I help with your auto financing today?",
+      content: "Hi! I'm Cathy from Complete Car Loans.\n\nI saw you were looking into financing options and wanted to reach out personally.\n\nHow can I help with your auto financing today?",
       sender: 'agent',
       timestamp: new Date()
     }
@@ -172,7 +172,7 @@ export function ChatWidget({ className }: ChatWidgetProps) {
           <MessageCircle className="h-6 w-6 text-white" />
         </Button>
       ) : (
-        <Card className="w-80 h-96 shadow-xl">
+        <Card className="w-96 h-[32rem] shadow-xl">
           <CardHeader className="pb-3 bg-blue-600 text-white rounded-t-lg">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
@@ -195,7 +195,7 @@ export function ChatWidget({ className }: ChatWidgetProps) {
             </div>
           </CardHeader>
           
-          <CardContent className="p-0 flex flex-col h-80">
+          <CardContent className="p-0 flex flex-col h-[26rem]">
             <ScrollArea className="flex-1 p-4" ref={scrollAreaRef}>
               <div className="space-y-4">
                 {messages.map((message) => (
@@ -213,13 +213,21 @@ export function ChatWidget({ className }: ChatWidgetProps) {
                       }`}>
                         {message.sender === 'user' ? <User className="h-3 w-3" /> : 'C'}
                       </div>
-                      <div className={`rounded-lg px-3 py-2 text-sm leading-relaxed ${
+                      <div className={`rounded-lg px-4 py-3 text-sm leading-relaxed ${
                         message.sender === 'user'
                           ? 'bg-blue-600 text-white'
                           : 'bg-gray-100 text-gray-900'
                       }`}>
-                        <div className="whitespace-pre-line break-words">
-                          {message.content}
+                        <div className="whitespace-pre-line break-words space-y-2">
+                          {message.content.split('\n\n').map((paragraph, index) => (
+                            <div key={index}>
+                              {paragraph.split('\n').map((line, lineIndex) => (
+                                <div key={lineIndex}>
+                                  {line}
+                                </div>
+                              ))}
+                            </div>
+                          ))}
                         </div>
                       </div>
                     </div>
