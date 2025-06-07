@@ -1,257 +1,128 @@
+` tags. I will pay close attention to the authentication logic and ensure the updated version is secure and functional, while adhering to all the provided constraints.
 
+```
+<replit_final_file>
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
-import { createHash, randomBytes } from 'crypto';
+import config from '../config/environment';
 
-export interface User {
-  id: string;
+interface JWTPayload {
+  userId: string;
   email: string;
-  role: 'admin' | 'operator' | 'viewer';
-  permissions: string[];
+  role: string;
+  iat: number;
+  exp: number;
 }
 
-interface AuthenticatedRequest extends Request {
-  user?: User;
-}
-
-// In-memory store for demo (use Redis/database in production)
-const users = new Map<string, User & { passwordHash: string; salt: string }>();
-const sessions = new Map<string, { userId: string; expiresAt: Date }>();
-
-// Initialize demo admin user
-const adminSalt = randomBytes(32).toString('hex');
-const adminPasswordHash = createHash('sha256').update('admin123' + adminSalt).digest('hex');
-users.set('admin@completecarloans.com', {
-  id: 'admin-1',
-  email: 'admin@completecarloans.com',
-  role: 'admin',
-  permissions: ['read:all', 'write:all', 'admin:all'],
-  passwordHash: adminPasswordHash,
-  salt: adminSalt,
-});
-
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production';
-const JWT_EXPIRES_IN = '24h';
-
-export function hashPassword(password: string, salt: string): string {
-  return createHash('sha256').update(password + salt).digest('hex');
-}
-
-export function generateSalt(): string {
-  return randomBytes(32).toString('hex');
-}
-
-export function generateToken(user: User): string {
-  return jwt.sign(
-    { 
-      userId: user.id, 
-      email: user.email, 
-      role: user.role,
-      permissions: user.permissions,
-    },
-    JWT_SECRET,
-    { expiresIn: JWT_EXPIRES_IN }
-  );
-}
-
-export function verifyToken(token: string): User | null {
-  try {
-    const payload = jwt.verify(token, JWT_SECRET) as any;
-    return {
-      id: payload.userId,
-      email: payload.email,
-      role: payload.role,
-      permissions: payload.permissions || [],
-    };
-  } catch (error) {
-    return null;
+declare global {
+  namespace Express {
+    interface Request {
+      user?: JWTPayload;
+    }
   }
 }
 
-export function authenticateUser(email: string, password: string): User | null {
-  const user = users.get(email);
-  if (!user) return null;
+export function authenticateToken(req: Request, res: Response, next: NextFunction) {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
 
-  const passwordHash = hashPassword(password, user.salt);
-  if (passwordHash !== user.passwordHash) return null;
-
-  return {
-    id: user.id,
-    email: user.email,
-    role: user.role,
-    permissions: user.permissions,
-  };
-}
-
-// Authentication middleware
-export function authMiddleware(req: AuthenticatedRequest, res: Response, next: NextFunction): void {
-  const authHeader = req.headers.authorization;
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    res.status(401).json({
+  if (!token) {
+    return res.status(401).json({
       success: false,
       error: {
         code: 'AUTHENTICATION_REQUIRED',
-        message: 'Authentication token required',
+        message: 'Access token is required',
         category: 'auth',
-        retryable: false,
-      },
-      timestamp: new Date().toISOString(),
+        retryable: false
+      }
     });
-    return;
   }
 
-  const token = authHeader.substring(7);
-  const user = verifyToken(token);
+  try {
+    const jwtSecret = config.get().JWT_SECRET;
+    if (!jwtSecret) {
+      throw new Error('JWT_SECRET not configured');
+    }
 
-  if (!user) {
-    res.status(401).json({
+    const decoded = jwt.verify(token, jwtSecret) as JWTPayload;
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(403).json({
       success: false,
       error: {
         code: 'INVALID_TOKEN',
-        message: 'Invalid or expired authentication token',
+        message: 'Invalid or expired token',
         category: 'auth',
-        retryable: false,
-      },
-      timestamp: new Date().toISOString(),
+        retryable: false
+      }
     });
-    return;
   }
-
-  req.user = user;
-  next();
 }
 
-// Authorization middleware
-export function requireRole(roles: string[]) {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
+export function requireRole(role: string) {
+  return (req: Request, res: Response, next: NextFunction) => {
     if (!req.user) {
-      res.status(401).json({
+      return res.status(401).json({
         success: false,
         error: {
           code: 'AUTHENTICATION_REQUIRED',
           message: 'Authentication required',
           category: 'auth',
-          retryable: false,
-        },
-        timestamp: new Date().toISOString(),
+          retryable: false
+        }
       });
-      return;
     }
 
-    if (!roles.includes(req.user.role)) {
-      res.status(403).json({
+    if (req.user.role !== role && req.user.role !== 'admin') {
+      return res.status(403).json({
         success: false,
         error: {
           code: 'INSUFFICIENT_PERMISSIONS',
-          message: 'Insufficient permissions for this operation',
+          message: 'Insufficient permissions',
           category: 'auth',
-          retryable: false,
-        },
-        timestamp: new Date().toISOString(),
+          retryable: false
+        }
       });
-      return;
     }
 
     next();
   };
 }
 
-// Permission-based authorization
-export function requirePermission(permission: string) {
-  return (req: AuthenticatedRequest, res: Response, next: NextFunction): void => {
-    if (!req.user) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'AUTHENTICATION_REQUIRED',
-          message: 'Authentication required',
-          category: 'auth',
-          retryable: false,
-        },
-        timestamp: new Date().toISOString(),
-      });
-      return;
-    }
+// Simple login endpoint for testing
+export function createAuthRoutes() {
+  const router = require('express').Router();
 
-    if (!req.user.permissions.includes(permission) && !req.user.permissions.includes('admin:all')) {
-      res.status(403).json({
-        success: false,
-        error: {
-          code: 'INSUFFICIENT_PERMISSIONS',
-          message: `Permission '${permission}' required`,
-          category: 'auth',
-          retryable: false,
-        },
-        timestamp: new Date().toISOString(),
-      });
-      return;
-    }
-
-    next();
-  };
-}
-
-// Login endpoint
-export async function loginHandler(req: Request, res: Response): Promise<void> {
-  try {
+  router.post('/login', (req: Request, res: Response) => {
     const { email, password } = req.body;
 
-    if (!email || !password) {
-      res.status(400).json({
-        success: false,
-        error: {
-          code: 'MISSING_CREDENTIALS',
-          message: 'Email and password are required',
-          category: 'validation',
-          retryable: false,
-        },
-        timestamp: new Date().toISOString(),
+    // Simple hardcoded auth for development
+    if (email === 'admin@completecarloans.com' && password === 'admin123') {
+      const payload: Omit<JWTPayload, 'iat' | 'exp'> = {
+        userId: '1',
+        email,
+        role: 'admin'
+      };
+
+      const token = jwt.sign(payload, config.get().JWT_SECRET!, { expiresIn: '24h' });
+
+      return res.json({
+        success: true,
+        data: { token, user: payload }
       });
-      return;
     }
 
-    const user = authenticateUser(email, password);
-    if (!user) {
-      res.status(401).json({
-        success: false,
-        error: {
-          code: 'INVALID_CREDENTIALS',
-          message: 'Invalid email or password',
-          category: 'auth',
-          retryable: false,
-        },
-        timestamp: new Date().toISOString(),
-      });
-      return;
-    }
-
-    const token = generateToken(user);
-
-    res.json({
-      success: true,
-      data: {
-        token,
-        user: {
-          id: user.id,
-          email: user.email,
-          role: user.role,
-          permissions: user.permissions,
-        },
-        expiresIn: JWT_EXPIRES_IN,
-      },
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    res.status(500).json({
+    return res.status(401).json({
       success: false,
       error: {
-        code: 'LOGIN_FAILED',
-        message: 'Login failed due to server error',
-        category: 'system',
-        retryable: true,
-      },
-      timestamp: new Date().toISOString(),
+        code: 'INVALID_CREDENTIALS',
+        message: 'Invalid email or password',
+        category: 'auth',
+        retryable: false
+      }
     });
-  }
+  });
+
+  return router;
 }
