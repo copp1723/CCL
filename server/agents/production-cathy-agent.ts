@@ -366,3 +366,8 @@ export class ProductionCathyAgent {
 }
 
 export const productionCathyAgent = new ProductionCathyAgent();
+
+// Standalone function for chat integration
+export async function generateCathyResponse(message: string, sessionId: string): Promise<string> {
+  return await productionCathyAgent.generateCathyResponse(message, sessionId);
+}
