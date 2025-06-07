@@ -1,219 +1,207 @@
-import express from 'express';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
-import cors from 'cors';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import express from 'express';
+import cors from 'cors';
+import helmet from 'helmet';
+import compression from 'compression';
+import { WebSocketServer } from 'ws';
+import { createServer } from 'http';
 import config from './config/environment';
+import { dbManager } from './db';
 import { securityMonitor, requestLogging, errorHandler } from './middleware/security-consolidated';
-import { authenticateToken, createAuthRoutes } from './middleware/auth';
-import { storage } from './database-storage';
-import { setupVite, serveStatic } from './vite';
+import { authMiddleware } from './middleware/auth';
+
+// Route imports
 import emailCampaignsRouter from './routes/email-campaigns';
+import monitoringRouter from './routes/monitoring';
 import promptTestingRouter from './routes/prompt-testing';
 import dataIngestionRouter from './routes/data-ingestion-simple';
-import monitoringRouter from './routes/monitoring';
+import securityMonitoringRouter from './routes/security-monitoring';
 
-const app = express();
+// Services
+import { setupWebSocketServer } from './websocket';
+import { startHealthChecks } from './monitoring/health-checks';
 
-// Basic middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
-app.use(cors({
-  origin: config.get().CORS_ORIGIN,
-  credentials: true
-}));
+class ProductionServer {
+  private app: express.Application;
+  private server: any;
+  private wss: WebSocketServer | null = null;
+  private isShuttingDown = false;
 
-// Security middleware
-app.use(securityMonitor.securityHeadersMiddleware());
-app.use(securityMonitor.ipBlockingMiddleware());
-app.use(securityMonitor.rateLimitMiddleware());
-app.use(securityMonitor.inputValidationMiddleware());
-app.use(requestLogging());
+  constructor() {
+    this.app = express();
+    this.setupMiddleware();
+    this.setupRoutes();
+    this.setupErrorHandling();
+  }
 
-// Development Vite integration or production static files
-const isDevelopment = config.get().NODE_ENV === 'development';
+  private setupMiddleware(): void {
+    // Security headers
+    this.app.use(helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'", "https://cdnjs.cloudflare.com"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", "data:", "https:"],
+          connectSrc: ["'self'", "wss:", "ws:"],
+          fontSrc: ["'self'", "https://fonts.gstatic.com"],
+        },
+      },
+      hsts: {
+        maxAge: 31536000,
+        includeSubDomains: true,
+        preload: true
+      }
+    }));
 
-// Auth routes (no auth required)
-app.use('/api/auth', createAuthRoutes());
+    // Rate limiting and security monitoring
+    this.app.use(securityMonitor.ipBlockingMiddleware());
+    this.app.use(securityMonitor.rateLimitMiddleware());
+    this.app.use(securityMonitor.inputValidationMiddleware());
+    this.app.use(securityMonitor.securityHeadersMiddleware());
 
-// Health check (no auth required)
-app.get('/health', (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      status: 'healthy',
-      environment: config.get().NODE_ENV,
-      timestamp: new Date().toISOString()
-    }
-  });
-});
+    // Request logging
+    this.app.use(requestLogging());
 
-// Protected API routes
-app.use('/api/email-campaigns', authenticateToken, emailCampaignsRouter);
-app.use('/api/prompt-testing', authenticateToken, promptTestingRouter);
-app.use('/api/data-ingestion', authenticateToken, dataIngestionRouter);
-app.use('/api/monitoring', authenticateToken, monitoringRouter);
+    // Compression and parsing
+    this.app.use(compression());
+    this.app.use(express.json({ limit: '10mb' }));
+    this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Simple endpoints for dashboard
-app.get('/api/metrics', authenticateToken, (req, res) => {
-  res.json({
-    success: true,
-    data: {
-      totalLeads: 150,
-      activeAgents: 3,
-      campaignsActive: 2,
-      conversionRate: 15.2
-    }
-  });
-});
+    // CORS configuration
+    const corsOrigin = config.get().CORS_ORIGIN;
+    this.app.use(cors({
+      origin: corsOrigin === '*' ? true : corsOrigin,
+      credentials: true,
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+    }));
+  }
 
-app.get('/api/agents/status', authenticateToken, (req, res) => {
-  res.json({
-    success: true,
-    data: [
-      { name: 'Email Re-engagement', status: 'active', lastActivity: new Date() },
-      { name: 'Visitor Identifier', status: 'active', lastActivity: new Date() },
-      { name: 'Realtime Chat', status: 'active', lastActivity: new Date() }
-    ]
-  });
-});
+  private setupRoutes(): void {
+    // Health check (no auth required)
+    this.app.get('/api/health', (req, res) => {
+      res.json({
+        success: true,
+        data: {
+          status: 'healthy',
+          timestamp: new Date().toISOString(),
+          version: process.env.npm_package_version || '1.0.0',
+          environment: config.get().NODE_ENV
+        }
+      });
+    });
 
-app.get('/api/leads', authenticateToken, (req, res) => {
-  res.json({
-    success: true,
-    data: [
-      { id: 1, name: 'John Doe', email: 'john@example.com', status: 'new', score: 85 },
-      { id: 2, name: 'Jane Smith', email: 'jane@example.com', status: 'contacted', score: 92 }
-    ]
-  });
-});
+    // Public routes (no auth required)
+    this.app.use('/api/monitoring', monitoringRouter);
+    this.app.use('/api/security', securityMonitoringRouter);
 
-app.get('/api/activity', authenticateToken, (req, res) => {
-  res.json({
-    success: true,
-    data: [
-      { id: 1, type: 'email_sent', description: 'Re-engagement email sent to John Doe', timestamp: new Date() },
-      { id: 2, type: 'lead_scored', description: 'Lead score updated for Jane Smith', timestamp: new Date() }
-    ]
-  });
-});
+    // Protected routes (require auth)
+    this.app.use('/api/email-campaigns', authMiddleware, emailCampaignsRouter);
+    this.app.use('/api/prompt-testing', authMiddleware, promptTestingRouter);
+    this.app.use('/api/data-ingestion', authMiddleware, dataIngestionRouter);
 
-// Chat endpoint (no auth required for public access)
-app.post('/api/chat', async (req, res) => {
-  try {
-    const { message, sessionId = `session_${Date.now()}` } = req.body;
-
-    if (!message) {
-      return res.status(400).json({
-        success: false,
-        error: 'Message is required',
-        timestamp: new Date().toISOString()
+    // Static files in production
+    if (config.isProduction()) {
+      this.app.use(express.static('dist'));
+      this.app.get('*', (req, res) => {
+        res.sendFile(path.join(process.cwd(), 'dist', 'index.html'));
       });
     }
 
-    // Create visitor record if needed
-    const visitorId = await storage.createVisitor({
-      ipAddress: req.ip,
-      userAgent: req.get('User-Agent'),
-      metadata: { sessionId }
+    // 404 handler
+    this.app.use((req, res) => {
+      res.status(404).json({
+        success: false,
+        error: {
+          code: 'NOT_FOUND',
+          message: 'Resource not found',
+          category: 'client',
+          retryable: false
+        }
+      });
+    });
+  }
+
+  private setupErrorHandling(): void {
+    this.app.use(errorHandler());
+
+    // Global error handlers
+    process.on('uncaughtException', (error) => {
+      console.error('Uncaught Exception:', error);
+      this.gracefulShutdown('UNCAUGHT_EXCEPTION');
     });
 
-    // Enhanced Cathy persona prompt with empathetic finance expertise
-    const systemPrompt = `You are Cathy, a warm and knowledgeable finance expert at Complete Car Loans. You specialize in helping people with all types of credit situations, especially those who have been turned down elsewhere.
+    process.on('unhandledRejection', (reason, promise) => {
+      console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+      this.gracefulShutdown('UNHANDLED_REJECTION');
+    });
 
-Your personality:
-- Empathetic and understanding, never judgmental about past financial difficulties
-- Confident and knowledgeable about auto financing options
-- Friendly but professional
-- Focused on helping people move forward, not dwelling on past mistakes
+    // Graceful shutdown signals
+    process.on('SIGTERM', () => this.gracefulShutdown('SIGTERM'));
+    process.on('SIGINT', () => this.gracefulShutdown('SIGINT'));
+  }
 
-Your expertise:
-- Sub-prime auto loans and credit rehabilitation
-- Working with customers who have bad credit, no credit, bankruptcy, or repo history
-- Explaining loan terms in simple, understandable language
-- Guiding customers through the application process
+  async start(): Promise<void> {
+    try {
+      // Initialize database
+      await dbManager.connect();
 
-Response guidelines:
-- Keep responses conversational and encouraging
-- Ask for phone number to begin the soft credit check process when appropriate
-- Explain that soft credit checks don't hurt their credit score
-- Emphasize Complete Car Loans' expertise with challenging credit situations
-- Be helpful but guide toward getting their contact information for follow-up
+      // Create HTTP server
+      this.server = createServer(this.app);
 
-Current message: "${message}"`;
+      // Setup WebSocket server
+      this.wss = setupWebSocketServer(this.server);
 
-    // Call OpenAI for intelligent response
-    let response = "I understand you're looking for auto financing help. At Complete Car Loans, we specialize in working with all credit situations. Could you share your phone number so we can begin with a soft credit check that won't impact your credit score?";
+      // Start health monitoring
+      startHealthChecks();
+
+      const port = config.get().PORT;
+      this.server.listen(port, '0.0.0.0', () => {
+        console.log(`🚀 Server running on port ${port}`);
+        console.log(`📊 Environment: ${config.get().NODE_ENV}`);
+        console.log(`🔒 Security monitoring: Active`);
+        console.log(`💾 Database: ${dbManager.getDb() ? 'Connected' : 'In-memory'}`);
+      });
+
+    } catch (error) {
+      console.error('Failed to start server:', error);
+      process.exit(1);
+    }
+  }
+
+  private async gracefulShutdown(signal: string): Promise<void> {
+    if (this.isShuttingDown) return;
+    this.isShuttingDown = true;
+
+    console.log(`Received ${signal}. Starting graceful shutdown...`);
 
     try {
-      const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          model: 'gpt-4',
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: message }
-          ],
-          max_tokens: 300,
-          temperature: 0.7
-        })
-      });
-
-      if (openaiResponse.ok) {
-        const data = await openaiResponse.json();
-        response = data.choices[0]?.message?.content || response;
+      // Close WebSocket server
+      if (this.wss) {
+        this.wss.close();
       }
-    } catch (openaiError) {
-      console.log('OpenAI fallback used for chat response');
+
+      // Close HTTP server
+      if (this.server) {
+        await new Promise<void>((resolve) => {
+          this.server.close(resolve);
+        });
+      }
+
+      // Close database connections
+      await dbManager.close();
+
+      console.log('Graceful shutdown completed');
+      process.exit(0);
+
+    } catch (error) {
+      console.error('Error during shutdown:', error);
+      process.exit(1);
     }
-
-    // Log the interaction
-    await storage.createActivity(
-      'chat_interaction',
-      `Chat message processed for session ${sessionId}`,
-      'RealtimeChatAgent',
-      { message: message.substring(0, 100), response: response.substring(0, 100) }
-    );
-
-    res.json({
-      success: true,
-      response,
-      sessionId,
-      timestamp: new Date().toISOString()
-    });
-
-  } catch (error) {
-    console.error('Chat error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Chat service temporarily unavailable',
-      timestamp: new Date().toISOString()
-    });
   }
-});
+}
 
-// Error handling
-app.use(errorHandler());
-
-const PORT = config.get().PORT;
-const server = app.listen(PORT, '0.0.0.0', async () => {
-  console.log(`CCL Agent System running on port ${PORT}`);
-  console.log(`Environment: ${config.get().NODE_ENV}`);
-  console.log(`Health check: http://0.0.0.0:${PORT}/health`);
-  
-  // Setup Vite development server for frontend
-  if (isDevelopment) {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
-  }
-});
-
-export default app;
+// Start server
+const server = new ProductionServer();
+server.start();

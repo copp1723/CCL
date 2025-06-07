@@ -1,135 +1,191 @@
-import { z } from "zod";
 
-// Environment configuration schema with validation
-const environmentSchema = z.object({
-  NODE_ENV: z.enum(["development", "staging", "production"]).default("development"),
-  PORT: z.string().transform(Number).default("5000"),
-  
-  // Database
-  DATABASE_URL: z.string().min(1, "Database URL is required"),
-  DB_POOL_SIZE: z.string().transform(Number).default("20"),
-  DB_IDLE_TIMEOUT: z.string().transform(Number).default("30000"),
-  DB_CONNECTION_TIMEOUT: z.string().transform(Number).default("60000"),
-  
-  // Authentication
-  INTERNAL_API_KEY: z.string().default("ccl-internal-2025"),
-  JWT_SECRET: z.string().optional(),
-  SESSION_SECRET: z.string().optional(),
-  
-  // Email Services
-  MAILGUN_API_KEY: z.string().optional(),
-  MAILGUN_DOMAIN: z.string().default("mail.onerylie.com"),
-  MAILGUN_FROM_EMAIL: z.string().default("noreply@onerylie.com"),
-  
-  // External APIs
-  OPENAI_API_KEY: z.string().optional(),
-  FLEXPATH_API_KEY: z.string().optional(),
-  
-  // Rate Limiting
-  RATE_LIMIT_WINDOW_MS: z.string().transform(Number).default("60000"),
-  RATE_LIMIT_MAX_REQUESTS: z.string().transform(Number).default("100"),
-  
-  // Monitoring
-  LOG_LEVEL: z.enum(["error", "warn", "info", "debug"]).default("info"),
-  METRICS_ENABLED: z.string().transform(val => val === "true").default("true"),
-  HEALTH_CHECK_TIMEOUT: z.string().transform(Number).default("5000"),
+import { z } from 'zod';
+
+const envSchema = z.object({
+  NODE_ENV: z.enum(['development', 'staging', 'production']).default('development'),
+  PORT: z.string().transform(Number).default(5000),
   
   // Security
-  CORS_ORIGIN: z.string().default("*"),
-  TRUST_PROXY: z.string().transform(val => val === "true").default("false"),
+  JWT_SECRET: z.string().min(32).default('ccl-dev-secret-key-change-in-production'),
+  API_KEY: z.string().default('ccl-internal-2025'),
+  
+  // Database
+  DATABASE_URL: z.string().optional(),
+  
+  // External Services
+  OPENAI_API_KEY: z.string().optional(),
+  MAILGUN_API_KEY: z.string().optional(),
+  MAILGUN_DOMAIN: z.string().default('mail.onerylie.com'),
+  FLEXPATH_API_KEY: z.string().optional(),
+  
+  // CORS
+  CORS_ORIGIN: z.string().default('*'),
+  
+  // Rate Limiting
+  RATE_LIMIT_WINDOW_MS: z.string().transform(Number).default(60000),
+  RATE_LIMIT_MAX_REQUESTS: z.string().transform(Number).default(100),
+  
+  // Performance
+  MEMORY_THRESHOLD: z.string().transform(Number).default(85),
+  CACHE_TTL_MINUTES: z.string().transform(Number).default(5),
+  
+  // Monitoring
+  LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
+  ENABLE_METRICS: z.string().transform(Boolean).default(true),
 });
 
-export type EnvironmentConfig = z.infer<typeof environmentSchema>;
+type Environment = z.infer<typeof envSchema>;
 
 class ConfigManager {
-  private config: EnvironmentConfig;
-  private isProduction: boolean;
-  private isStaging: boolean;
+  private static instance: ConfigManager;
+  private config: Environment;
+  private validated = false;
 
-  constructor() {
+  private constructor() {
     this.config = this.validateEnvironment();
-    this.isProduction = this.config.NODE_ENV === "production";
-    this.isStaging = this.config.NODE_ENV === "staging";
   }
 
-  private validateEnvironment(): EnvironmentConfig {
+  static getInstance(): ConfigManager {
+    if (!ConfigManager.instance) {
+      ConfigManager.instance = new ConfigManager();
+    }
+    return ConfigManager.instance;
+  }
+
+  private validateEnvironment(): Environment {
     try {
-      return environmentSchema.parse(process.env);
+      const config = envSchema.parse(process.env);
+      this.validated = true;
+      
+      // Log configuration status
+      this.logConfigurationStatus(config);
+      
+      return config;
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        console.error("Environment validation failed:");
-        error.errors.forEach(err => {
-          console.error(`  ${err.path.join(".")}: ${err.message}`);
-        });
-        process.exit(1);
-      }
-      throw error;
+      console.error('❌ Environment validation failed:', error);
+      console.error('Using default configuration. Please check your environment variables.');
+      
+      // Return safe defaults
+      return envSchema.parse({});
     }
   }
 
-  get(): EnvironmentConfig {
+  private logConfigurationStatus(config: Environment): void {
+    console.log('🔧 Configuration Status:');
+    console.log(`   Environment: ${config.NODE_ENV}`);
+    console.log(`   Port: ${config.PORT}`);
+    console.log(`   Database: ${config.DATABASE_URL ? '✅ Configured' : '⚠️  Using in-memory storage'}`);
+    console.log(`   OpenAI: ${config.OPENAI_API_KEY ? '✅ Configured' : '⚠️  Not configured'}`);
+    console.log(`   Mailgun: ${config.MAILGUN_API_KEY ? '✅ Configured' : '⚠️  Not configured'}`);
+    console.log(`   FlexPath: ${config.FLEXPATH_API_KEY ? '✅ Configured' : '⚠️  Not configured'}`);
+    console.log(`   Security: ${this.isSecure() ? '✅ Production ready' : '⚠️  Development mode'}`);
+  }
+
+  get(): Environment {
     return this.config;
   }
 
+  isValidated(): boolean {
+    return this.validated;
+  }
+
   isDevelopment(): boolean {
-    return this.config.NODE_ENV === "development";
+    return this.config.NODE_ENV === 'development';
   }
 
-  isProductionMode(): boolean {
-    return this.isProduction;
+  isProduction(): boolean {
+    return this.config.NODE_ENV === 'production';
   }
 
-  isStagingMode(): boolean {
-    return this.isStaging;
+  isStaging(): boolean {
+    return this.config.NODE_ENV === 'staging';
   }
 
-  getDbConfig() {
+  isSecure(): boolean {
+    return this.config.JWT_SECRET !== 'ccl-dev-secret-key-change-in-production' &&
+           this.config.API_KEY !== 'ccl-internal-2025' &&
+           this.isProduction();
+  }
+
+  getSecurityConfig() {
     return {
-      connectionString: this.config.DATABASE_URL,
-      max: this.config.DB_POOL_SIZE,
-      idleTimeoutMillis: this.config.DB_IDLE_TIMEOUT,
-      connectionTimeoutMillis: this.config.DB_CONNECTION_TIMEOUT,
+      jwtSecret: this.config.JWT_SECRET,
+      apiKey: this.config.API_KEY,
+      corsOrigin: this.config.CORS_ORIGIN,
+      rateLimitWindow: this.config.RATE_LIMIT_WINDOW_MS,
+      rateLimitMax: this.config.RATE_LIMIT_MAX_REQUESTS
     };
   }
 
-  getRateLimitConfig() {
+  getDatabaseConfig() {
     return {
-      windowMs: this.config.RATE_LIMIT_WINDOW_MS,
-      max: this.config.RATE_LIMIT_MAX_REQUESTS,
+      url: this.config.DATABASE_URL,
+      isConfigured: !!this.config.DATABASE_URL
     };
   }
 
-  getLogLevel(): string {
-    return this.config.LOG_LEVEL;
-  }
-
-  requireSecret(key: keyof EnvironmentConfig, service: string): string {
-    const value = this.config[key];
-    if (!value) {
-      throw new Error(`${key} is required for ${service} functionality`);
-    }
-    return value as string;
-  }
-
-  validateProductionReadiness(): { ready: boolean; issues: string[] } {
-    const issues: string[] = [];
-
-    if (this.isProduction) {
-      if (!this.config.JWT_SECRET) issues.push("JWT_SECRET required for production");
-      if (!this.config.SESSION_SECRET) issues.push("SESSION_SECRET required for production");
-      if (this.config.INTERNAL_API_KEY === "ccl-internal-2025") {
-        issues.push("Default API key must be changed for production");
+  getExternalServices() {
+    return {
+      openai: {
+        apiKey: this.config.OPENAI_API_KEY,
+        configured: !!this.config.OPENAI_API_KEY
+      },
+      mailgun: {
+        apiKey: this.config.MAILGUN_API_KEY,
+        domain: this.config.MAILGUN_DOMAIN,
+        configured: !!this.config.MAILGUN_API_KEY
+      },
+      flexpath: {
+        apiKey: this.config.FLEXPATH_API_KEY,
+        configured: !!this.config.FLEXPATH_API_KEY
       }
-      if (!this.config.MAILGUN_API_KEY) issues.push("MAILGUN_API_KEY required for email functionality");
-      if (!this.config.OPENAI_API_KEY) issues.push("OPENAI_API_KEY required for AI agents");
+    };
+  }
+
+  getPerformanceConfig() {
+    return {
+      memoryThreshold: this.config.MEMORY_THRESHOLD,
+      cacheTtl: this.config.CACHE_TTL_MINUTES * 60 * 1000, // Convert to milliseconds
+      enableMetrics: this.config.ENABLE_METRICS
+    };
+  }
+
+  // Runtime validation
+  validateForProduction(): string[] {
+    const errors: string[] = [];
+
+    if (this.config.NODE_ENV === 'production') {
+      if (this.config.JWT_SECRET === 'ccl-dev-secret-key-change-in-production') {
+        errors.push('JWT_SECRET must be changed from default value in production');
+      }
+      
+      if (this.config.API_KEY === 'ccl-internal-2025') {
+        errors.push('API_KEY must be changed from default value in production');
+      }
+
+      if (this.config.CORS_ORIGIN === '*') {
+        errors.push('CORS_ORIGIN should not be wildcard (*) in production');
+      }
+
+      if (!this.config.DATABASE_URL) {
+        errors.push('DATABASE_URL is required in production');
+      }
     }
 
-    return {
-      ready: issues.length === 0,
-      issues
-    };
+    return errors;
   }
 }
 
-export const config = new ConfigManager();
+const config = ConfigManager.getInstance();
+
+// Validate production requirements
+if (config.isProduction()) {
+  const errors = config.validateForProduction();
+  if (errors.length > 0) {
+    console.error('❌ Production configuration errors:');
+    errors.forEach(error => console.error(`   - ${error}`));
+    throw new Error('Invalid production configuration');
+  }
+}
+
 export default config;
