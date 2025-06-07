@@ -4,6 +4,7 @@ import emailService from '../services/email-onerylie';
 import { storage } from '../database-storage';
 import { handleApiError } from '../utils/error-handler';
 import { sanitizeEmail, sanitizeJsonData } from '../utils/input-sanitizer';
+import { multiAttemptScheduler } from '../services/multi-attempt-scheduler';
 
 const router = Router();
 
@@ -584,6 +585,240 @@ router.post('/campaigns/:campaignId/bulk-send', async (req, res) => {
         successCount,
         failureCount,
         results
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    handleApiError(res, error);
+  }
+});
+
+// Multi-attempt campaign schedules
+router.get('/schedules', async (req, res) => {
+  try {
+    const schedules = await multiAttemptScheduler.getActiveSchedules();
+    res.json({
+      success: true,
+      data: schedules,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    handleApiError(res, error);
+  }
+});
+
+// Create multi-attempt schedule
+router.post('/schedules', async (req, res) => {
+  try {
+    const { name, description, attempts } = req.body;
+
+    if (!name || !attempts || !Array.isArray(attempts)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_001',
+          message: 'Schedule name and attempts array are required',
+          category: 'validation'
+        }
+      });
+    }
+
+    // Validate attempts configuration
+    for (const attempt of attempts) {
+      if (!attempt.templateId || typeof attempt.delayHours !== 'number' || typeof attempt.delayDays !== 'number') {
+        return res.status(400).json({
+          success: false,
+          error: {
+            code: 'VALIDATION_002',
+            message: 'Each attempt must have templateId, delayHours, and delayDays',
+            category: 'validation'
+          }
+        });
+      }
+    }
+
+    const scheduleId = await multiAttemptScheduler.createSchedule({
+      name: name.trim(),
+      description: description?.trim() || '',
+      attempts,
+      isActive: true
+    });
+
+    res.json({
+      success: true,
+      data: {
+        scheduleId,
+        name,
+        attemptCount: attempts.length,
+        message: `Multi-attempt schedule "${name}" created with ${attempts.length} scheduled attempts`
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    handleApiError(res, error);
+  }
+});
+
+// Get schedule status and statistics
+router.get('/schedules/:scheduleId/status', async (req, res) => {
+  try {
+    const { scheduleId } = req.params;
+    const status = await multiAttemptScheduler.getScheduleStatus(scheduleId);
+    
+    res.json({
+      success: true,
+      data: status,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    handleApiError(res, error);
+  }
+});
+
+// Enroll lead in multi-attempt schedule
+router.post('/schedules/:scheduleId/enroll', async (req, res) => {
+  try {
+    const { scheduleId } = req.params;
+    const { leadId, variables } = req.body;
+
+    if (!leadId) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_001',
+          message: 'Lead ID is required',
+          category: 'validation'
+        }
+      });
+    }
+
+    await multiAttemptScheduler.enrollLead(scheduleId, leadId, variables || {});
+
+    res.json({
+      success: true,
+      data: {
+        scheduleId,
+        leadId,
+        message: `Lead ${leadId} enrolled in multi-attempt schedule`
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    handleApiError(res, error);
+  }
+});
+
+// Bulk enroll multiple leads
+router.post('/schedules/:scheduleId/bulk-enroll', async (req, res) => {
+  try {
+    const { scheduleId } = req.params;
+    const { leadIds, variables } = req.body;
+
+    if (!leadIds || !Array.isArray(leadIds)) {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_001',
+          message: 'Lead IDs array is required',
+          category: 'validation'
+        }
+      });
+    }
+
+    let successCount = 0;
+    let failureCount = 0;
+    const results = [];
+
+    for (const leadId of leadIds) {
+      try {
+        await multiAttemptScheduler.enrollLead(scheduleId, leadId, variables || {});
+        results.push({ leadId, success: true });
+        successCount++;
+      } catch (error: any) {
+        results.push({ leadId, success: false, error: error.message });
+        failureCount++;
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        scheduleId,
+        totalLeads: leadIds.length,
+        successCount,
+        failureCount,
+        results,
+        message: `Bulk enrollment completed: ${successCount} success, ${failureCount} failed`
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    handleApiError(res, error);
+  }
+});
+
+// Get upcoming scheduled attempts
+router.get('/schedules/upcoming', async (req, res) => {
+  try {
+    const hours = parseInt(req.query.hours as string) || 24;
+    const attempts = await multiAttemptScheduler.getUpcomingAttempts(hours);
+    
+    res.json({
+      success: true,
+      data: {
+        timeframe: `${hours} hours`,
+        attempts,
+        count: attempts.length
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    handleApiError(res, error);
+  }
+});
+
+// Pause/resume schedule
+router.post('/schedules/:scheduleId/toggle', async (req, res) => {
+  try {
+    const { scheduleId } = req.params;
+    const { isActive } = req.body;
+
+    if (typeof isActive !== 'boolean') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'VALIDATION_001',
+          message: 'isActive boolean value is required',
+          category: 'validation'
+        }
+      });
+    }
+
+    await multiAttemptScheduler.toggleSchedule(scheduleId, isActive);
+
+    res.json({
+      success: true,
+      data: {
+        scheduleId,
+        isActive,
+        message: `Schedule ${isActive ? 'activated' : 'paused'}`
+      },
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    handleApiError(res, error);
+  }
+});
+
+// Process scheduled attempts manually (for testing)
+router.post('/schedules/process-now', async (req, res) => {
+  try {
+    await multiAttemptScheduler.processScheduledAttempts();
+    
+    res.json({
+      success: true,
+      data: {
+        message: 'Scheduled attempts processed successfully'
       },
       timestamp: new Date().toISOString()
     });

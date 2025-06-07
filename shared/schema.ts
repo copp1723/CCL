@@ -90,6 +90,33 @@ export const systemAgents = pgTable("system_agents", {
   lastActivity: timestamp("last_activity").defaultNow(),
 });
 
+// Multi-attempt campaign schedules
+export const campaignSchedules = pgTable("campaign_schedules", {
+  id: text("id").primaryKey(),
+  name: text("name").notNull(),
+  description: text("description"),
+  isActive: boolean("is_active").default(true),
+  attempts: jsonb("attempts").notNull(), // Array of attempt configurations
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Campaign attempts tracking
+export const campaignAttempts = pgTable("campaign_attempts", {
+  id: text("id").primaryKey(),
+  scheduleId: text("schedule_id").references(() => campaignSchedules.id).notNull(),
+  leadId: text("lead_id").references(() => systemLeads.id).notNull(),
+  attemptNumber: integer("attempt_number").notNull(),
+  templateId: text("template_id").notNull(),
+  scheduledFor: timestamp("scheduled_for").notNull(),
+  sentAt: timestamp("sent_at"),
+  status: text("status").notNull().default("scheduled"), // scheduled, sent, failed, skipped
+  messageId: text("message_id"),
+  errorMessage: text("error_message"),
+  variables: jsonb("variables"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const leads = pgTable("leads", {
   id: serial("id").primaryKey(),
   visitorId: integer("visitor_id").references(() => visitors.id).notNull(),
@@ -153,6 +180,16 @@ export const insertAgentActivitySchema = createInsertSchema(agentActivity).omit(
   createdAt: true,
 });
 
+// Campaign schedule schemas
+export const insertCampaignScheduleSchema = createInsertSchema(campaignSchedules).omit({
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertCampaignAttemptSchema = createInsertSchema(campaignAttempts).omit({
+  createdAt: true,
+});
+
 // Types for system tables
 export type InsertSystemLead = z.infer<typeof insertSystemLeadSchema>;
 export type SystemLead = typeof systemLeads.$inferSelect;
@@ -162,6 +199,13 @@ export type SystemActivity = typeof systemActivities.$inferSelect;
 
 export type InsertSystemAgent = z.infer<typeof insertSystemAgentSchema>;
 export type SystemAgent = typeof systemAgents.$inferSelect;
+
+// Campaign types
+export type InsertCampaignSchedule = z.infer<typeof insertCampaignScheduleSchema>;
+export type CampaignSchedule = typeof campaignSchedules.$inferSelect;
+
+export type InsertCampaignAttempt = z.infer<typeof insertCampaignAttemptSchema>;
+export type CampaignAttempt = typeof campaignAttempts.$inferSelect;
 
 // Insert schema for users
 export const insertUserSchema = createInsertSchema(users).pick({
