@@ -1,8 +1,6 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { Server } from 'http';
-import { realtimeChatAgent } from './agents/realtime-chat';
-import { storage } from './storage';
-import { generateSessionId } from './utils/tokens';
+import { storage } from './database-storage.js';
 
 interface ChatWebSocket extends WebSocket {
   sessionId?: string;
@@ -29,7 +27,7 @@ export class ChatWebSocketServer {
 
       // Extract session ID from query params or generate new one
       const url = new URL(req.url!, `http://${req.headers.host}`);
-      const sessionId = url.searchParams.get('sessionId') || generateSessionId();
+      const sessionId = url.searchParams.get('sessionId') || `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
       ws.sessionId = sessionId;
       ws.isAlive = true;

@@ -276,25 +276,7 @@ app.get('/api/system/performance', apiKeyAuth, async (req, res) => {
   }
 });
 
-function generateRecommendations(systemReport: any, dbMetrics: any): string[] {
-  const recommendations = [];
-  
-  if (systemReport.health.errorRate > 5) {
-    recommendations.push('High error rate detected - investigate recent changes');
-  }
-  
-  if (systemReport.health.memoryUsage.heapUsed > 150) {
-    recommendations.push('Memory usage elevated - consider cache optimization');
-  }
-  
-  for (const [operation, metrics] of Object.entries(dbMetrics.queryPerformance)) {
-    if ((metrics as any).avgMs > 500) {
-      recommendations.push(`Slow database queries detected in ${operation} - review indexing`);
-    }
-  }
-  
-  return recommendations.length > 0 ? recommendations : ['System performance is optimal'];
-}
+
 
 // Bulk email endpoints
 app.post('/api/bulk-email/send', upload.single('csvFile'), async (req, res) => {

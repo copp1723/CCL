@@ -139,7 +139,7 @@ export default function DataIngestion() {
     setManualLeads(updated);
   };
 
-  const totalLeads = Array.isArray(leadsData?.data) ? leadsData.data.length : 0;
+  const totalLeads = Array.isArray(leadsData) ? leadsData.length : 0;
 
   return (
     <div className="space-y-6">
