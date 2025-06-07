@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Sidebar } from "@/components/sidebar";
+import { ChatWidget } from "@/components/chat-widget";
 import Dashboard from "@/pages/dashboard-streamlined";
 import EmailCampaigns from "@/pages/email-campaigns";
 import DataIngestion from "@/pages/data-ingestion";
@@ -28,6 +29,7 @@ function Router() {
           </Switch>
         </div>
       </main>
+      <ChatWidget />
     </div>
   );
 }

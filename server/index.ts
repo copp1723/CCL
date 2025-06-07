@@ -38,8 +38,8 @@ const authenticate = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
   const apiKey = req.headers['x-api-key'];
 
-  // Allow health checks without auth
-  if (req.path === '/health' || req.path === '/api/system/health') {
+  // Allow health checks and chat without auth
+  if (req.path === '/health' || req.path === '/api/system/health' || req.path === '/api/chat') {
     return next();
   }
 

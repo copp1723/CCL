@@ -50,7 +50,7 @@ export function ChatWidget({ className }: ChatWidgetProps) {
 
   const initializeWebSocket = () => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws`;
+    const wsUrl = `${protocol}//${window.location.host}/ws/chat?sessionId=${sessionId.current}`;
     
     ws.current = new WebSocket(wsUrl);
     
