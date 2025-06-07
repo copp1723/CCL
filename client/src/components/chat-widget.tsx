@@ -21,7 +21,7 @@ export function ChatWidget({ className }: ChatWidgetProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      content: "Hi there! I'm Cathy, your finance expert at Complete Car Loans. I specialize in helping customers like you find the best financing options, no matter your credit history. How can I help you with your auto financing today?",
+      content: "Hi! I'm Cathy from Complete Car Loans. How can I help with your auto financing today?",
       sender: 'agent',
       timestamp: new Date()
     }
@@ -213,12 +213,14 @@ export function ChatWidget({ className }: ChatWidgetProps) {
                       }`}>
                         {message.sender === 'user' ? <User className="h-3 w-3" /> : 'C'}
                       </div>
-                      <div className={`rounded-lg px-3 py-2 text-sm ${
+                      <div className={`rounded-lg px-3 py-2 text-sm leading-relaxed ${
                         message.sender === 'user'
                           ? 'bg-blue-600 text-white'
                           : 'bg-gray-100 text-gray-900'
                       }`}>
-                        {message.content}
+                        <div className="whitespace-pre-line break-words">
+                          {message.content}
+                        </div>
                       </div>
                     </div>
                   </div>

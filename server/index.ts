@@ -36,37 +36,70 @@ app.use(validateJsonPayload());
 // API key authentication
 const API_KEY = config.get().INTERNAL_API_KEY;
 
-// Cathy's response generator function
-function generateCathyResponse(message: string): string {
+// OpenAI-powered Cathy response generator
+async function generateOpenAICathyResponse(message: string, sessionId: string): Promise<string> {
+  try {
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model: 'gpt-4',
+        messages: [
+          {
+            role: 'system',
+            content: `You are Cathy, a warm and empathetic finance expert at Complete Car Loans. You specialize in helping customers with all credit situations find auto financing. Keep responses conversational, brief (1-2 sentences max), and focused on next steps. Always be encouraging about credit challenges. Never mention specific rates without pre-approval.`
+          },
+          {
+            role: 'user',
+            content: message
+          }
+        ],
+        max_tokens: 100,
+        temperature: 0.7
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`OpenAI API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    return data.choices[0].message.content.trim();
+  } catch (error) {
+    console.error('OpenAI API error:', error);
+    // Fallback to concise responses
+    return generateFallbackResponse(message);
+  }
+}
+
+// Concise fallback responses
+function generateFallbackResponse(message: string): string {
   const lowerMsg = message.toLowerCase();
   
-  // Detect emotional tone and respond with empathy
-  if (lowerMsg.includes('frustrated') || lowerMsg.includes('denied') || lowerMsg.includes('rejected')) {
-    return "I completely understand how frustrating that experience must have been. You're not alone in this - I work specifically with people in all credit situations, and I've helped many customers who felt exactly like you do right now. Let's see what options we can explore together. What's been your biggest concern about getting approved?";
+  if (lowerMsg.includes('hello') || lowerMsg.includes('hi') || lowerMsg.includes('hey')) {
+    return "Hi! I'm Cathy from Complete Car Loans. How can I help with your auto financing today?";
   }
   
-  if (lowerMsg.includes('urgent') || lowerMsg.includes('need asap') || lowerMsg.includes('quickly')) {
-    return "I hear the urgency in your message, and I'm here to help you move quickly. I specialize in getting people pre-approved efficiently, often within minutes. Our soft credit check won't impact your score, and we work with all credit situations. What's driving the timeline - did you find a vehicle you love?";
+  if (lowerMsg.includes('apply') || lowerMsg.includes('approved') || lowerMsg.includes('approval')) {
+    return "Great! I can start your pre-approval right now. It takes under 2 minutes and won't affect your credit score. Ready?";
   }
   
-  if (lowerMsg.includes('bad credit') || lowerMsg.includes('poor credit') || lowerMsg.includes('credit problems')) {
-    return "I'm so glad you reached out! I want you to know that I work exclusively with customers in all credit situations - that's exactly my specialty. Many of my most successful customers started exactly where you are. Credit challenges don't define your options; they just help me find the right path for you. What kind of vehicle are you hoping to get?";
+  if (lowerMsg.includes('bad credit') || lowerMsg.includes('poor credit')) {
+    return "No worries at all! I specialize in all credit situations. What type of vehicle are you looking for?";
   }
   
-  if (lowerMsg.includes('rate') || lowerMsg.includes('payment') || lowerMsg.includes('monthly')) {
-    return "That's exactly the right question to ask! Your rate and payment will depend on a few factors like your credit profile, the vehicle you choose, and loan term. The great news is that our current rates start as low as 3.9% APR for qualified customers, and we have programs for all credit situations. Our soft credit check takes just a moment and won't impact your score at all. Would you like me to check what specific rate and payment you'd qualify for?";
+  if (lowerMsg.includes('rate') || lowerMsg.includes('payment')) {
+    return "Rates depend on your profile, but let's get you pre-approved first to see your exact options. Sound good?";
   }
   
-  if (lowerMsg.includes('apply') || lowerMsg.includes('application') || lowerMsg.includes('process')) {
-    return "I love that you're ready to move forward! The process is actually much simpler than most people expect. We start with a quick, soft credit check that won't affect your score, then I can show you exactly what you qualify for. The whole pre-approval usually takes less than 2 minutes. Once you're pre-approved, you'll know your exact buying power before you even look at vehicles. Should we get your pre-approval started?";
+  if (lowerMsg.includes('car') || lowerMsg.includes('vehicle') || lowerMsg.includes('truck')) {
+    return "Exciting! Getting pre-approved first gives you the best negotiating power. Should we start the process?";
   }
   
-  if (lowerMsg.includes('car') || lowerMsg.includes('truck') || lowerMsg.includes('suv') || lowerMsg.includes('vehicle')) {
-    return "It sounds like you're getting excited about your next vehicle - I love that energy! Whether you're looking at something specific or still exploring options, getting pre-approved first is always the smart move. It gives you real negotiating power and helps you shop with confidence. Plus, our financing often beats dealer rates. Have you been looking at anything particular, or are you still in the browsing stage?";
-  }
-  
-  // Default warm welcome
-  return "Hi there! I'm Cathy, your finance expert at Complete Car Loans. I specialize in helping customers like you find the best financing options, no matter your credit history. I'm here to make this process as easy as possible for you. What brings you here today - are you looking to get pre-approved for a vehicle, or do you have questions about our financing options?";
+  return "I'm here to help with auto financing for any credit situation. What questions do you have?";
 }
 
 const authenticate = (req: Request, res: Response, next: NextFunction) => {
@@ -106,21 +139,8 @@ app.post('/api/chat', async (req, res) => {
       });
     }
 
-    // Generate Cathy's response
-    const lowerMsg = message.toLowerCase();
-    let aiResponse = "Hi there! I'm Cathy, your finance expert at Complete Car Loans. I specialize in helping customers like you find the best financing options, no matter your credit history. I'm here to make this process as easy as possible for you. What brings you here today - are you looking to get pre-approved for a vehicle, or do you have questions about our financing options?";
-    
-    if (lowerMsg.includes('frustrated') || lowerMsg.includes('denied') || lowerMsg.includes('rejected')) {
-      aiResponse = "I completely understand how frustrating that experience must have been. You're not alone in this - I work specifically with people in all credit situations, and I've helped many customers who felt exactly like you do right now. Let's see what options we can explore together. What's been your biggest concern about getting approved?";
-    } else if (lowerMsg.includes('bad credit') || lowerMsg.includes('poor credit') || lowerMsg.includes('credit problems')) {
-      aiResponse = "I'm so glad you reached out! I want you to know that I work exclusively with customers in all credit situations - that's exactly my specialty. Many of my most successful customers started exactly where you are. Credit challenges don't define your options; they just help me find the right path for you. What kind of vehicle are you hoping to get?";
-    } else if (lowerMsg.includes('rate') || lowerMsg.includes('payment') || lowerMsg.includes('monthly')) {
-      aiResponse = "That's exactly the right question to ask! Your rate and payment will depend on a few factors like your credit profile, the vehicle you choose, and loan term. The great news is that our current rates start as low as 3.9% APR for qualified customers, and we have programs for all credit situations. Our soft credit check takes just a moment and won't impact your score at all. Would you like me to check what specific rate and payment you'd qualify for?";
-    } else if (lowerMsg.includes('apply') || lowerMsg.includes('application') || lowerMsg.includes('process')) {
-      aiResponse = "I love that you're ready to move forward! The process is actually much simpler than most people expect. We start with a quick, soft credit check that won't affect your score, then I can show you exactly what you qualify for. The whole pre-approval usually takes less than 2 minutes. Once you're pre-approved, you'll know your exact buying power before you even look at vehicles. Should we get your pre-approval started?";
-    } else if (lowerMsg.includes('car') || lowerMsg.includes('truck') || lowerMsg.includes('suv') || lowerMsg.includes('vehicle')) {
-      aiResponse = "It sounds like you're getting excited about your next vehicle - I love that energy! Whether you're looking at something specific or still exploring options, getting pre-approved first is always the smart move. It gives you real negotiating power and helps you shop with confidence. Plus, our financing often beats dealer rates. Have you been looking at anything particular, or are you still in the browsing stage?";
-    }
+    // Generate Cathy's response using OpenAI
+    const aiResponse = await generateOpenAICathyResponse(message, sessionId);
     
     // Check if a phone number was captured
     const phoneRegex = /(?:\+1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/;
