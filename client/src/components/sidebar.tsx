@@ -33,6 +33,12 @@ const navItems: NavItem[] = [
     description: "Manage re-engagement email campaigns"
   },
   {
+    title: "Multi-Attempt Campaigns",
+    href: "/multi-attempt-campaigns",
+    icon: BarChart3,
+    description: "Automated email sequences with timing controls"
+  },
+  {
     title: "Data Ingestion",
     href: "/data-ingestion",
     icon: Database,

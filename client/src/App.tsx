@@ -7,6 +7,7 @@ import { Sidebar } from "@/components/sidebar";
 import { ChatWidget } from "@/components/chat-widget";
 import Dashboard from "@/pages/dashboard-streamlined";
 import EmailCampaigns from "@/pages/email-campaigns";
+import MultiAttemptCampaigns from "@/pages/multi-attempt-campaigns";
 import DataIngestion from "@/pages/data-ingestion";
 import PromptTesting from "@/pages/prompt-testing-clean";
 import PromptVariables from "@/pages/prompt-variables";
@@ -22,7 +23,8 @@ function Router() {
             <Route path="/" component={Dashboard} />
             <Route path="/dashboard" component={Dashboard} />
             <Route path="/email-campaigns" component={EmailCampaigns} />
-          <Route path="/data-ingestion" component={DataIngestion} />
+            <Route path="/multi-attempt-campaigns" component={MultiAttemptCampaigns} />
+            <Route path="/data-ingestion" component={DataIngestion} />
             <Route path="/prompt-testing" component={PromptTesting} />
             <Route path="/prompt-variables" component={PromptVariables} />
             <Route component={NotFound} />
