@@ -3,6 +3,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import cors from 'cors';
+import { createServer } from 'http';
+import { WebSocketServer } from 'ws';
 import { storage } from './database-storage';
 import { setupVite, serveStatic } from './vite';
 import { systemMonitor } from './services/error-monitor';
@@ -287,10 +289,107 @@ app.use((error: any, req: any, res: any, next: any) => {
 const isDevelopment = process.env.NODE_ENV === 'development';
 const PORT = parseInt(process.env.PORT || '5000');
 
-const server = app.listen(PORT, '0.0.0.0', async () => {
+const server = createServer(app);
+
+// WebSocket server for real-time chat
+const wss = new WebSocketServer({ 
+  server,
+  path: '/ws/chat'
+});
+
+wss.on('connection', (ws, req) => {
+  console.log('WebSocket connection established');
+  
+  const url = new URL(req.url!, `http://${req.headers.host}`);
+  const sessionId = url.searchParams.get('sessionId') || `session_${Date.now()}`;
+  
+  ws.on('message', async (data) => {
+    try {
+      const message = JSON.parse(data.toString());
+      
+      if (message.type === 'chat') {
+        // Process chat message using the same logic as HTTP endpoint
+        const { content } = message;
+        
+        let response = "Hi! I'm Cathy from Complete Car Loans. I understand you're looking for auto financing help. We specialize in working with all credit situations. Could you share your phone number so we can begin with a soft credit check that won't impact your credit score?";
+
+        try {
+          const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              model: 'gpt-4',
+              messages: [
+                {
+                  role: 'system',
+                  content: 'You are Cathy, a warm and knowledgeable finance expert at Complete Car Loans. You specialize in helping people with all types of credit situations, especially sub-prime auto loans. Be empathetic, professional, and guide customers toward providing their phone number for a soft credit check.'
+                },
+                { role: 'user', content }
+              ],
+              max_tokens: 300,
+              temperature: 0.7
+            })
+          });
+
+          if (openaiResponse.ok) {
+            const data = await openaiResponse.json();
+            response = data.choices[0]?.message?.content || response;
+          }
+        } catch (openaiError) {
+          console.log('Using fallback response for WebSocket chat');
+        }
+
+        // Log the interaction
+        await storage.createActivity(
+          'websocket_chat',
+          `WebSocket chat processed for session ${sessionId}`,
+          'RealtimeChatAgent',
+          { message: content.substring(0, 100), response: response.substring(0, 100) }
+        );
+
+        // Send response back to client
+        ws.send(JSON.stringify({
+          type: 'chat_response',
+          response,
+          sessionId,
+          timestamp: new Date().toISOString()
+        }));
+      }
+    } catch (error) {
+      console.error('WebSocket message error:', error);
+      ws.send(JSON.stringify({
+        type: 'error',
+        message: 'Chat service temporarily unavailable',
+        timestamp: new Date().toISOString()
+      }));
+    }
+  });
+
+  ws.on('close', () => {
+    console.log('WebSocket connection closed');
+  });
+
+  ws.on('error', (error) => {
+    console.error('WebSocket error:', error);
+  });
+
+  // Send welcome message
+  ws.send(JSON.stringify({
+    type: 'connected',
+    sessionId,
+    message: 'Connected to Complete Car Loans chat',
+    timestamp: new Date().toISOString()
+  }));
+});
+
+server.listen(PORT, '0.0.0.0', async () => {
   console.log(`CCL Agent System running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Health check: http://0.0.0.0:${PORT}/health`);
+  console.log(`WebSocket available at ws://localhost:${PORT}/ws/chat`);
   
   // Setup Vite development server for frontend
   if (isDevelopment) {
