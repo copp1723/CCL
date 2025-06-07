@@ -21,7 +21,7 @@ export function ChatWidget({ className }: ChatWidgetProps) {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: '1',
-      content: "Hi! I'm Cathy from Complete Car Loans.\n\nI saw you were looking into financing options and wanted to reach out personally.\n\nHow can I help with your auto financing today?",
+      content: "Hi! I'm Cathy from Complete Car Loans. I help people get auto financing regardless of credit history. How can I help you today?",
       sender: 'agent',
       timestamp: new Date()
     }
@@ -29,7 +29,6 @@ export function ChatWidget({ className }: ChatWidgetProps) {
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const ws = useRef<WebSocket | null>(null);
   const sessionId = useRef<string>(`session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
 
   useEffect(() => {
@@ -55,32 +54,31 @@ export function ChatWidget({ className }: ChatWidgetProps) {
     addMessage(userMessage, 'user');
     setIsTyping(true);
     
-    // Use HTTP API for reliable messaging
     try {
-        const response = await fetch('/api/chat', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            message: userMessage,
-            sessionId: sessionId.current
-          }),
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setIsTyping(false);
-          addMessage(data.response, 'agent');
-        } else {
-          setIsTyping(false);
-          addMessage("I'm sorry, I'm having trouble connecting right now. Please try again in a moment.", 'agent');
-        }
-      } catch (error) {
-        console.error('Error sending message:', error);
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: userMessage,
+          sessionId: sessionId.current
+        }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setIsTyping(false);
+        addMessage(data.response, 'agent');
+      } else {
         setIsTyping(false);
         addMessage("I'm sorry, I'm having trouble connecting right now. Please try again in a moment.", 'agent');
       }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      setIsTyping(false);
+      addMessage("I'm sorry, I'm having trouble connecting right now. Please try again in a moment.", 'agent');
+    }
   };
 
   const scrollToBottom = () => {
@@ -104,18 +102,17 @@ export function ChatWidget({ className }: ChatWidgetProps) {
       {!isOpen ? (
         <Button
           onClick={() => setIsOpen(true)}
-          className="h-12 w-12 rounded-full shadow-lg bg-blue-600 hover:bg-blue-700"
-          size="icon"
+          className="h-14 w-14 rounded-full bg-blue-600 hover:bg-blue-700 text-white shadow-lg"
         >
-          <MessageCircle className="h-6 w-6 text-white" />
+          <MessageCircle className="h-6 w-6" />
         </Button>
       ) : (
-        <Card className="w-96 h-[32rem] shadow-xl">
-          <CardHeader className="pb-3 bg-blue-600 text-white rounded-t-lg">
+        <Card className="w-80 h-[32rem] bg-white shadow-xl border-0">
+          <CardHeader className="bg-blue-600 text-white p-4 rounded-t-lg">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <div className="h-8 w-8 bg-blue-500 rounded-full flex items-center justify-center">
-                  <span className="text-sm font-semibold">C</span>
+                  <User className="h-4 w-4" />
                 </div>
                 <div>
                   <CardTitle className="text-sm">Cathy</CardTitle>
@@ -147,26 +144,18 @@ export function ChatWidget({ className }: ChatWidgetProps) {
                       <div className={`h-6 w-6 rounded-full flex items-center justify-center text-xs font-semibold ${
                         message.sender === 'user' 
                           ? 'bg-blue-600 text-white' 
-                          : 'bg-gray-200 text-gray-700'
+                          : 'bg-gray-200 text-gray-600'
                       }`}>
-                        {message.sender === 'user' ? <User className="h-3 w-3" /> : 'C'}
+                        {message.sender === 'user' ? 'U' : 'C'}
                       </div>
-                      <div className={`rounded-lg px-4 py-3 text-sm leading-relaxed ${
+                      <div className={`rounded-lg p-3 text-sm ${
                         message.sender === 'user'
                           ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-900'
+                          : 'bg-gray-100 text-gray-800'
                       }`}>
-                        <div className="whitespace-pre-line break-words space-y-2">
-                          {message.content.split('\n\n').map((paragraph, index) => (
-                            <div key={index}>
-                              {paragraph.split('\n').map((line, lineIndex) => (
-                                <div key={lineIndex}>
-                                  {line}
-                                </div>
-                              ))}
-                            </div>
-                          ))}
-                        </div>
+                        {message.content.split('\n').map((line, i) => (
+                          <div key={i}>{line}</div>
+                        ))}
                       </div>
                     </div>
                   </div>
@@ -174,15 +163,15 @@ export function ChatWidget({ className }: ChatWidgetProps) {
                 
                 {isTyping && (
                   <div className="flex justify-start">
-                    <div className="flex items-start space-x-2">
-                      <div className="h-6 w-6 bg-gray-200 rounded-full flex items-center justify-center text-xs font-semibold text-gray-700">
+                    <div className="flex items-start space-x-2 max-w-[80%]">
+                      <div className="h-6 w-6 rounded-full flex items-center justify-center text-xs font-semibold bg-gray-200 text-gray-600">
                         C
                       </div>
-                      <div className="bg-gray-100 rounded-lg px-3 py-2 text-sm">
+                      <div className="bg-gray-100 text-gray-800 rounded-lg p-3 text-sm">
                         <div className="flex space-x-1">
-                          <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce"></div>
-                          <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                          <div className="w-1 h-1 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                         </div>
                       </div>
                     </div>
@@ -191,27 +180,24 @@ export function ChatWidget({ className }: ChatWidgetProps) {
               </div>
             </ScrollArea>
             
-            <div className="p-4 border-t">
+            <div className="border-t p-4">
               <div className="flex space-x-2">
                 <Input
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyPress={handleKeyPress}
-                  placeholder="Type your message..."
+                  placeholder="Ask about auto financing..."
                   className="flex-1"
+                  disabled={isTyping}
                 />
-                <Button 
+                <Button
                   onClick={sendMessage}
-                  size="icon"
                   disabled={!input.trim() || isTyping}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
                 >
                   <Send className="h-4 w-4" />
                 </Button>
               </div>
-              <p className="text-xs text-gray-500 mt-2 text-center">
-                Powered by Complete Car Loans
-              </p>
             </div>
           </CardContent>
         </Card>
