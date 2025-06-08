@@ -5,6 +5,17 @@ const router = Router();
 
 // === CAMPAIGN ROUTES ===
 
+// Get all campaigns
+router.get('/', async (_req, res) => {
+  try {
+    const campaigns = await storageService.getCampaigns();
+    res.status(200).json(campaigns);
+  } catch (error) {
+    console.error('Failed to get campaigns:', error);
+    res.status(500).json({ error: 'Failed to get campaigns.' });
+  }
+});
+
 // Create a new campaign
 router.post('/', async (req, res) => {
   const { name, goal_prompt } = req.body;

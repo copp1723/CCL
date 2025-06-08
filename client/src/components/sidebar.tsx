@@ -39,6 +39,12 @@ const navItems: NavItem[] = [
     description: "Automated email sequences with timing controls"
   },
   {
+    title: "Campaigns",
+    href: "/campaigns",
+    icon: FileText,
+    description: "Create and manage automated email campaigns"
+  },
+  {
     title: "Data Ingestion",
     href: "/data-ingestion",
     icon: Database,

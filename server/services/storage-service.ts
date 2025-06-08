@@ -473,6 +473,12 @@ class StorageService {
   // CAMPAIGN OPERATIONS
   // ============================================================================
 
+  async getCampaigns(): Promise<any[]> {
+    const query = 'SELECT * FROM campaigns ORDER BY created_at DESC;';
+    const result = await pool.query(query);
+    return result.rows;
+  }
+
   async createCampaign(name: string, goal_prompt: string): Promise<any> {
     const query = `
       INSERT INTO campaigns (name, goal_prompt)
