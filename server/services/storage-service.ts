@@ -7,6 +7,8 @@
 import { randomUUID, randomBytes, createCipheriv, createDecipheriv, scrypt } from 'crypto';
 import { promisify } from 'util';
 import { Pool } from 'pg';
+import fs from 'fs';
+import path from 'path';
 import LRU from 'lru-cache';
 
 const scryptAsync = promisify(scrypt);
@@ -14,7 +16,13 @@ const scryptAsync = promisify(scrypt);
 // Database connection pool
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
+  ssl: {
+    rejectUnauthorized: true,
+    ca: fs.readFileSync(
+      path.resolve(__dirname, '../../config/neondb-ca.crt'),
+      'utf-8'
+    ),
+  },
   max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
