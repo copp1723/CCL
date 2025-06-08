@@ -85,8 +85,9 @@ async function migrateDatabase() {
 
 // Run migration
 migrateDatabase().then(() => {
-  console.log('🎉 Database migration completed');
+  console.log('🎉 Database migration completed successfully.');
+  process.exit(0); // Explicitly exit with success code
 }).catch(error => {
   console.error('💥 Migration error:', error);
-  process.exit(1);
+  process.exit(1); // Exit with failure code
 });
