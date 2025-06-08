@@ -21,13 +21,9 @@ services:
       - key: API_KEY
         generateValue: true
 
-      # --- AI integration ---
+      # AI integration
       - key: OPENAI_API_KEY
         value: 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
-      - key: CCL_API_KEY
-        sync: API_KEY
-      - key: FLEXPATH_API_KEY
-        sync: API_KEY
 
 databases:
   - name: ccl-database
