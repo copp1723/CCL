@@ -9,6 +9,7 @@ import Dashboard from "@/pages/dashboard-streamlined";
 import EmailCampaigns from "@/pages/email-campaigns";
 import MultiAttemptCampaigns from "@/pages/multi-attempt-campaigns";
 import CampaignsPage from "@/pages/campaigns";
+import CampaignDetailPage from "@/pages/campaign-detail";
 import DataIngestion from "@/pages/data-ingestion";
 import PromptTesting from "@/pages/prompt-testing-clean";
 import PromptVariables from "@/pages/prompt-variables";
@@ -26,6 +27,7 @@ function Router() {
             <Route path="/email-campaigns" component={EmailCampaigns} />
             <Route path="/multi-attempt-campaigns" component={MultiAttemptCampaigns} />
             <Route path="/campaigns" component={CampaignsPage} />
+            <Route path="/campaigns/:id" component={CampaignDetailPage} />
             <Route path="/data-ingestion" component={DataIngestion} />
             <Route path="/prompt-testing" component={PromptTesting} />
             <Route path="/prompt-variables" component={PromptVariables} />

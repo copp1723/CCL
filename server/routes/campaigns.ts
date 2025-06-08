@@ -5,6 +5,17 @@ const router = Router();
 
 // === CAMPAIGN ROUTES ===
 
+// Get all leads (for enrolling)
+router.get('/all-leads', async (_req, res) => {
+  try {
+    const leads = await storageService.getAllLeads();
+    res.json(leads);
+  } catch (error) {
+    console.error('Failed to get leads:', error);
+    res.status(500).json({ error: 'Failed to fetch leads.' });
+  }
+});
+
 // Get all campaigns
 router.get('/', async (_req, res) => {
   try {
@@ -13,6 +24,80 @@ router.get('/', async (_req, res) => {
   } catch (error) {
     console.error('Failed to get campaigns:', error);
     res.status(500).json({ error: 'Failed to get campaigns.' });
+  }
+});
+
+// Get a single campaign by ID
+router.get('/:campaignId', async (req, res) => {
+  const { campaignId } = req.params;
+  try {
+    const campaign = await storageService.getCampaignById(campaignId);
+    if (!campaign) {
+      return res.status(404).json({ error: 'Campaign not found.' });
+    }
+    res.status(200).json(campaign);
+  } catch (error) {
+    console.error(`Failed to get campaign ${campaignId}:`, error);
+    res.status(500).json({ error: 'Failed to get campaign.' });
+  }
+});
+
+// Fetch all leads
+router.get('/:campaignId/leads/all', async (req, res) => {
+  try {
+    const leads = await storageService.getAllLeads();
+    res.status(200).json(leads);
+  } catch (error) {
+    console.error('Failed to get all leads:', error);
+    res.status(500).json({ error: 'Failed to get all leads.' });
+  }
+});
+
+// Fetch enrolled leads for a campaign
+router.get('/:campaignId/leads/enrolled', async (req, res) => {
+  const { campaignId } = req.params;
+  try {
+    const leads = await storageService.getEnrolledLeads(campaignId);
+    res.status(200).json(leads);
+  } catch (error) {
+    console.error('Failed to get enrolled leads:', error);
+    res.status(500).json({ error: 'Failed to get enrolled leads.' });
+  }
+});
+
+// Update campaign (edit name, goal, status)
+router.patch('/:campaignId', async (req, res) => {
+  const { campaignId } = req.params;
+  try {
+    const campaign = await storageService.updateCampaign(campaignId, req.body);
+    res.status(200).json(campaign);
+  } catch (error) {
+    console.error('Failed to update campaign:', error);
+    res.status(500).json({ error: 'Failed to update campaign.' });
+  }
+});
+
+// Delete campaign
+router.delete('/:campaignId', async (req, res) => {
+  const { campaignId } = req.params;
+  try {
+    await storageService.deleteCampaign(campaignId);
+    res.status(204).send();
+  } catch (error) {
+    console.error('Failed to delete campaign:', error);
+    res.status(500).json({ error: 'Failed to delete campaign.' });
+  }
+});
+
+// Clone campaign
+router.post('/:campaignId/clone', async (req, res) => {
+  const { campaignId } = req.params;
+  try {
+    const newCampaign = await storageService.cloneCampaign(campaignId);
+    res.status(201).json(newCampaign);
+  } catch (error) {
+    console.error('Failed to clone campaign:', error);
+    res.status(500).json({ error: 'Failed to clone campaign.' });
   }
 });
 

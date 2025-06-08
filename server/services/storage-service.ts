@@ -473,6 +473,64 @@ class StorageService {
   // CAMPAIGN OPERATIONS
   // ============================================================================
 
+  async getAllLeads(): Promise<any[]> {
+    const query = 'SELECT id, email, phone_number, status, lead_data FROM leads ORDER BY created_at DESC;';
+    const result = await pool.query(query);
+    return result.rows;
+  }
+
+  async getEnrolledLeads(campaignId: string): Promise<any[]> {
+    const query = `
+      SELECT l.id, l.email, l.phone_number, l.status, l.lead_data, lcs.status as campaign_status, lcs.current_step
+      FROM lead_campaign_status lcs
+      JOIN leads l ON lcs.lead_id = l.id
+      WHERE lcs.campaign_id = $1
+    `;
+    const res = await pool.query(query, [campaignId]);
+    return res.rows;
+  }
+
+  async updateCampaign(campaignId: string, updates: { name?: string, goal_prompt?: string, status?: string }): Promise<any> {
+    const keys = Object.keys(updates);
+    if (keys.length === 0) return null;
+    const setClause = keys.map((k, i) => `${k} = ${i + 2}`).join(", ");
+    const query = `UPDATE campaigns SET ${setClause} WHERE id = $1 RETURNING *`;
+    const values = [campaignId, ...keys.map(k => updates[k])];
+    const result = await pool.query(query, values);
+    return result.rows[0];
+  }
+
+  async deleteCampaign(campaignId: string): Promise<void> {
+    await pool.query('DELETE FROM campaigns WHERE id = $1', [campaignId]);
+  }
+
+  async cloneCampaign(campaignId: string): Promise<any> {
+    // Fetch original campaign
+    const orig = await this.getCampaignById(campaignId);
+    if (!orig) throw new Error('Original campaign not found');
+    // Clone campaign row
+    const cloneName = orig.name + ' (Clone)';
+    const newCampaign = await this.createCampaign(cloneName, orig.goal_prompt);
+    // Clone all templates
+    const templates = await this.getEmailTemplatesForCampaign(orig.id);
+    for (const t of templates) {
+      await this.addEmailTemplate(newCampaign.id, t);
+    }
+    return newCampaign;
+  }
+
+  async getCampaignById(campaignId: string): Promise<any> {
+    const query = 'SELECT * FROM campaigns WHERE id = $1;';
+    const result = await pool.query(query, [campaignId]);
+    return result.rows[0];
+  }
+
+  async getEmailTemplatesForCampaign(campaignId: string): Promise<any[]> {
+    const query = 'SELECT * FROM email_templates WHERE campaign_id = $1 ORDER BY sequence_order ASC;';
+    const result = await pool.query(query, [campaignId]);
+    return result.rows;
+  }
+
   async getCampaigns(): Promise<any[]> {
     const query = 'SELECT * FROM campaigns ORDER BY created_at DESC;';
     const result = await pool.query(query);
