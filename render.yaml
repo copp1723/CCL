@@ -24,16 +24,9 @@ services:
         sync: API_KEY
       - key: FLEXPATH_API_KEY
         sync: API_KEY
-    
-# PostgreSQL Database
+
 databases:
   - name: ccl-database
     databaseName: ccl_production
     user: ccl_user
     plan: starter
-
-# Optional: Static Site for docs
-# - type: static_site
-#   name: ccl-docs
-#   buildCommand: npm run build:docs
-#   publishPath: ./docs/dist
