@@ -4,13 +4,15 @@ import { WebSocketServer } from 'ws';
 import multer from 'multer';
 import cors from 'cors';
 import { storage } from './database-storage.js';
+import { storageService } from './services/storage-service.js';
+import { requestLogger } from './middleware/logger.js';
+import { apiRateLimiter } from './middleware/rate-limit.js';
 import { setupVite, serveStatic } from './vite.js';
 
 const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Middleware
-// Security middleware
+// Middleware - Order matters!
 app.use(express.json({ 
   limit: '10mb',
   verify: (req: any, res, buf) => {
@@ -24,6 +26,10 @@ app.use(express.urlencoded({
   limit: '10mb',
   parameterLimit: 100
 }));
+
+// Add our new security middleware first
+app.use(requestLogger);
+app.use(apiRateLimiter);
 
 // CORS configuration
 const allowedOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173'];
@@ -138,17 +144,18 @@ app.get('/health', (req, res) => {
 // System stats endpoint (protected)
 app.get('/api/system/stats', apiKeyAuth, async (req, res) => {
   try {
-    const stats = await storage.getStats();
+    // Use the improved storageService for stats
+    const stats = await storageService.getStats();
     res.json({ success: true, data: stats });
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to fetch stats' });
   }
 });
 
-// Leads endpoints
+// Leads endpoints - Using improved storageService
 app.get('/api/leads', async (req, res) => {
   try {
-    const leads = await storage.getLeads();
+    const leads = await storageService.getLeads();
     res.json(leads);
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to fetch leads' });
@@ -157,18 +164,18 @@ app.get('/api/leads', async (req, res) => {
 
 app.post('/api/leads', async (req, res) => {
   try {
-    const { email, status = 'new', leadData } = req.body;
-    const lead = await storage.createLead({ email, status, leadData });
+    const { email, phoneNumber, status = 'new', leadData } = req.body;
+    const lead = await storageService.createLead({ email, phoneNumber, status, leadData });
     res.json({ success: true, data: lead });
-  } catch (error) {
-    res.status(500).json({ success: false, error: 'Failed to create lead' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, error: error.message || 'Failed to create lead' });
   }
 });
 
-// Activities endpoint
+// Activities endpoint - Using improved storageService
 app.get('/api/activities', async (req, res) => {
   try {
-    const activities = await storage.getActivities(20);
+    const activities = await storageService.getActivities(20);
     res.json(activities);
   } catch (error) {
     res.status(500).json({ success: false, error: 'Failed to fetch activities' });
@@ -223,7 +230,7 @@ app.post('/api/chat', async (req, res) => {
       }
     }
 
-    await storage.createActivity(
+    await storageService.createActivity(
       'chat_message',
       `Chat interaction - User: "${message.substring(0, 30)}..." Response provided by Cathy`,
       'chat-agent',
@@ -260,8 +267,9 @@ app.post('/api/bulk-email/send', upload.single('csvFile'), async (req, res) => {
         });
 
         if (leadData.email) {
-          await storage.createLead({
+          await storageService.createLead({
             email: leadData.email,
+            phoneNumber: leadData.phone || leadData.phonenumber,
             status: 'new',
             leadData
           });
@@ -270,7 +278,7 @@ app.post('/api/bulk-email/send', upload.single('csvFile'), async (req, res) => {
       }
     }
 
-    await storage.createActivity(
+    await storageService.createActivity(
       'csv_upload',
       `CSV upload completed - ${processed} leads processed`,
       'data-ingestion',
@@ -356,7 +364,7 @@ wss.on('connection', (ws) => {
         
         const response = cathyResponses[Math.floor(Math.random() * cathyResponses.length)];
         
-        await storage.createActivity(
+        await storageService.createActivity(
           'chat_message',
           `WebSocket chat - User: "${message.content.substring(0, 30)}..." Response provided by Cathy`,
           'realtime-chat',
