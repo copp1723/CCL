@@ -29,4 +29,4 @@ databases:
   - name: ccl-database
     databaseName: ccl_production
     user: ccl_user
-    plan: professional
+    # The 'plan' key is removed. You will select the plan in the Render UI.
