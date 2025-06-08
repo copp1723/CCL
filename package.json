@@ -1,0 +1,33 @@
+{
+  "name": "ccl",
+  "version": "1.0.0",
+  "description": "",
+  "main": "test-fixes.js",
+  "scripts": {
+    "lint": "eslint . --ext .js,.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "node test-fixes.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "express": "^5.1.0",
+    "joi": "^17.13.3",
+    "lru-cache": "^11.1.0",
+    "pg": "^8.16.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/joi": "^17.2.2",
+    "@types/lru-cache": "^7.10.9",
+    "@types/node": "^22.15.30",
+    "@types/pg": "^8.15.4",
+    "@typescript-eslint/eslint-plugin": "^8.33.1",
+    "@typescript-eslint/parser": "^8.33.1",
+    "eslint": "^9.28.0",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  }
+}

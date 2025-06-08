@@ -1,8 +1,10 @@
 /**
- * Test script to verify critical fixes
+ * Test script to verify critical fixes and middleware functionality
  */
 
+require('ts-node/register');
 const { storageService } = require('./server/services/storage-service');
+const { apiAuth } = require('./server/middleware/auth');
 
 async function testFixes() {
   console.log('🧪 Testing Critical Fixes...\n');
@@ -54,6 +56,40 @@ async function testFixes() {
       activities: stats.activities,
       visitors: stats.visitors
     });
+
+    console.log('6. Testing API authentication middleware...');
+
+    function mockRes() {
+      return {
+        statusCode: 0,
+        jsonPayload: null,
+        status(code) {
+          this.statusCode = code; return this;
+        },
+        json(payload) { this.jsonPayload = payload; }
+      };
+    }
+
+    process.env.API_KEY = 'secret';
+    const reqInvalid = { headers: { authorization: 'Bearer wrong' } };
+    const resInvalid = mockRes();
+    let nextCalled = false;
+    apiAuth(reqInvalid, resInvalid, () => { nextCalled = true; });
+    if (!nextCalled && resInvalid.statusCode === 401) {
+      console.log('✅ Auth rejects invalid key');
+    } else {
+      console.log('❌ Auth did not reject invalid key');
+    }
+
+    const reqValid = { headers: { authorization: 'Bearer secret' } };
+    const resValid = mockRes();
+    nextCalled = false;
+    apiAuth(reqValid, resValid, () => { nextCalled = true; });
+    if (nextCalled && resValid.statusCode === 0) {
+      console.log('✅ Auth accepts valid key\n');
+    } else {
+      console.log('❌ Auth failed with valid key');
+    }
 
     console.log('\n🎉 All critical fixes verified successfully!');
     

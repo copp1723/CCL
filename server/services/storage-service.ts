@@ -7,7 +7,7 @@
 import { randomUUID, randomBytes, createCipheriv, createDecipheriv, scrypt } from 'crypto';
 import { promisify } from 'util';
 import { Pool } from 'pg';
-import LRU from 'lru-cache';
+import { LRUCache } from 'lru-cache';
 
 const scryptAsync = promisify(scrypt);
 
@@ -22,7 +22,7 @@ const pool = new Pool({
 
 // Enhanced storage service with database integration
 class StorageService {
-  private cache = new LRU<string, any>({
+  private cache = new LRUCache<string, any>({
     max: 1000,
     ttl: 60_000 // 1 minute TTL
   });
@@ -231,7 +231,7 @@ class StorageService {
       const values = [id, ...Object.values(updates)];
 
       const result = await pool.query(query, values);
-      const success = result.rowCount > 0;
+      const success = (result.rowCount ?? 0) > 0;
 
       if (success) {
         this.invalidateCache(`lead:${id}`);
@@ -246,7 +246,7 @@ class StorageService {
     return this.withRetry(async () => {
       const query = 'DELETE FROM leads WHERE id = $1 RETURNING id';
       const result = await pool.query(query, [id]);
-      const success = result.rowCount > 0;
+      const success = (result.rowCount ?? 0) > 0;
 
       if (success) {
         this.invalidateCache(`lead:${id}`);
