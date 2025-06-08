@@ -58,21 +58,31 @@ export interface AgentStatus {
 // LEAD TYPES
 // ============================================================================
 
+export interface LeadDetails {
+  vehicleInterest?: string;
+  creditScore?: number;
+  annualIncome?: number;
+  loanAmount?: number;
+  firstName?: string;
+  lastName?: string;
+  zipCode?: string;
+}
+
 export interface LeadData {
   id: string;
   status: 'new' | 'contacted' | 'qualified' | 'closed';
   createdAt: string;
   email: string;
-  leadData: any;
+  leadData: LeadDetails;
 }
 
 export interface Lead {
   id: string; // Changed from number to string to match storage implementation
   visitorId?: string; // Changed to optional string to match storage
   creditCheckId?: string | null; // Changed to optional string
-  leadData: any; // Changed from unknown to any for better usability
+  leadData: LeadDetails; // Changed from unknown to specific type
   status: 'new' | 'contacted' | 'qualified' | 'closed'; // More specific type
-  dealerResponse?: any; // Changed to optional
+  dealerResponse?: Record<string, unknown>; // Changed to optional
   submittedAt?: Date | null; // Made optional
   createdAt: Date;
   updatedAt?: Date; // Added to match database schema

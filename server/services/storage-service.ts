@@ -8,8 +8,18 @@ import { randomUUID, randomBytes, createCipheriv, createDecipheriv, scrypt } fro
 import { promisify } from 'util';
 import { Pool } from 'pg';
 import LRU from 'lru-cache';
+import { LeadDetails, Lead } from '../../shared/types-consolidated';
 
 const scryptAsync = promisify(scrypt);
+
+export interface LeadCreateData {
+  email: string;
+  phoneNumber?: string;
+  status?: 'new' | 'contacted' | 'qualified' | 'closed';
+  leadData?: LeadDetails;
+}
+
+export type LeadUpdateData = Partial<LeadCreateData>;
 
 // Database connection pool
 const pool = new Pool({
@@ -31,9 +41,7 @@ class StorageService {
   private encryptionKey = process.env.ENCRYPTION_KEY || 'default-key-change-in-production';
 
   // Initialize missing properties
-  private activities: any[] = [];
   private visitors: any[] = [];
-  private leads: any[] = []; // For stats calculation only - actual leads are in database
   private activityCounter: number = 0;
 
   constructor() {
@@ -92,7 +100,7 @@ class StorageService {
     }
   }
 
-  private validateLeadData(leadData: any): void {
+  private validateLeadData(leadData: Partial<LeadCreateData>): void {
     if (!leadData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(leadData.email)) {
       throw new Error('Invalid email format');
     }
@@ -117,7 +125,7 @@ class StorageService {
   // LEAD OPERATIONS
   // ============================================================================
 
-  async createLead(leadData: any): Promise<any> {
+  async createLead(leadData: LeadCreateData): Promise<Lead> {
     this.validateLeadData(leadData);
 
     const leadId = randomBytes(16).toString('hex');
@@ -140,10 +148,13 @@ class StorageService {
       ];
 
       const result = await pool.query(query, values);
-      const newLead = {
+      const newLead: Lead = {
         ...result.rows[0],
-        email: leadData.email, // Return decrypted for response
-        phoneNumber: leadData.phoneNumber
+        email: leadData.email,
+        phoneNumber: leadData.phoneNumber,
+        leadData: leadData.leadData || {},
+        createdAt: result.rows[0].created_at,
+        status: result.rows[0].status,
       };
 
       this.invalidateCache('leads:*');
@@ -151,7 +162,7 @@ class StorageService {
     });
   }
 
-  async getLeads(limit?: number): Promise<any[]> {
+  async getLeads(limit?: number): Promise<Lead[]> {
     const cacheKey = `leads:${limit || 'all'}`;
 
     // Check cache first
@@ -177,11 +188,11 @@ class StorageService {
         const values = limit ? [limit] : [];
         const result = await pool.query(query, values);
 
-        const leads = await Promise.all(result.rows.map(async row => ({
+        const leads: Lead[] = await Promise.all(result.rows.map(async row => ({
           ...row,
           email: await this.decrypt(row.email),
           phoneNumber: row.phone_number ? await this.decrypt(row.phone_number) : null,
-          leadData: typeof row.lead_data === 'string' ? JSON.parse(row.lead_data) : row.lead_data
+          leadData: typeof row.lead_data === 'string' ? JSON.parse(row.lead_data) : row.lead_data,
         })));
 
         this.cache.set(cacheKey, leads);
@@ -192,7 +203,7 @@ class StorageService {
     }
   }
 
-  async getLeadById(id: string): Promise<any | null> {
+  async getLeadById(id: string): Promise<Lead | null> {
     const cacheKey = `lead:${id}`;
     const cached = this.cache.get(cacheKey);
     if (cached) return cached;
@@ -203,11 +214,11 @@ class StorageService {
 
       if (result.rows.length === 0) return null;
 
-      const lead = {
+      const lead: Lead = {
         ...result.rows[0],
         email: await this.decrypt(result.rows[0].email),
         phoneNumber: result.rows[0].phone_number ? await this.decrypt(result.rows[0].phone_number) : null,
-        leadData: typeof result.rows[0].lead_data === 'string' ? JSON.parse(result.rows[0].lead_data) : result.rows[0].lead_data
+        leadData: typeof result.rows[0].lead_data === 'string' ? JSON.parse(result.rows[0].lead_data) : result.rows[0].lead_data,
       };
 
       this.cache.set(cacheKey, lead);
@@ -215,7 +226,7 @@ class StorageService {
     });
   }
 
-  async updateLead(id: string, updates: any): Promise<boolean> {
+  async updateLead(id: string, updates: LeadUpdateData): Promise<boolean> {
     if (updates.email) {
       this.validateLeadData(updates);
       updates.email = await this.encrypt(updates.email);
