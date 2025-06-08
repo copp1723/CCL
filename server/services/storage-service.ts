@@ -5,6 +5,7 @@
  */
 
 import { randomUUID, randomBytes, createCipheriv, createDecipheriv, scrypt } from 'crypto';
+import { getEncryptionKey } from '../utils/encryption-key';
 import { promisify } from 'util';
 import { Pool } from 'pg';
 import LRU from 'lru-cache';
@@ -28,7 +29,7 @@ class StorageService {
   });
   private pendingInvalidations = new Set<string>();
   private primingLocks = new Set<string>();
-  private encryptionKey = process.env.ENCRYPTION_KEY || 'default-key-change-in-production';
+  private encryptionKey: string;
 
   // Initialize missing properties
   private activities: any[] = [];
@@ -37,6 +38,7 @@ class StorageService {
   private activityCounter: number = 0;
 
   constructor() {
+    this.encryptionKey = getEncryptionKey();
     // Initialize batch invalidation
     setInterval(() => {
       this.pendingInvalidations.forEach(key => this.cache.delete(key));
