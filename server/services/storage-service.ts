@@ -417,6 +417,108 @@ class StorageService {
     });
   }
 
+  async handleEmailReply(sender: string, subject: string, body: string): Promise<any> {
+    // Find lead by email
+    const leadQuery = 'SELECT * FROM leads WHERE email = $1';
+    const leadResult = await pool.query(leadQuery, [sender]);
+    const lead = leadResult.rows[0];
+
+    if (!lead) {
+      console.warn(`Received email from non-lead sender: ${sender}`);
+      return { success: false, message: 'Sender is not a lead.' };
+    }
+
+    // Find the campaign this lead is in and update their status
+    const campaignStatusQuery = `
+      UPDATE lead_campaign_status
+      SET status = 'replied'
+      WHERE lead_id = $1 AND status = 'in_progress'
+      RETURNING campaign_id;
+    `;
+    const campaignStatusResult = await pool.query(campaignStatusQuery, [lead.id]);
+    const campaign = campaignStatusResult.rows[0];
+
+    if (!campaign) {
+      console.log(`Lead ${lead.id} replied but was not in an active campaign.`);
+      return { success: true, message: 'Lead not in an active campaign.' };
+    }
+
+    // Get the campaign's goal prompt
+    const campaignQuery = 'SELECT goal_prompt FROM campaigns WHERE id = $1';
+    const campaignResult = await pool.query(campaignQuery, [campaign.campaign_id]);
+    const goalPrompt = campaignResult.rows[0]?.goal_prompt;
+
+    if (!goalPrompt) {
+      console.error(`Campaign ${campaign.campaign_id} has no goal prompt.`);
+      return { success: false, message: 'Campaign has no goal prompt.' };
+    }
+
+    // Here, you would trigger the AI with the goal_prompt, subject, and body.
+    // For now, we'll log it and simulate the action.
+    console.log('--- AI TAKEOVER TRIGGERED ---');
+    console.log(`Lead ID: ${lead.id}`);
+    console.log(`Campaign ID: ${campaign.campaign_id}`);
+    console.log(`Goal: ${goalPrompt}`);
+    console.log(`Subject: ${subject}`);
+    console.log(`Body: ${body}`);
+    console.log('-----------------------------');
+    
+    // In a real implementation, you would use a service to send the AI-generated email.
+    // e.g., await emailService.send(sender, 'Re: ' + subject, ai_response);
+
+    return { success: true, message: 'AI takeover initiated.' };
+  }
+
+  // ============================================================================
+  // CAMPAIGN OPERATIONS
+  // ============================================================================
+
+  async createCampaign(name: string, goal_prompt: string): Promise<any> {
+    const query = `
+      INSERT INTO campaigns (name, goal_prompt)
+      VALUES ($1, $2)
+      RETURNING *;
+    `;
+    const result = await pool.query(query, [name, goal_prompt]);
+    return result.rows[0];
+  }
+
+  async addEmailTemplate(campaignId: string, template: { subject: string, body: string, sequence_order: number, delay_hours: number }): Promise<any> {
+    const { subject, body, sequence_order, delay_hours } = template;
+    const query = `
+      INSERT INTO email_templates (campaign_id, subject, body, sequence_order, delay_hours)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING *;
+    `;
+    const result = await pool.query(query, [campaignId, subject, body, sequence_order, delay_hours]);
+    return result.rows[0];
+  }
+
+  async enrollLeadsInCampaign(campaignId: string, leadIds: string[]): Promise<any> {
+    const enrollments = [];
+    for (const leadId of leadIds) {
+      // Get the first email template to schedule the first touch
+      const firstTemplateQuery = 'SELECT delay_hours FROM email_templates WHERE campaign_id = $1 ORDER BY sequence_order ASC LIMIT 1';
+      const templateResult = await pool.query(firstTemplateQuery, [campaignId]);
+      const delayHours = templateResult.rows[0]?.delay_hours || 24;
+      
+      const nextTouchAt = new Date();
+      nextTouchAt.setHours(nextTouchAt.getHours() + delayHours);
+
+      const query = `
+        INSERT INTO lead_campaign_status (lead_id, campaign_id, status, next_touch_at)
+        VALUES ($1, $2, 'in_progress', $3)
+        ON CONFLICT (lead_id, campaign_id) DO NOTHING
+        RETURNING *;
+      `;
+      const result = await pool.query(query, [leadId, campaignId, nextTouchAt]);
+      if (result.rows[0]) {
+        enrollments.push(result.rows[0]);
+      }
+    }
+    return { success: true, enrolled: enrollments.length };
+  }
+
   // ============================================================================
   // SYSTEM STATISTICS
   // ============================================================================

@@ -1,0 +1,60 @@
+import { Router } from 'express';
+import { storageService } from '../services/storage-service';
+
+const router = Router();
+
+// === CAMPAIGN ROUTES ===
+
+// Create a new campaign
+router.post('/', async (req, res) => {
+  const { name, goal_prompt } = req.body;
+  if (!name || !goal_prompt) {
+    return res.status(400).json({ error: 'Campaign name and goal_prompt are required.' });
+  }
+  try {
+    const campaign = await storageService.createCampaign(name, goal_prompt);
+    res.status(201).json(campaign);
+  } catch (error) {
+    console.error('Failed to create campaign:', error);
+    res.status(500).json({ error: 'Failed to create campaign.' });
+  }
+});
+
+// Add an email template to a campaign
+router.post('/:campaignId/templates', async (req, res) => {
+  const { campaignId } = req.params;
+  const { subject, body, sequence_order, delay_hours } = req.body;
+
+  if (!subject || !body || !sequence_order) {
+    return res.status(400).json({ error: 'Subject, body, and sequence_order are required.' });
+  }
+
+  try {
+    const template = { subject, body, sequence_order, delay_hours };
+    const newTemplate = await storageService.addEmailTemplate(campaignId, template);
+    res.status(201).json(newTemplate);
+  } catch (error) {
+    console.error(`Failed to add template to campaign ${campaignId}:`, error);
+    res.status(500).json({ error: 'Failed to add email template.' });
+  }
+});
+
+// Enroll leads into a campaign
+router.post('/:campaignId/enroll', async (req, res) => {
+  const { campaignId } = req.params;
+  const { leadIds } = req.body;
+
+  if (!leadIds || !Array.isArray(leadIds) || leadIds.length === 0) {
+    return res.status(400).json({ error: 'An array of leadIds is required.' });
+  }
+
+  try {
+    const result = await storageService.enrollLeadsInCampaign(campaignId, leadIds);
+    res.status(200).json(result);
+  } catch (error) {
+    console.error(`Failed to enroll leads in campaign ${campaignId}:`, error);
+    res.status(500).json({ error: 'Failed to enroll leads.' });
+  }
+});
+
+export default router;

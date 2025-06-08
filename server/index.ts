@@ -8,6 +8,12 @@ import { storageService } from './services/storage-service.js';
 import { requestLogger } from './middleware/logger.js';
 import { apiRateLimiter } from './middleware/rate-limit.js';
 import { setupVite, serveStatic } from './vite.js';
+import { campaignSender } from './workers/campaign-sender';
+import campaignRoutes from './routes/campaigns';
+import webhookRoutes from './routes/webhooks';
+
+// Start background workers
+campaignSender.start();
 
 const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -30,6 +36,11 @@ app.use(express.urlencoded({
 // Add our new security middleware first
 app.use(requestLogger);
 app.use(apiRateLimiter);
+
+// Add the campaign and webhook routers
+app.use('/api/campaigns', campaignRoutes);
+app.use('/api/webhooks', webhookRoutes);
+
 
 // CORS configuration
 const allowedOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173'];
