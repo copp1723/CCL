@@ -48,12 +48,24 @@ async function testFixes() {
 
     // Test 5: Get stats (tests database queries)
     console.log('5. Testing stats retrieval...');
-    const stats = await storageService.getStats();
-    console.log('✅ Stats retrieved:', {
-      leads: stats.leads,
-      activities: stats.activities,
-      visitors: stats.visitors
-    });
+  const stats = await storageService.getStats();
+  console.log('✅ Stats retrieved:', {
+    leads: stats.leads,
+    activities: stats.activities,
+    visitors: stats.visitors
+  });
+
+  // Test 6: Wildcard cache invalidation
+  console.log('6. Testing wildcard cache invalidation...');
+  storageService.cache.set('leads:123', { id: '123' });
+  storageService.invalidateCache('leads:*');
+  // wait for batch invalidation to process
+  await new Promise(resolve => setTimeout(resolve, 1100));
+  if (!storageService.cache.has('leads:123')) {
+    console.log('✅ Wildcard invalidation cleared cache entry');
+  } else {
+    console.log('❌ Wildcard invalidation failed');
+  }
 
     console.log('\n🎉 All critical fixes verified successfully!');
     

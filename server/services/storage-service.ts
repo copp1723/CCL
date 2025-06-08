@@ -39,7 +39,7 @@ class StorageService {
   constructor() {
     // Initialize batch invalidation
     setInterval(() => {
-      this.pendingInvalidations.forEach(key => this.cache.delete(key));
+      this.pendingInvalidations.forEach(pattern => this.clearCache(pattern));
       this.pendingInvalidations.clear();
     }, 1000);
 
@@ -494,14 +494,15 @@ class StorageService {
       return;
     }
 
-    const keys = Array.from(this.cache.keys());
-    const regex = new RegExp(pattern.replace('*', '.*'));
+    const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regexPattern = '^' + pattern.split('*').map(escapeRegExp).join('.*') + '$';
+    const regex = new RegExp(regexPattern);
 
-    keys.forEach(key => {
+    for (const key of Array.from(this.cache.keys())) {
       if (regex.test(key)) {
         this.cache.delete(key);
       }
-    });
+    }
   }
 
   // Database initialization
