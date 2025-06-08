@@ -1,4 +1,5 @@
 services:
+  # Web Service (Frontend + Backend)
   - type: web
     name: ccl-app
     runtime: node
@@ -19,6 +20,8 @@ services:
         generateValue: true
       - key: API_KEY
         generateValue: true
+
+      # AI integration
       - key: OPENAI_API_KEY
         value: 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
 
