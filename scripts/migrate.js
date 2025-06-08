@@ -62,6 +62,40 @@ async function migrateDatabase() {
         CREATE INDEX IF NOT EXISTS idx_leads_created_at ON leads(created_at);
         CREATE INDEX IF NOT EXISTS idx_activities_created_at ON activities(created_at);
         CREATE INDEX IF NOT EXISTS idx_visitors_session_id ON visitors(session_id);
+
+      -- Phase 2: Email Campaign & AI Takeover Tables
+      CREATE TABLE IF NOT EXISTS campaigns (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name VARCHAR(255) NOT NULL,
+        goal_prompt TEXT,
+        status VARCHAR(50) DEFAULT 'active',
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS email_templates (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        campaign_id UUID REFERENCES campaigns(id) ON DELETE CASCADE,
+        subject VARCHAR(255) NOT NULL,
+        body TEXT NOT NULL,
+        sequence_order INT NOT NULL,
+        delay_hours INT DEFAULT 24,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE TABLE IF NOT EXISTS lead_campaign_status (
+        lead_id VARCHAR(32) REFERENCES leads(id) ON DELETE CASCADE,
+        campaign_id UUID REFERENCES campaigns(id) ON DELETE CASCADE,
+        current_step INT DEFAULT 0,
+        status VARCHAR(50) DEFAULT 'in_progress', -- e.g., in_progress, replied, completed, unsubscribed
+        next_touch_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW(),
+        PRIMARY KEY (lead_id, campaign_id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_campaign_status ON campaigns(status);
+      CREATE INDEX IF NOT EXISTS idx_lead_campaign_status_next_touch ON lead_campaign_status(next_touch_at);
+      CREATE INDEX IF NOT EXISTS idx_lead_campaign_status_status ON lead_campaign_status(status);
       `;
 
       await pool.query(createTablesQuery);
