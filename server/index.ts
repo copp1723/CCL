@@ -1,6 +1,6 @@
-import express from "express";
+import express, { Request, Response, NextFunction } from "express";
 import { createServer } from "http";
-import { WebSocketServer } from "ws";
+import { WebSocketServer, WebSocket } from "ws";
 import multer from "multer";
 import cors from "cors";
 import { storage } from "./database-storage.js";
@@ -22,7 +22,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 app.use(
   express.json({
     limit: "10mb",
-    verify: (req: any, res, buf) => {
+    verify: (req: Request, res, buf) => {
       if (buf.length > 10 * 1024 * 1024) {
         throw new Error("Request too large");
       }
@@ -46,7 +46,7 @@ app.use("/api/campaigns", campaignRoutes);
 app.use("/api/webhooks", webhookRoutes);
 
 // CORS configuration
-const allowedOrigins = ["http://localhost:5173", "http://127.0.0.1:5173"];
+const allowedOrigins = ["http://localhost:5173", "http://12y7.0.0.1:5173"];
 if (process.env.FRONTEND_URL) {
   allowedOrigins.push(process.env.FRONTEND_URL);
 }
@@ -60,7 +60,7 @@ app.use(
 );
 
 // Security headers
-app.use((req, res, next) => {
+app.use((req: Request, res: Response, next: NextFunction) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
   res.setHeader("X-Frame-Options", "DENY");
   res.setHeader("X-XSS-Protection", "1; mode=block");
@@ -70,7 +70,7 @@ app.use((req, res, next) => {
 });
 
 // Input sanitization middleware
-const sanitizeInput = (req: any, res: any, next: any) => {
+const sanitizeInput = (req: Request, res: Response, next: NextFunction) => {
   const dangerousPatterns = [
     /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
     /javascript:/gi,
@@ -84,7 +84,7 @@ const sanitizeInput = (req: any, res: any, next: any) => {
     /delete\s+from/gi,
   ];
 
-  const sanitize = (obj: any): any => {
+  const sanitize = (obj: unknown): unknown => {
     if (typeof obj === "string") {
       for (const pattern of dangerousPatterns) {
         if (pattern.test(obj)) {
@@ -97,7 +97,7 @@ const sanitizeInput = (req: any, res: any, next: any) => {
       return obj.trim();
     } else if (typeof obj === "object" && obj !== null) {
       for (const key in obj) {
-        obj[key] = sanitize(obj[key]);
+        (obj as { [key: string]: unknown })[key] = sanitize((obj as { [key: string]: unknown })[key]);
       }
     }
     return obj;
@@ -116,7 +116,7 @@ const sanitizeInput = (req: any, res: any, next: any) => {
 
   if (req.query) {
     try {
-      req.query = sanitize(req.query);
+      req.query = sanitize(req.query) as { [key: string]: string };
     } catch (error) {
       return res.status(400).json({
         error: "Invalid query parameters",
@@ -131,7 +131,7 @@ const sanitizeInput = (req: any, res: any, next: any) => {
 app.use(sanitizeInput);
 
 // API Key validation middleware
-const apiKeyAuth = (req: any, res: any, next: any) => {
+const apiKeyAuth = (req: Request, res: Response, next: NextFunction) => {
   const apiKey = req.headers["x-api-key"] || req.query.apiKey;
   const validApiKey = process.env.CCL_API_KEY || process.env.FLEXPATH_API_KEY;
 
@@ -149,7 +149,7 @@ const apiKeyAuth = (req: any, res: any, next: any) => {
 };
 
 // Health check
-app.get("/health", (req, res) => {
+app.get("/health", (req: Request, res: Response) => {
   res.json({
     status: "healthy",
     timestamp: new Date().toISOString(),
@@ -158,7 +158,7 @@ app.get("/health", (req, res) => {
 });
 
 // System stats endpoint (protected)
-app.get("/api/system/stats", apiKeyAuth, async (req, res) => {
+app.get("/api/system/stats", apiKeyAuth, async (req: Request, res: Response) => {
   try {
     // Use the improved storageService for stats
     const stats = await storageService.getStats();
@@ -169,7 +169,7 @@ app.get("/api/system/stats", apiKeyAuth, async (req, res) => {
 });
 
 // Leads endpoints - Using improved storageService
-app.get("/api/leads", async (req, res) => {
+app.get("/api/leads", async (req: Request, res: Response) => {
   try {
     const leads = await storageService.getLeads();
     res.json(leads);
@@ -178,18 +178,18 @@ app.get("/api/leads", async (req, res) => {
   }
 });
 
-app.post("/api/leads", async (req, res) => {
+app.post("/api/leads", async (req: Request, res: Response) => {
   try {
     const { email, phoneNumber, status = "new", leadData } = req.body;
     const lead = await storageService.createLead({ email, phoneNumber, status, leadData });
     res.json({ success: true, data: lead });
-  } catch (error: any) {
-    res.status(500).json({ success: false, error: error.message || "Failed to create lead" });
+  } catch (error: unknown) {
+    res.status(500).json({ success: false, error: (error as Error).message || "Failed to create lead" });
   }
 });
 
 // Activities endpoint - Using improved storageService
-app.get("/api/activities", async (req, res) => {
+app.get("/api/activities", async (req: Request, res: Response) => {
   try {
     const activities = await storageService.getActivities(20);
     res.json(activities);
@@ -199,7 +199,7 @@ app.get("/api/activities", async (req, res) => {
 });
 
 // Agents endpoint
-app.get("/api/agents", async (req, res) => {
+app.get("/api/agents", async (req: Request, res: Response) => {
   try {
     const agents = await storage.getAgents();
     res.json(agents);
@@ -209,7 +209,7 @@ app.get("/api/agents", async (req, res) => {
 });
 
 // Chat endpoint with concise Cathy responses
-app.post("/api/chat", async (req, res) => {
+app.post("/api/chat", async (req: Request, res: Response) => {
   try {
     const { message } = req.body;
 
@@ -263,7 +263,7 @@ app.post("/api/chat", async (req, res) => {
 });
 
 // CSV upload endpoint
-app.post("/api/bulk-email/send", upload.single("csvFile"), async (req, res) => {
+app.post("/api/bulk-email/send", upload.single("csvFile"), async (req: Request, res: Response) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, error: "No CSV file provided" });
@@ -279,7 +279,7 @@ app.post("/api/bulk-email/send", upload.single("csvFile"), async (req, res) => {
     for (let i = 1; i < lines.length; i++) {
       const values = lines[i].split(",");
       if (values.length >= headers.length) {
-        const leadData: any = {};
+        const leadData: { [key: string]: string } = {};
         headers.forEach((header, index) => {
           leadData[header] = values[index]?.trim();
         });
@@ -315,7 +315,7 @@ app.post("/api/bulk-email/send", upload.single("csvFile"), async (req, res) => {
 });
 
 // Campaign endpoints
-app.get("/api/bulk-email/campaigns", async (req, res) => {
+app.get("/api/bulk-email/campaigns", async (req: Request, res: Response) => {
   try {
     res.json({
       success: true,
@@ -337,7 +337,7 @@ app.get("/api/bulk-email/campaigns", async (req, res) => {
   }
 });
 
-app.get("/api/bulk-email/settings", async (req, res) => {
+app.get("/api/bulk-email/settings", async (req: Request, res: Response) => {
   try {
     res.json({
       success: true,
@@ -364,10 +364,10 @@ const server = createServer(app);
 // Simple WebSocket implementation
 const wss = new WebSocketServer({ server, path: "/ws/chat" });
 
-wss.on("connection", ws => {
+wss.on("connection", (ws: WebSocket) => {
   console.log("[WebSocket] New connection established");
 
-  ws.on("message", async data => {
+  ws.on("message", async (data: Buffer) => {
     try {
       const message = JSON.parse(data.toString());
 
