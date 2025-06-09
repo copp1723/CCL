@@ -185,9 +185,23 @@ async function setupDatabase() {
 async function setupFallbackStorage() {
   console.log(`🔄 Initializing fallback storage...`);
   
+  // Enhanced fallback storage with persistence simulation
   const fallbackStorage = {
     leads: [],
     activities: [],
+    campaigns: [
+      {
+        id: "demo_campaign_1",
+        name: "Welcome Series",
+        status: "active",
+        totalRecipients: 150,
+        emailsSent: 145,
+        openRate: 0.35,
+        clickRate: 0.12,
+        createdAt: new Date().toISOString(),
+        goal_prompt: "Get customers excited about their auto financing options"
+      }
+    ],
     agents: [
       {
         id: "agent_1",
@@ -210,14 +224,43 @@ async function setupFallbackStorage() {
     ],
     
     async createLead(data: any) {
-      const lead = { id: `lead_${Date.now()}`, createdAt: new Date().toISOString(), ...data };
+      const lead = { 
+        id: `lead_${Date.now()}`, 
+        createdAt: new Date().toISOString(), 
+        ...data 
+      };
       this.leads.push(lead);
+      
+      // Auto-create activity
+      await this.createActivity(
+        "lead_created", 
+        `New lead added: ${data.email}`,
+        "data-ingestion",
+        { email: data.email, source: "csv_upload" }
+      );
+      
       return lead;
     },
     
     async getLeads() { return this.leads; },
     async getActivities() { return this.activities; },
     async getAgents() { return this.agents; },
+    async getCampaigns() { return this.campaigns; },
+    
+    async createCampaign(data: any) {
+      const campaign = {
+        id: `campaign_${Date.now()}`,
+        createdAt: new Date().toISOString(),
+        status: "active",
+        totalRecipients: 0,
+        emailsSent: 0,
+        openRate: 0,
+        clickRate: 0,
+        ...data
+      };
+      this.campaigns.push(campaign);
+      return campaign;
+    },
     
     async createActivity(type: string, description: string, agentType?: string, metadata?: any) {
       const activity = {
@@ -237,6 +280,7 @@ async function setupFallbackStorage() {
         leads: this.leads.length,
         activities: this.activities.length,
         agents: this.agents.length,
+        campaigns: this.campaigns.length,
         uptime: Math.round(process.uptime()),
         memory: process.memoryUsage(),
         timestamp: new Date().toISOString()
@@ -245,7 +289,7 @@ async function setupFallbackStorage() {
   };
   
   (global as any).storage = fallbackStorage;
-  console.log(`✅ Fallback storage initialized`);
+  console.log(`✅ Fallback storage initialized with enhanced features`);
 }
 
 // 🤖 Agent setup
@@ -329,6 +373,15 @@ async function setupRoutes() {
   try {
     const storage = (global as any).storage;
     
+    // Load prompt testing routes
+    try {
+      const { default: promptTestingRoutes } = await import("./routes/prompt-testing.js");
+      app.use("/api/test", promptTestingRoutes);
+      console.log(`✅ Prompt testing routes loaded`);
+    } catch (error) {
+      console.warn(`⚠️ Prompt testing routes failed to load:`, error);
+    }
+    
     // System stats endpoint (protected)
     app.get("/api/system/stats", apiKeyAuth, async (req: Request, res: Response) => {
       try {
@@ -379,6 +432,26 @@ async function setupRoutes() {
         res.json(agents);
       } catch (error) {
         res.status(500).json({ success: false, error: "Failed to fetch agents" });
+      }
+    });
+
+    // Campaign endpoints
+    app.get("/api/campaigns", async (req: Request, res: Response) => {
+      try {
+        const campaigns = await storage.getCampaigns();
+        res.json(campaigns);
+      } catch (error) {
+        res.status(500).json({ success: false, error: "Failed to fetch campaigns" });
+      }
+    });
+
+    app.post("/api/campaigns", async (req: Request, res: Response) => {
+      try {
+        const { name, goal_prompt } = req.body;
+        const campaign = await storage.createCampaign({ name, goal_prompt });
+        res.json({ success: true, data: campaign });
+      } catch (error) {
+        res.status(500).json({ success: false, error: "Failed to create campaign" });
       }
     });
 
@@ -475,7 +548,7 @@ async function setupRoutes() {
       }
     });
     
-    // CSV upload endpoint
+    // CSV upload endpoint with enhanced campaign integration
     app.post("/api/bulk-email/send", upload.single("csvFile"), async (req: Request, res: Response) => {
       try {
         if (!req.file) {
@@ -487,6 +560,9 @@ async function setupRoutes() {
         const headers = lines[0].split(",").map(h => h.trim().toLowerCase());
 
         let processed = 0;
+        const campaignId = `campaign_${Date.now()}`;
+        const processedLeads = [];
+
         for (let i = 1; i < lines.length; i++) {
           const values = lines[i].split(",");
           if (values.length >= headers.length) {
@@ -496,21 +572,50 @@ async function setupRoutes() {
             });
 
             if (leadData.email) {
-              await storage.createLead({
+              const newLead = await storage.createLead({
                 email: leadData.email,
                 phoneNumber: leadData.phone || leadData.phonenumber,
                 status: "new",
-                leadData,
+                leadData: {
+                  firstName: leadData.firstname || leadData.first_name || leadData.name?.split(' ')[0],
+                  lastName: leadData.lastname || leadData.last_name || leadData.name?.split(' ')[1],
+                  vehicleInterest: leadData.vehicleinterest || leadData.vehicle_interest,
+                  creditScore: leadData.creditscore || leadData.credit_score,
+                  source: "csv_upload",
+                  uploadTimestamp: new Date().toISOString(),
+                  campaignId
+                }
               });
+              processedLeads.push(newLead);
               processed++;
             }
           }
         }
 
+        // Create activity with better metadata
+        await storage.createActivity(
+          "csv_upload",
+          `CSV upload completed - ${processed} leads processed from ${req.file.originalname}`,
+          "data-ingestion",
+          { 
+            campaignId, 
+            processed, 
+            fileName: req.file.originalname,
+            fileSize: req.file.size,
+            totalRows: lines.length - 1,
+            successRate: ((processed / (lines.length - 1)) * 100).toFixed(1) + "%"
+          }
+        );
+
         res.json({
           success: true,
-          data: { processed },
-          message: `Successfully processed ${processed} leads`,
+          data: { 
+            processed, 
+            campaignId,
+            leads: processedLeads,
+            fileName: req.file.originalname 
+          },
+          message: `Successfully processed ${processed} leads. Ready for campaign use!`,
         });
       } catch (error) {
         console.error("CSV upload error:", error);
