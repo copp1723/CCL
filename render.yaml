@@ -1,7 +1,7 @@
 services:
-  # Web Service (Frontend + Backend) - ROBUST DEPLOYMENT
+  # CCL Agent System - Lean & Mean Architecture
   - type: web
-    name: ccl-app
+    name: ccl-agent-system
     runtime: node
     plan: starter
     buildCommand: npm install && npm run build
@@ -20,25 +20,10 @@ services:
         generateValue: true
       - key: API_KEY
         generateValue: true
-
-      # AI integration
       - key: OPENAI_API_KEY
         value: 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
-
-      # Robust deployment settings
-      - key: RENDER_DEPLOYMENT
-        value: true
-      - key: GRACEFUL_STARTUP
-        value: true
-      - key: SERVICE_TIMEOUT_MS
-        value: 10000
-      - key: DB_CONNECTION_TIMEOUT_MS
-        value: 5000
-      - key: MAX_STARTUP_RETRIES
-        value: 3
 
 databases:
   - name: ccl-database
     databaseName: ccl_production
     user: ccl_user
-    # The 'plan' key is removed. You will select the plan in the Render UI.
