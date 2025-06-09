@@ -162,109 +162,50 @@ export const agentActivity = pgTable("agent_activity", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-// Insert schemas for system tables
-export const insertSystemLeadSchema = createInsertSchema(systemLeads, {
-  leadData: z.any(),
-}).omit({
-  createdAt: true,
-});
+// Insert schemas for system tables - using Drizzle types directly
+// Note: Zod schemas removed to avoid type inference issues
 
-export const insertSystemActivitySchema = createInsertSchema(systemActivities, {
-  metadata: z.any().optional(),
-}).omit({
-  timestamp: true,
-});
+// Insert schemas - using Drizzle types directly
+// Note: Zod schemas removed to avoid type inference issues
 
-export const insertSystemAgentSchema = createInsertSchema(systemAgents).omit({
-  lastActivity: true,
-});
+// Campaign schedule schemas - using Drizzle types directly
+// Note: Zod schemas removed to avoid type inference issues
 
-// Insert schemas
-export const insertVisitorSchema = createInsertSchema(visitors, {
-  metadata: z.any().optional(),
-}).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertChatSessionSchema = createInsertSchema(chatSessions, {
-  messages: z.any().optional(),
-}).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertEmailCampaignSchema = createInsertSchema(emailCampaigns).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertLeadSchema = createInsertSchema(leads, {
-  leadData: z.any(),
-  dealerResponse: z.any().optional(),
-}).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertAgentActivitySchema = createInsertSchema(agentActivity).omit({
-  id: true,
-  createdAt: true,
-});
-
-// Campaign schedule schemas
-export const insertCampaignScheduleSchema = createInsertSchema(campaignSchedules, {
-  attempts: z.any(),
-}).omit({
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertCampaignAttemptSchema = createInsertSchema(campaignAttempts, {
-  variables: z.any().optional(),
-}).omit({
-  createdAt: true,
-});
-
-// Types for system tables
-export type InsertSystemLead = z.infer<typeof insertSystemLeadSchema>;
+// Types for system tables - using Drizzle inference directly
+export type InsertSystemLead = typeof systemLeads.$inferInsert;
 export type SystemLead = typeof systemLeads.$inferSelect;
 
-export type InsertSystemActivity = z.infer<typeof insertSystemActivitySchema>;
+export type InsertSystemActivity = typeof systemActivities.$inferInsert;
 export type SystemActivity = typeof systemActivities.$inferSelect;
 
-export type InsertSystemAgent = z.infer<typeof insertSystemAgentSchema>;
+export type InsertSystemAgent = typeof systemAgents.$inferInsert;
 export type SystemAgent = typeof systemAgents.$inferSelect;
 
-// Campaign types
-export type InsertCampaignSchedule = z.infer<typeof insertCampaignScheduleSchema>;
+// Campaign types - using Drizzle inference directly
+export type InsertCampaignSchedule = typeof campaignSchedules.$inferInsert;
 export type CampaignSchedule = typeof campaignSchedules.$inferSelect;
 
-export type InsertCampaignAttempt = z.infer<typeof insertCampaignAttemptSchema>;
+export type InsertCampaignAttempt = typeof campaignAttempts.$inferInsert;
 export type CampaignAttempt = typeof campaignAttempts.$inferSelect;
 
-// Insert schema for users
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-});
+// Insert schema for users - using Drizzle types directly
+// Note: Zod schemas removed to avoid type inference issues
 
-// Types
-export type InsertUser = z.infer<typeof insertUserSchema>;
+// Types - using Drizzle inference directly
+export type InsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 
-export type InsertVisitor = z.infer<typeof insertVisitorSchema>;
+export type InsertVisitor = typeof visitors.$inferInsert;
 export type Visitor = typeof visitors.$inferSelect;
 
-export type InsertChatSession = z.infer<typeof insertChatSessionSchema>;
+export type InsertChatSession = typeof chatSessions.$inferInsert;
 export type ChatSession = typeof chatSessions.$inferSelect;
 
-export type InsertEmailCampaign = z.infer<typeof insertEmailCampaignSchema>;
+export type InsertEmailCampaign = typeof emailCampaigns.$inferInsert;
 export type EmailCampaign = typeof emailCampaigns.$inferSelect;
 
-export type InsertLead = z.infer<typeof insertLeadSchema>;
+export type InsertLead = typeof leads.$inferInsert;
 export type Lead = typeof leads.$inferSelect;
 
-export type InsertAgentActivity = z.infer<typeof insertAgentActivitySchema>;
+export type InsertAgentActivity = typeof agentActivity.$inferInsert;
 export type AgentActivity = typeof agentActivity.$inferSelect;
