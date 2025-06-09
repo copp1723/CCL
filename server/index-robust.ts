@@ -397,11 +397,11 @@ async function setupRoutes() {
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                model: "gpt-4",
+                model: "gpt-3.5-turbo",
                 messages: [
                   {
                     role: "system",
-                    content: "You are Cathy from Complete Car Loans. Keep responses under 50 words. Be warm but concise."
+                    content: "You are Cathy from Complete Car Loans. You help people get auto financing regardless of credit history. Be warm, helpful, and professional. Keep responses under 50 words. Ask relevant questions about their car needs, budget, and timeline. Guide them toward applying."
                   },
                   { role: "user", content: message },
                 ],
