@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { storage } from '../database-storage';
+import { storage } from '../storage';
 import { handleApiError } from '../utils/error-handler';
 import { sanitizeEmail, sanitizeJsonData } from '../utils/input-sanitizer';
 

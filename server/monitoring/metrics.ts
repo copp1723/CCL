@@ -1,4 +1,4 @@
-import { storage } from "../database-storage";
+import { storage } from "../storage";
 import config from "../config/environment";
 
 export interface SystemMetrics {

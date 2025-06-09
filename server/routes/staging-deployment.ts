@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import config from '../config/environment';
 import emailService from '../services/email-onerylie';
-import { storage } from '../database-storage';
+import { storage } from '../storage';
 import { handleApiError } from '../utils/error-handler';
 
 const router = Router();

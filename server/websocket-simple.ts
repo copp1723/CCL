@@ -1,6 +1,6 @@
 import { WebSocketServer, WebSocket } from 'ws';
 import { Server } from 'http';
-import { storage } from './database-storage.js';
+import { storage } from './storage.js';
 
 interface ChatWebSocket extends WebSocket {
   sessionId?: string;

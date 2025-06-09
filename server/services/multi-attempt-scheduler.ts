@@ -3,7 +3,7 @@ import { campaignSchedules, campaignAttempts, systemLeads } from '@shared/schema
 import { eq, and, lte, gte } from 'drizzle-orm';
 import emailService from './email-onerylie';
 import { emailTemplateManager } from './email-campaign-templates';
-import { storage } from '../database-storage';
+import { storage } from '../storage';
 
 export interface AttemptConfig {
   attemptNumber: number;
