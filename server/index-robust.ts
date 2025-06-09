@@ -153,7 +153,7 @@ async function setupDatabase() {
     console.log(`🔌 Attempting database connection...`);
     
     // Import database modules only when needed
-    const { db } = await import("./db-render-fix.js");
+    const { db } = await import("./db-postgres.js");
     const { storage } = await import("./database-storage.js");
     
     // Test database connection with timeout
