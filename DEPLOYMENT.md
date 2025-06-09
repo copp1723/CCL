@@ -25,8 +25,8 @@ We created a **two-phase deployment strategy**:
 
 ## 📁 **Key Files Modified**
 
-### `server/index-deploy.ts` (NEW - Robust Server)
-- **Immediate port binding** to satisfy Render's requirements
+### `server/index.ts` (Unified Server)
+- **Immediate port binding** for Render deployments
 - **Graceful error handling** for all services
 - **Database connection testing** with timeouts
 - **Service isolation** - failures don't crash the server
@@ -35,8 +35,8 @@ We created a **two-phase deployment strategy**:
 ### `package.json` (Updated Scripts)
 ```json
 {
-  "build": "npx vite build && npx esbuild server/index-deploy.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
-  "start": "npx cross-env NODE_ENV=production node dist/index-deploy.js"
+  "build": "npx vite build && npx esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+  "start": "cross-env NODE_ENV=production node dist/index.js"
 }
 ```
 
@@ -146,7 +146,7 @@ curl https://your-app.onrender.com/api/system/status
 ## 🛠 **Troubleshooting**
 
 ### Issue: "Port not detected"
-**Solution**: The new `index-deploy.ts` fixes this by binding immediately.
+**Solution**: The unified `index.ts` binds immediately to satisfy Render.
 
 ### Issue: Database connection errors
 **Solution**: Non-critical now. Server runs with basic functionality.

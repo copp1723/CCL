@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { emailTemplateManager } from '../services/email-campaign-templates';
 import emailService from '../services/email-onerylie';
-import { storage } from '../database-storage';
+import { storage } from '../storage';
 import { handleApiError } from '../utils/error-handler';
 import { sanitizeEmail, sanitizeJsonData } from '../utils/input-sanitizer';
 import { multiAttemptScheduler } from '../services/multi-attempt-scheduler';
