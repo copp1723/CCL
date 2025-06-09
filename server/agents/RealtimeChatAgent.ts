@@ -1,21 +1,20 @@
-
-import { Agent, tool } from '@openai/agents';
-import { storage } from '../storage';
-import type { InsertChatSession } from '@shared/schema';
-import { 
+import { Agent, tool } from "@openai/agents";
+import { storage } from "../storage";
+import type { InsertChatSession } from "@shared/schema";
+import {
   CATHY_SYSTEM_PROMPT,
   CATHY_PERSONA_CONFIG,
-  INTERACTION_TEMPLATES
-} from './cathy-system-prompt';
-import { 
+  INTERACTION_TEMPLATES,
+} from "./cathy-system-prompt";
+import {
   formatResponseByTone,
   personalizeGreeting,
-  generateNextStepGuidance
-} from './cathy-response-formatter';
+  generateNextStepGuidance,
+} from "./cathy-response-formatter";
 
 export interface ChatMessage {
   id: string;
-  type: 'user' | 'agent';
+  type: "user" | "agent";
   content: string;
   timestamp: Date;
 }
@@ -37,20 +36,20 @@ export class RealtimeChatAgent {
 
   private createHandleUserMessageTool() {
     return tool({
-      name: 'handle_user_message',
-      description: 'Process and respond to user messages with Cathy\'s empathetic personality',
+      name: "handle_user_message",
+      description: "Process and respond to user messages with Cathy's empathetic personality",
       execute: async (params: { sessionId: string; message: string; visitorId?: number }) => {
         try {
           const { sessionId, message, visitorId } = params;
-          
+
           // Get or create chat session
           let chatSession = await storage.getChatSessionBySessionId(sessionId);
           if (!chatSession) {
             const newSession: InsertChatSession = {
               sessionId,
               visitorId: visitorId || null,
-              agentType: 'realtime_chat',
-              status: 'active',
+              agentType: "realtime_chat",
+              status: "active",
               messages: [],
             };
             chatSession = await storage.createChatSession(newSession);
@@ -58,15 +57,15 @@ export class RealtimeChatAgent {
 
           // Analyze conversation context
           const messages = (chatSession.messages as ChatMessage[]) || [];
-          const isFirstMessage = messages.filter(m => m.type === 'user').length === 0;
-          
+          const isFirstMessage = messages.filter(m => m.type === "user").length === 0;
+
           // Check for phone number
           const phoneRegex = /(?:\+1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/;
           const phoneMatch = message.match(phoneRegex);
-          
-          let response = '';
+
+          let response = "";
           let shouldHandoff = false;
-          
+
           if (phoneMatch) {
             response = this.generatePhoneNumberResponse();
             shouldHandoff = true;
@@ -84,11 +83,12 @@ export class RealtimeChatAgent {
             sessionId,
           };
         } catch (error) {
-          console.error('[RealtimeChatAgent] Error handling user message:', error);
+          console.error("[RealtimeChatAgent] Error handling user message:", error);
           return {
             success: false,
-            error: error instanceof Error ? error.message : 'Unknown error',
-            response: "I'm so sorry, but I'm experiencing some technical difficulties right now. This is frustrating for both of us! Could you give me just a moment to get this sorted out?",
+            error: error instanceof Error ? error.message : "Unknown error",
+            response:
+              "I'm so sorry, but I'm experiencing some technical difficulties right now. This is frustrating for both of us! Could you give me just a moment to get this sorted out?",
           };
         }
       },
@@ -97,94 +97,132 @@ export class RealtimeChatAgent {
 
   private generateWelcomeResponse(message: string): string {
     const lowerMsg = message.toLowerCase();
-    
+
     // Detect emotional tone and respond with empathy
-    if (lowerMsg.includes('frustrated') || lowerMsg.includes('denied') || lowerMsg.includes('rejected')) {
-      return formatResponseByTone('negative', 
+    if (
+      lowerMsg.includes("frustrated") ||
+      lowerMsg.includes("denied") ||
+      lowerMsg.includes("rejected")
+    ) {
+      return formatResponseByTone(
+        "negative",
         "I completely understand how frustrating that experience must have been. You're not alone in this - I work specifically with people in all credit situations, and I've helped many customers who felt exactly like you do right now. Let's see what options we can explore together. What's been your biggest concern about getting approved?"
       );
     }
-    
-    if (lowerMsg.includes('urgent') || lowerMsg.includes('need asap') || lowerMsg.includes('quickly')) {
-      return formatResponseByTone('progress',
+
+    if (
+      lowerMsg.includes("urgent") ||
+      lowerMsg.includes("need asap") ||
+      lowerMsg.includes("quickly")
+    ) {
+      return formatResponseByTone(
+        "progress",
         "I hear the urgency in your message, and I'm here to help you move quickly. I specialize in getting people pre-approved efficiently, often within minutes. Our soft credit check won't impact your score, and we work with all credit situations. What's driving the timeline - did you find a vehicle you love?"
       );
     }
-    
-    if (lowerMsg.includes('bad credit') || lowerMsg.includes('poor credit') || lowerMsg.includes('credit problems')) {
-      return formatResponseByTone('positive',
+
+    if (
+      lowerMsg.includes("bad credit") ||
+      lowerMsg.includes("poor credit") ||
+      lowerMsg.includes("credit problems")
+    ) {
+      return formatResponseByTone(
+        "positive",
         "I'm so glad you reached out! I want you to know that I work exclusively with customers in all credit situations - that's exactly my specialty. Many of my most successful customers started exactly where you are. Credit challenges don't define your options; they just help me find the right path for you. What kind of vehicle are you hoping to get?"
       );
     }
-    
+
     // Default warm welcome using Cathy templates
-    return INTERACTION_TEMPLATES.firstContact.greeting.replace('{name}', 'there') + '\n\n' + 
-           INTERACTION_TEMPLATES.firstContact.followUp;
+    return (
+      INTERACTION_TEMPLATES.firstContact.greeting.replace("{name}", "there") +
+      "\n\n" +
+      INTERACTION_TEMPLATES.firstContact.followUp
+    );
   }
 
   private generateContextualResponse(message: string, conversationHistory: ChatMessage[]): string {
     const lowerMsg = message.toLowerCase();
-    
+
     // Handle emotional states with empathy
-    if (lowerMsg.includes('confused') || lowerMsg.includes("don't understand")) {
-      return formatResponseByTone('negative',
+    if (lowerMsg.includes("confused") || lowerMsg.includes("don't understand")) {
+      return formatResponseByTone(
+        "negative",
         "I can absolutely see how this might feel overwhelming - car financing can seem complicated, but it doesn't have to be! Let me break this down in simple terms for you. Think of me as your personal guide through this process. What specific part would you like me to explain more clearly?"
       );
     }
-    
-    if (lowerMsg.includes('worried') || lowerMsg.includes('nervous') || lowerMsg.includes('scared')) {
-      return formatResponseByTone('negative',
+
+    if (
+      lowerMsg.includes("worried") ||
+      lowerMsg.includes("nervous") ||
+      lowerMsg.includes("scared")
+    ) {
+      return formatResponseByTone(
+        "negative",
         "Those feelings are completely normal, and I appreciate you sharing that with me. Many of my customers felt exactly the same way when they first reached out. The good news? You've already taken the hardest step by starting this conversation. I'm going to walk you through everything step by step, and there are no surprises or pressure here. What's your biggest worry right now?"
       );
     }
-    
+
     // Handle rate and payment inquiries with relationship building
-    if (lowerMsg.includes('rate') || lowerMsg.includes('payment') || lowerMsg.includes('monthly')) {
-      return formatResponseByTone('positive',
+    if (lowerMsg.includes("rate") || lowerMsg.includes("payment") || lowerMsg.includes("monthly")) {
+      return formatResponseByTone(
+        "positive",
         "That's exactly the right question to ask! Your rate and payment will depend on a few factors like your credit profile, the vehicle you choose, and loan term. The great news is that our current rates start as low as 3.9% APR for qualified customers, and we have programs for all credit situations. Our soft credit check takes just a moment and won't impact your score at all. Would you like me to check what specific rate and payment you'd qualify for?"
       );
     }
-    
+
     // Handle application/process questions
-    if (lowerMsg.includes('apply') || lowerMsg.includes('application') || lowerMsg.includes('process')) {
-      return formatResponseByTone('progress',
+    if (
+      lowerMsg.includes("apply") ||
+      lowerMsg.includes("application") ||
+      lowerMsg.includes("process")
+    ) {
+      return formatResponseByTone(
+        "progress",
         "I love that you're ready to move forward! The process is actually much simpler than most people expect. We start with a quick, soft credit check that won't affect your score, then I can show you exactly what you qualify for. The whole pre-approval usually takes less than 2 minutes. Once you're pre-approved, you'll know your exact buying power before you even look at vehicles. Should we get your pre-approval started?"
       );
     }
-    
+
     // Handle vehicle-specific questions
-    if (lowerMsg.includes('car') || lowerMsg.includes('truck') || lowerMsg.includes('suv') || lowerMsg.includes('vehicle')) {
-      return formatResponseByTone('positive',
+    if (
+      lowerMsg.includes("car") ||
+      lowerMsg.includes("truck") ||
+      lowerMsg.includes("suv") ||
+      lowerMsg.includes("vehicle")
+    ) {
+      return formatResponseByTone(
+        "positive",
         "It sounds like you're getting excited about your next vehicle - I love that energy! Whether you're looking at something specific or still exploring options, getting pre-approved first is always the smart move. It gives you real negotiating power and helps you shop with confidence. Plus, our financing often beats dealer rates. Have you been looking at anything particular, or are you still in the browsing stage?"
       );
     }
-    
+
     // Default response that builds connection
-    return formatResponseByTone('progress',
+    return formatResponseByTone(
+      "progress",
       "I want to make sure I'm giving you exactly the help you need. Every customer's situation is unique, and I believe in taking the time to understand yours. Our soft credit check process is completely free and won't impact your credit score - it just helps me see what options will work best for you. What would be most helpful for you to know right now?"
     );
   }
 
   private generatePhoneNumberResponse(): string {
-    return formatResponseByTone('progress',
+    return formatResponseByTone(
+      "progress",
       "Perfect! Thank you for trusting me with that information. I'm starting your soft credit check right now - this will just take a moment and won't impact your credit score at all. I'm really excited to see what great options we can get you approved for! You're taking exactly the right step here."
     );
   }
 
   private createHandoffToCreditCheckTool() {
     return tool({
-      name: 'handoff_to_credit_check',
-      description: 'Hand off to credit check agent with warm transition',
+      name: "handoff_to_credit_check",
+      description: "Hand off to credit check agent with warm transition",
       execute: async (params: { sessionId: string; phoneNumber: string; visitorId?: number }) => {
         try {
           const { sessionId, phoneNumber, visitorId } = params;
-          
+
           // Update chat session status
           const chatSession = await storage.getChatSessionBySessionId(sessionId);
           if (chatSession) {
             await storage.updateChatSession(chatSession.id, {
-              status: 'completed',
-              agentType: 'credit_check_handoff',
+              status: "completed",
+              agentType: "credit_check_handoff",
             });
           }
 
@@ -197,29 +235,29 @@ export class RealtimeChatAgent {
 
           // Log handoff activity
           await storage.createAgentActivity({
-            agentType: 'realtime_chat',
-            action: 'handoff_to_credit_check',
-            description: 'Cathy successfully connected customer to credit check with warm handoff',
+            agentType: "realtime_chat",
+            action: "handoff_to_credit_check",
+            description: "Cathy successfully connected customer to credit check with warm handoff",
             targetId: sessionId,
-            metadata: { 
+            metadata: {
               phoneNumber: this.formatPhoneNumber(phoneNumber),
               visitorId,
             },
           });
 
           console.log(`[RealtimeChatAgent] Cathy handed off session ${sessionId} to credit check`);
-          
+
           return {
             success: true,
             handoffComplete: true,
             phoneNumber: this.formatPhoneNumber(phoneNumber),
-            message: 'Warm handoff to credit check completed',
+            message: "Warm handoff to credit check completed",
           };
         } catch (error) {
-          console.error('[RealtimeChatAgent] Error during handoff:', error);
+          console.error("[RealtimeChatAgent] Error during handoff:", error);
           return {
             success: false,
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: error instanceof Error ? error.message : "Unknown error",
           };
         }
       },
@@ -228,14 +266,14 @@ export class RealtimeChatAgent {
 
   private createRecoverAbandonedApplicationTool() {
     return tool({
-      name: 'recover_abandoned_application',
-      description: 'Help recover an abandoned application with empathy and understanding',
+      name: "recover_abandoned_application",
+      description: "Help recover an abandoned application with empathy and understanding",
       execute: async (params: { returnToken?: string; emailHash?: string }) => {
         try {
           const { returnToken, emailHash } = params;
-          
+
           let visitor = null;
-          
+
           if (returnToken) {
             visitor = await storage.getVisitorByReturnToken(returnToken);
           } else if (emailHash) {
@@ -245,7 +283,8 @@ export class RealtimeChatAgent {
           if (!visitor) {
             return {
               success: false,
-              message: "I'd love to help you find your application! Sometimes our system takes a moment to locate things. Could you provide your email address or phone number? I'll get you back on track right away.",
+              message:
+                "I'd love to help you find your application! Sometimes our system takes a moment to locate things. Could you provide your email address or phone number? I'll get you back on track right away.",
             };
           }
 
@@ -253,21 +292,22 @@ export class RealtimeChatAgent {
           if (returnToken && visitor.returnTokenExpiry && new Date() > visitor.returnTokenExpiry) {
             return {
               success: false,
-              message: "I see your return link has expired for security reasons - that's actually a good thing because it means your information is protected! No worries at all though. I can help you pick up right where you left off. Could you provide your phone number so I can locate your information?",
+              message:
+                "I see your return link has expired for security reasons - that's actually a good thing because it means your information is protected! No worries at all though. I can help you pick up right where you left off. Could you provide your phone number so I can locate your information?",
             };
           }
 
           const stepMessage = this.getEmpathethicRecoveryMessage(visitor.abandonmentStep || 1);
-          
+
           // Log recovery activity
           await storage.createAgentActivity({
-            agentType: 'realtime_chat',
-            action: 'application_recovery',
-            description: 'Cathy provided empathetic application recovery assistance',
+            agentType: "realtime_chat",
+            action: "application_recovery",
+            description: "Cathy provided empathetic application recovery assistance",
             targetId: visitor.id.toString(),
-            metadata: { 
+            metadata: {
               abandonmentStep: visitor.abandonmentStep,
-              recoveryMethod: returnToken ? 'return_token' : 'email_hash',
+              recoveryMethod: returnToken ? "return_token" : "email_hash",
             },
           });
 
@@ -278,11 +318,12 @@ export class RealtimeChatAgent {
             abandonmentStep: visitor.abandonmentStep,
           };
         } catch (error) {
-          console.error('[RealtimeChatAgent] Error recovering application:', error);
+          console.error("[RealtimeChatAgent] Error recovering application:", error);
           return {
             success: false,
-            error: error instanceof Error ? error.message : 'Unknown error',
-            message: "I'm having a little trouble accessing your information right now, but don't worry - this happens sometimes! Let me help you in a different way. I can get you set up fresh in just a couple of minutes, or if you prefer, I can connect you with one of our specialists. What would work better for you?",
+            error: error instanceof Error ? error.message : "Unknown error",
+            message:
+              "I'm having a little trouble accessing your information right now, but don't worry - this happens sometimes! Let me help you in a different way. I can get you set up fresh in just a couple of minutes, or if you prefer, I can connect you with one of our specialists. What would work better for you?",
           };
         }
       },
@@ -291,10 +332,10 @@ export class RealtimeChatAgent {
 
   private formatPhoneNumber(phone: string): string {
     // Convert to E.164 format
-    const cleaned = phone.replace(/\D/g, '');
+    const cleaned = phone.replace(/\D/g, "");
     if (cleaned.length === 10) {
       return `+1${cleaned}`;
-    } else if (cleaned.length === 11 && cleaned.startsWith('1')) {
+    } else if (cleaned.length === 11 && cleaned.startsWith("1")) {
       return `+${cleaned}`;
     }
     return phone; // Return original if we can't format
@@ -309,7 +350,11 @@ export class RealtimeChatAgent {
     return messages[step as keyof typeof messages] || messages[1];
   }
 
-  async handleChatMessage(sessionId: string, message: string, visitorId?: number): Promise<{
+  async handleChatMessage(
+    sessionId: string,
+    message: string,
+    visitorId?: number
+  ): Promise<{
     success: boolean;
     response: string;
     shouldHandoff?: boolean;
@@ -323,8 +368,8 @@ export class RealtimeChatAgent {
         const newSession: InsertChatSession = {
           sessionId,
           visitorId: visitorId || null,
-          agentType: 'realtime_chat',
-          status: 'active',
+          agentType: "realtime_chat",
+          status: "active",
           messages: [],
         };
         chatSession = await storage.createChatSession(newSession);
@@ -334,24 +379,24 @@ export class RealtimeChatAgent {
       const currentMessages = (chatSession.messages as ChatMessage[]) || [];
       const userMessage: ChatMessage = {
         id: Date.now().toString(),
-        type: 'user',
+        type: "user",
         content: message,
         timestamp: new Date(),
       };
       currentMessages.push(userMessage);
 
       // Generate empathetic response using personality system
-      const isFirstMessage = currentMessages.filter(m => m.type === 'user').length === 1;
+      const isFirstMessage = currentMessages.filter(m => m.type === "user").length === 1;
       const phoneRegex = /(?:\+1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/;
       const phoneMatch = message.match(phoneRegex);
-      
-      let response = '';
+
+      let response = "";
       let shouldHandoff = false;
 
       if (phoneMatch) {
         response = this.generatePhoneNumberResponse();
         shouldHandoff = true;
-        
+
         // Update visitor with phone number
         if (visitorId) {
           await storage.updateVisitor(visitorId, {
@@ -367,7 +412,7 @@ export class RealtimeChatAgent {
       // Add agent response to session
       const agentMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
-        type: 'agent',
+        type: "agent",
         content: response,
         timestamp: new Date(),
       };
@@ -380,7 +425,7 @@ export class RealtimeChatAgent {
       });
 
       console.log(`[RealtimeChatAgent] Cathy processed message for session: ${sessionId}`);
-      
+
       return {
         success: true,
         response,
@@ -388,11 +433,12 @@ export class RealtimeChatAgent {
         phoneNumber: phoneMatch ? this.formatPhoneNumber(phoneMatch[0]) : undefined,
       };
     } catch (error) {
-      console.error('[RealtimeChatAgent] Error handling chat message:', error);
+      console.error("[RealtimeChatAgent] Error handling chat message:", error);
       return {
         success: false,
-        response: "I'm so sorry, but I'm experiencing some technical difficulties right now. This is frustrating for both of us! Could you give me just a moment to get this sorted out?",
-        error: error instanceof Error ? error.message : 'Unknown error',
+        response:
+          "I'm so sorry, but I'm experiencing some technical difficulties right now. This is frustrating for both of us! Could you give me just a moment to get this sorted out?",
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }

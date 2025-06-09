@@ -2,12 +2,14 @@
 
 ## Data Ingestion Methods Overview
 
-Your CCL Agent System supports three reliable data ingestion methods, ranked by reliability and use case:
+Your CCL Agent System supports three reliable data ingestion methods, ranked by
+reliability and use case:
 
 ### 1. **Bulk Dataset API** (Most Reliable for Large Volumes)
-**Endpoint:** `POST /api/email-campaigns/bulk-send`
-**Best for:** Daily/weekly dealer data exports, scheduled batch processing
-**Reliability:** ⭐⭐⭐⭐⭐ (Highest)
+
+**Endpoint:** `POST /api/email-campaigns/bulk-send` **Best for:** Daily/weekly
+dealer data exports, scheduled batch processing **Reliability:** ⭐⭐⭐⭐⭐
+(Highest)
 
 ```bash
 curl -X POST https://your-ccl-domain.com/api/email-campaigns/bulk-send \
@@ -34,6 +36,7 @@ curl -X POST https://your-ccl-domain.com/api/email-campaigns/bulk-send \
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -44,9 +47,9 @@ curl -X POST https://your-ccl-domain.com/api/email-campaigns/bulk-send \
 ```
 
 ### 2. **Real-time Lead Processing API** (Best for Live Integration)
-**Endpoint:** `POST /api/leads/process`
-**Best for:** Real-time CRM integration, immediate lead processing
-**Reliability:** ⭐⭐⭐⭐ (High)
+
+**Endpoint:** `POST /api/leads/process` **Best for:** Real-time CRM integration,
+immediate lead processing **Reliability:** ⭐⭐⭐⭐ (High)
 
 ```bash
 curl -X POST https://your-ccl-domain.com/api/leads/process \
@@ -64,6 +67,7 @@ curl -X POST https://your-ccl-domain.com/api/leads/process \
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -74,9 +78,10 @@ curl -X POST https://your-ccl-domain.com/api/leads/process \
 ```
 
 ### 3. **Dealer Webhook Integration** (For Partner Dealers)
-**Endpoint:** `POST /api/webhook/dealer-leads`
-**Best for:** Partner dealer systems pushing leads automatically
-**Reliability:** ⭐⭐⭐⭐ (High with proper authentication)
+
+**Endpoint:** `POST /api/webhook/dealer-leads` **Best for:** Partner dealer
+systems pushing leads automatically **Reliability:** ⭐⭐⭐⭐ (High with proper
+authentication)
 
 ```bash
 curl -X POST https://your-ccl-domain.com/api/webhook/dealer-leads \
@@ -97,15 +102,18 @@ curl -X POST https://your-ccl-domain.com/api/webhook/dealer-leads \
 ## Recommended Implementation Strategy
 
 ### For CCL Internal Systems:
+
 1. **Primary:** Use Bulk Dataset API for daily data exports
 2. **Secondary:** Use Real-time Lead API for immediate processing
 3. **Backup:** Manual CSV upload through dashboard
 
 ### For Partner Dealers:
+
 1. **Primary:** Webhook integration with authenticated dealer keys
 2. **Fallback:** Scheduled bulk data transfer
 
 ### Integration Reliability Features:
+
 - Automatic retry logic for failed email sends
 - Comprehensive error logging and reporting
 - Data validation with detailed error messages
@@ -113,12 +121,14 @@ curl -X POST https://your-ccl-domain.com/api/webhook/dealer-leads \
 - Rate limiting protection
 
 ### Authentication & Security:
+
 - API key authentication (configured in environment)
 - Dealer key validation for webhook endpoints
 - Request validation and sanitization
 - Comprehensive audit logging
 
 ### Current System Status:
+
 - ✅ Mailgun email delivery configured
 - ✅ Multi-step campaign automation active
 - ✅ Personalized messaging with Cathy personality
@@ -128,6 +138,7 @@ curl -X POST https://your-ccl-domain.com/api/webhook/dealer-leads \
 ## API Error Handling
 
 All endpoints return standardized error responses:
+
 ```json
 {
   "error": "Descriptive error message",
@@ -137,6 +148,7 @@ All endpoints return standardized error responses:
 ```
 
 Common HTTP status codes:
+
 - `200`: Success
 - `400`: Bad request (validation error)
 - `401`: Unauthorized

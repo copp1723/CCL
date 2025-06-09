@@ -1,9 +1,8 @@
-
-import { Request, Response, NextFunction } from 'express';
-import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
-import config from '../config/environment';
-import { ApiError, ErrorCode } from '../utils/error-handler';
+import { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
+import crypto from "crypto";
+import config from "../config/environment";
+import { ApiError, ErrorCode } from "../utils/error-handler";
 
 interface UserSession {
   id: string;
@@ -44,8 +43,8 @@ class SessionManager {
       permissions: user.permissions || [],
       createdAt: new Date(),
       lastActivity: new Date(),
-      ipAddress: req.ip || 'unknown',
-      userAgent: req.get('User-Agent') || 'unknown'
+      ipAddress: req.ip || "unknown",
+      userAgent: req.get("User-Agent") || "unknown",
     };
 
     this.sessions.set(sessionId, session);
@@ -90,47 +89,49 @@ class SessionManager {
 const sessionManager = new SessionManager();
 
 export function generateToken(user: any, sessionId: string): string {
-  const payload: Omit<JWTPayload, 'iat' | 'exp'> = {
+  const payload: Omit<JWTPayload, "iat" | "exp"> = {
     userId: user.id || user.email,
     email: user.email,
     role: user.role,
     permissions: user.permissions || [],
-    sessionId
+    sessionId,
   };
 
   return jwt.sign(payload, config.get().JWT_SECRET, {
-    expiresIn: '24h',
-    issuer: 'complete-car-loans',
-    audience: 'ccl-api'
+    expiresIn: "24h",
+    issuer: "complete-car-loans",
+    audience: "ccl-api",
   });
 }
 
 export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
   try {
     const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new ApiError(ErrorCode.AUTHENTICATION_REQUIRED, 'Authentication token required');
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      throw new ApiError(ErrorCode.AUTHENTICATION_REQUIRED, "Authentication token required");
     }
 
     const token = authHeader.substring(7);
-    
+
     // Verify JWT
     const decoded = jwt.verify(token, config.get().JWT_SECRET, {
-      issuer: 'complete-car-loans',
-      audience: 'ccl-api'
+      issuer: "complete-car-loans",
+      audience: "ccl-api",
     }) as JWTPayload;
 
     // Validate session
     const session = sessionManager.getSession(decoded.sessionId);
     if (!session) {
-      throw new ApiError(ErrorCode.SESSION_EXPIRED, 'Session expired or invalid');
+      throw new ApiError(ErrorCode.SESSION_EXPIRED, "Session expired or invalid");
     }
 
     // Security checks
-    const currentIP = req.ip || 'unknown';
+    const currentIP = req.ip || "unknown";
     if (session.ipAddress !== currentIP && config.isProduction()) {
-      console.warn(`IP mismatch for session ${decoded.sessionId}: ${session.ipAddress} vs ${currentIP}`);
+      console.warn(
+        `IP mismatch for session ${decoded.sessionId}: ${session.ipAddress} vs ${currentIP}`
+      );
       // In production, you might want to revoke the session
     }
 
@@ -140,21 +141,20 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
       email: decoded.email,
       role: decoded.role,
       permissions: decoded.permissions,
-      sessionId: decoded.sessionId
+      sessionId: decoded.sessionId,
     };
 
     next();
-
   } catch (error: any) {
     if (error instanceof jwt.JsonWebTokenError) {
       res.status(401).json({
         success: false,
         error: {
-          code: 'INVALID_TOKEN',
-          message: 'Invalid authentication token',
-          category: 'auth',
-          retryable: false
-        }
+          code: "INVALID_TOKEN",
+          message: "Invalid authentication token",
+          category: "auth",
+          retryable: false,
+        },
       });
     } else if (error instanceof ApiError) {
       res.status(error.statusCode).json({
@@ -163,18 +163,18 @@ export function authMiddleware(req: Request, res: Response, next: NextFunction):
           code: error.code,
           message: error.message,
           category: error.category,
-          retryable: error.retryable
-        }
+          retryable: error.retryable,
+        },
       });
     } else {
       res.status(500).json({
         success: false,
         error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Authentication error',
-          category: 'server',
-          retryable: false
-        }
+          code: "INTERNAL_ERROR",
+          message: "Authentication error",
+          category: "server",
+          retryable: false,
+        },
       });
     }
   }
@@ -186,43 +186,43 @@ export function requirePermission(permission: string) {
       return res.status(401).json({
         success: false,
         error: {
-          code: 'AUTHENTICATION_REQUIRED',
-          message: 'Authentication required',
-          category: 'auth',
-          retryable: false
-        }
+          code: "AUTHENTICATION_REQUIRED",
+          message: "Authentication required",
+          category: "auth",
+          retryable: false,
+        },
       });
     }
 
-    if (req.user.role === 'admin' || req.user.permissions.includes(permission)) {
+    if (req.user.role === "admin" || req.user.permissions.includes(permission)) {
       return next();
     }
 
     res.status(403).json({
       success: false,
       error: {
-        code: 'INSUFFICIENT_PERMISSIONS',
-        message: 'Insufficient permissions',
-        category: 'auth',
-        retryable: false
-      }
+        code: "INSUFFICIENT_PERMISSIONS",
+        message: "Insufficient permissions",
+        category: "auth",
+        retryable: false,
+      },
     });
   };
 }
 
 // Authentication routes
 export function setupAuthRoutes(app: any): void {
-  app.post('/api/auth/login', async (req: Request, res: Response) => {
+  app.post("/api/auth/login", async (req: Request, res: Response) => {
     try {
       const { email, password } = req.body;
 
       // Demo user validation
-      if (email === 'admin@completecarloans.com' && password === 'admin123') {
+      if (email === "admin@completecarloans.com" && password === "admin123") {
         const user = {
-          id: 'admin-user',
-          email: 'admin@completecarloans.com',
-          role: 'admin',
-          permissions: ['read:all', 'write:all', 'admin:all']
+          id: "admin-user",
+          email: "admin@completecarloans.com",
+          role: "admin",
+          permissions: ["read:all", "write:all", "admin:all"],
         };
 
         const sessionId = sessionManager.createSession(user, req);
@@ -236,52 +236,57 @@ export function setupAuthRoutes(app: any): void {
               id: user.id,
               email: user.email,
               role: user.role,
-              permissions: user.permissions
-            }
-          }
+              permissions: user.permissions,
+            },
+          },
         });
       } else {
         res.status(401).json({
           success: false,
           error: {
-            code: 'INVALID_CREDENTIALS',
-            message: 'Invalid email or password',
-            category: 'auth',
-            retryable: false
-          }
+            code: "INVALID_CREDENTIALS",
+            message: "Invalid email or password",
+            category: "auth",
+            retryable: false,
+          },
         });
       }
     } catch (error) {
       res.status(500).json({
         success: false,
         error: {
-          code: 'AUTHENTICATION_ERROR',
-          message: 'Authentication failed',
-          category: 'server',
-          retryable: false
-        }
+          code: "AUTHENTICATION_ERROR",
+          message: "Authentication failed",
+          category: "server",
+          retryable: false,
+        },
       });
     }
   });
 
-  app.post('/api/auth/logout', authMiddleware, (req: Request, res: Response) => {
+  app.post("/api/auth/logout", authMiddleware, (req: Request, res: Response) => {
     if (req.user?.sessionId) {
       sessionManager.revokeSession(req.user.sessionId);
     }
 
     res.json({
       success: true,
-      data: { message: 'Logged out successfully' }
+      data: { message: "Logged out successfully" },
     });
   });
 
-  app.get('/api/auth/sessions', authMiddleware, requirePermission('admin:all'), (req: Request, res: Response) => {
-    const sessions = sessionManager.getActiveSessions();
-    res.json({
-      success: true,
-      data: { sessions }
-    });
-  });
+  app.get(
+    "/api/auth/sessions",
+    authMiddleware,
+    requirePermission("admin:all"),
+    (req: Request, res: Response) => {
+      const sessions = sessionManager.getActiveSessions();
+      res.json({
+        success: true,
+        data: { sessions },
+      });
+    }
+  );
 }
 
 export { sessionManager };

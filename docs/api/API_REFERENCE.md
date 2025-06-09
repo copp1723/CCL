@@ -11,9 +11,11 @@ curl -H "x-api-key: ccl-internal-2025" https://your-domain.com/api/endpoint
 ## Chat API
 
 ### POST /api/chat
+
 Handles real-time customer chat interactions with Cathy AI agent.
 
 **Request:**
+
 ```json
 {
   "message": "I need help with auto financing",
@@ -22,6 +24,7 @@ Handles real-time customer chat interactions with Cathy AI agent.
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -36,9 +39,11 @@ Handles real-time customer chat interactions with Cathy AI agent.
 ## System Monitoring
 
 ### GET /api/system/health
+
 Returns comprehensive system health status.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -50,10 +55,10 @@ Returns comprehensive system health status.
       "heapTotal": 91
     },
     "agents": [
-      {"name": "VisitorIdentifierAgent", "status": "active"},
-      {"name": "RealtimeChatAgent", "status": "active"},
-      {"name": "EmailReengagementAgent", "status": "active"},
-      {"name": "LeadPackagingAgent", "status": "active"}
+      { "name": "VisitorIdentifierAgent", "status": "active" },
+      { "name": "RealtimeChatAgent", "status": "active" },
+      { "name": "EmailReengagementAgent", "status": "active" },
+      { "name": "LeadPackagingAgent", "status": "active" }
     ],
     "totalLeads": 5,
     "totalActivities": 163,
@@ -63,9 +68,11 @@ Returns comprehensive system health status.
 ```
 
 ### GET /api/agents/status
+
 Returns detailed agent status and performance metrics.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -84,9 +91,11 @@ Returns detailed agent status and performance metrics.
 ```
 
 ### GET /api/metrics
+
 System performance and usage metrics.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -106,14 +115,17 @@ System performance and usage metrics.
 ## Lead Management
 
 ### GET /api/leads
+
 Retrieve all leads with filtering and pagination.
 
 **Query Parameters:**
+
 - `status`: Filter by lead status (new, contacted, qualified, closed)
 - `limit`: Number of results (default: 50)
 - `offset`: Pagination offset
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -136,9 +148,11 @@ Retrieve all leads with filtering and pagination.
 ```
 
 ### POST /api/leads/process
+
 Process individual lead for re-engagement.
 
 **Request:**
+
 ```json
 {
   "leadId": "lead_1_1749239495640",
@@ -147,6 +161,7 @@ Process individual lead for re-engagement.
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -161,9 +176,11 @@ Process individual lead for re-engagement.
 ## Email Campaigns
 
 ### POST /api/email-campaigns/bulk-send
+
 Send bulk email campaigns to multiple leads.
 
 **Request:**
+
 ```json
 {
   "campaignName": "re-engagement-may-2025",
@@ -179,6 +196,7 @@ Send bulk email campaigns to multiple leads.
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -190,9 +208,11 @@ Send bulk email campaigns to multiple leads.
 ```
 
 ### GET /api/email-campaigns/settings
+
 Retrieve email campaign configuration.
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -208,9 +228,11 @@ Retrieve email campaign configuration.
 ## Data Ingestion
 
 ### POST /api/webhook/dealer-leads
+
 Webhook endpoint for dealer lead integration.
 
 **Request:**
+
 ```json
 {
   "email": "customer@dealership.com",
@@ -223,6 +245,7 @@ Webhook endpoint for dealer lead integration.
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -237,14 +260,17 @@ Webhook endpoint for dealer lead integration.
 ## Activity Logging
 
 ### GET /api/activity
+
 Retrieve system activity logs.
 
 **Query Parameters:**
+
 - `limit`: Number of activities (default: 20)
 - `type`: Filter by activity type
 - `agent`: Filter by agent name
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -283,13 +309,13 @@ All API endpoints return standardized error responses:
 
 ### Error Codes
 
-| Code | Category | Description | Retryable |
-|------|----------|-------------|-----------|
-| AUTH_001 | authentication | Unauthorized access - API key required | false |
-| VALIDATION_001 | validation | Required field missing | false |
-| RATE_LIMIT_001 | rate_limit | Too many requests | true |
-| SYSTEM_001 | system | Internal server error | true |
-| BULK_CAMPAIGN_FAILED | processing | Campaign processing failed | true |
+| Code                 | Category       | Description                            | Retryable |
+| -------------------- | -------------- | -------------------------------------- | --------- |
+| AUTH_001             | authentication | Unauthorized access - API key required | false     |
+| VALIDATION_001       | validation     | Required field missing                 | false     |
+| RATE_LIMIT_001       | rate_limit     | Too many requests                      | true      |
+| SYSTEM_001           | system         | Internal server error                  | true      |
+| BULK_CAMPAIGN_FAILED | processing     | Campaign processing failed             | true      |
 
 ## Rate Limits
 
@@ -301,19 +327,24 @@ All API endpoints return standardized error responses:
 ## WebSocket API
 
 ### Chat WebSocket
+
 Real-time chat connection at `ws://your-domain.com/ws`
 
 **Connection:**
+
 ```javascript
-const ws = new WebSocket('ws://localhost:5000/ws');
-ws.send(JSON.stringify({
-  type: 'message',
-  content: 'Hello',
-  sessionId: 'session_123'
-}));
+const ws = new WebSocket("ws://localhost:5000/ws");
+ws.send(
+  JSON.stringify({
+    type: "message",
+    content: "Hello",
+    sessionId: "session_123",
+  })
+);
 ```
 
 **Message Format:**
+
 ```json
 {
   "type": "response",
@@ -326,12 +357,14 @@ ws.send(JSON.stringify({
 ## Testing
 
 ### Health Check
+
 ```bash
 curl -H "x-api-key: ccl-internal-2025" \
   http://localhost:5000/api/system/health
 ```
 
 ### Chat Test
+
 ```bash
 curl -X POST -H "Content-Type: application/json" \
   -d '{"message": "hello", "sessionId": "test_123"}' \
@@ -339,6 +372,7 @@ curl -X POST -H "Content-Type: application/json" \
 ```
 
 ### Email Campaign Test
+
 ```bash
 curl -X POST -H "Content-Type: application/json" \
   -H "x-api-key: ccl-internal-2025" \

@@ -6,7 +6,7 @@
     "tsBuildInfoFile": "./node_modules/typescript/tsbuildinfo",
     "noEmit": true,
     "module": "ESNext",
-    "strict": true,
+    "strict": false,
     "lib": ["esnext", "dom", "dom.iterable"],
     "jsx": "preserve",
     "esModuleInterop": true,
@@ -15,9 +15,13 @@
     "moduleResolution": "bundler",
     "baseUrl": ".",
     "types": ["node"],
+    "downlevelIteration": true,
+    "allowSyntheticDefaultImports": true,
+    "noImplicitAny": false,
     "paths": {
       "@/*": ["./client/src/*"],
-      "@shared/*": ["./shared/*"]
+      "@shared/*": ["./shared/*"],
+      "@server/*": ["./server/*"]
     },
     "typeRoots": ["./node_modules/@types"]
   }

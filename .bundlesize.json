@@ -1,0 +1,17 @@
+[
+  {
+    "path": "./dist/public/assets/index-*.js",
+    "maxSize": "600kb",
+    "compression": "gzip"
+  },
+  {
+    "path": "./dist/public/assets/index-*.css",
+    "maxSize": "50kb",
+    "compression": "gzip"
+  },
+  {
+    "path": "./dist/index.js",
+    "maxSize": "100kb",
+    "compression": "gzip"
+  }
+]

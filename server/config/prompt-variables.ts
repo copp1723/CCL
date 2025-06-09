@@ -2,68 +2,68 @@
 
 export interface PromptVariables {
   // Tone and Style
-  greeting_style: 'casual' | 'professional' | 'warm';
-  enthusiasm_level: 'low' | 'medium' | 'high';
-  formality: 'informal' | 'semi-formal' | 'formal';
-  
+  greeting_style: "casual" | "professional" | "warm";
+  enthusiasm_level: "low" | "medium" | "high";
+  formality: "informal" | "semi-formal" | "formal";
+
   // Language Preferences
   avoid_words: string[];
   preferred_terms: Record<string, string>;
-  
+
   // Response Structure
-  max_response_length: 'short' | 'medium' | 'long';
-  line_break_frequency: 'minimal' | 'moderate' | 'frequent';
-  
+  max_response_length: "short" | "medium" | "long";
+  line_break_frequency: "minimal" | "moderate" | "frequent";
+
   // Sales Approach
-  urgency_level: 'low' | 'medium' | 'high';
+  urgency_level: "low" | "medium" | "high";
   education_focus: boolean;
-  trust_building_priority: 'low' | 'medium' | 'high';
-  
+  trust_building_priority: "low" | "medium" | "high";
+
   // Constraints
   never_mention: string[];
   always_include: string[];
-  compliance_level: 'basic' | 'enhanced' | 'strict';
-  
+  compliance_level: "basic" | "enhanced" | "strict";
+
   // Phone Collection Settings
   phone_collection_enabled: boolean;
-  phone_collection_priority: 'required' | 'optional' | 'disabled';
-  phone_collection_approach: 'soft_ask' | 'incentivized' | 'direct';
-  phone_collection_timing: 'early' | 'mid_conversation' | 'end';
+  phone_collection_priority: "required" | "optional" | "disabled";
+  phone_collection_approach: "soft_ask" | "incentivized" | "direct";
+  phone_collection_timing: "early" | "mid_conversation" | "end";
 }
 
 export const DEFAULT_PROMPT_VARIABLES: PromptVariables = {
   // Tone and Style
-  greeting_style: 'warm',
-  enthusiasm_level: 'medium',
-  formality: 'informal',
-  
+  greeting_style: "warm",
+  enthusiasm_level: "medium",
+  formality: "informal",
+
   // Language Preferences
-  avoid_words: ['folks', 'guys', 'subprime'],
+  avoid_words: ["folks", "guys", "subprime"],
   preferred_terms: {
-    'customers': 'people',
-    'credit_challenges': 'all credit situations',
-    'application': 'pre-qualification'
+    customers: "people",
+    credit_challenges: "all credit situations",
+    application: "pre-qualification",
   },
-  
+
   // Response Structure
-  max_response_length: 'short',
-  line_break_frequency: 'moderate',
-  
+  max_response_length: "short",
+  line_break_frequency: "moderate",
+
   // Sales Approach
-  urgency_level: 'low',
+  urgency_level: "low",
   education_focus: true,
-  trust_building_priority: 'high',
-  
+  trust_building_priority: "high",
+
   // Constraints
-  never_mention: ['rates', 'guarantees', 'approval promises'],
-  always_include: ['soft credit check', 'no impact to score'],
-  compliance_level: 'enhanced',
-  
+  never_mention: ["rates", "guarantees", "approval promises"],
+  always_include: ["soft credit check", "no impact to score"],
+  compliance_level: "enhanced",
+
   // Phone Collection Settings
   phone_collection_enabled: true,
-  phone_collection_priority: 'optional',
-  phone_collection_approach: 'soft_ask',
-  phone_collection_timing: 'mid_conversation'
+  phone_collection_priority: "optional",
+  phone_collection_approach: "soft_ask",
+  phone_collection_timing: "mid_conversation",
 };
 
 export class PromptVariableManager {
@@ -106,8 +106,8 @@ ${this.getComplianceConstraints()}`;
 
     // Apply language preferences
     this.variables.avoid_words.forEach(word => {
-      const regex = new RegExp(`\\b${word}\\b`, 'gi');
-      response = response.replace(regex, this.variables.preferred_terms[word] || 'customers');
+      const regex = new RegExp(`\\b${word}\\b`, "gi");
+      response = response.replace(regex, this.variables.preferred_terms[word] || "customers");
     });
 
     // Apply greeting style
@@ -124,38 +124,38 @@ ${this.getComplianceConstraints()}`;
 
   private getPersonalityDescription(): string {
     const styles = {
-      casual: 'friendly and approachable',
-      professional: 'experienced and knowledgeable',
-      warm: 'caring and empathetic'
+      casual: "friendly and approachable",
+      professional: "experienced and knowledgeable",
+      warm: "caring and empathetic",
     };
     return styles[this.variables.greeting_style];
   }
 
   private getToneInstructions(): string {
     const enthusiasm = {
-      low: 'Maintain a calm, steady tone.',
-      medium: 'Use moderate enthusiasm and energy.',
-      high: 'Be energetic and highly enthusiastic.'
+      low: "Maintain a calm, steady tone.",
+      medium: "Use moderate enthusiasm and energy.",
+      high: "Be energetic and highly enthusiastic.",
     };
 
     const formality = {
-      informal: 'Use casual, conversational language.',
-      'semi-formal': 'Balance professional and friendly language.',
-      formal: 'Use professional, polished language.'
+      informal: "Use casual, conversational language.",
+      "semi-formal": "Balance professional and friendly language.",
+      formal: "Use professional, polished language.",
     };
 
     return `${enthusiasm[this.variables.enthusiasm_level]} ${formality[this.variables.formality]}`;
   }
 
   private getLanguageConstraints(): string {
-    let constraints = 'Language Guidelines:\n';
-    
+    let constraints = "Language Guidelines:\n";
+
     if (this.variables.avoid_words.length > 0) {
-      constraints += `- Never use: ${this.variables.avoid_words.join(', ')}\n`;
+      constraints += `- Never use: ${this.variables.avoid_words.join(", ")}\n`;
     }
-    
+
     if (Object.keys(this.variables.preferred_terms).length > 0) {
-      constraints += '- Preferred terms:\n';
+      constraints += "- Preferred terms:\n";
       Object.entries(this.variables.preferred_terms).forEach(([key, value]) => {
         constraints += `  * Use "${value}" instead of "${key}"\n`;
       });
@@ -166,15 +166,15 @@ ${this.getComplianceConstraints()}`;
 
   private getResponseStructureGuidelines(): string {
     const lengths = {
-      short: 'Keep responses under 3 sentences per thought.',
-      medium: 'Use 3-5 sentences per thought.',
-      long: 'Use detailed explanations with 5+ sentences per thought.'
+      short: "Keep responses under 3 sentences per thought.",
+      medium: "Use 3-5 sentences per thought.",
+      long: "Use detailed explanations with 5+ sentences per thought.",
     };
 
     const lineBreaks = {
-      minimal: 'Use line breaks sparingly.',
-      moderate: 'Use line breaks between main thoughts.',
-      frequent: 'Use frequent line breaks for easy reading.'
+      minimal: "Use line breaks sparingly.",
+      moderate: "Use line breaks between main thoughts.",
+      frequent: "Use frequent line breaks for easy reading.",
     };
 
     return `Response Structure:
@@ -184,38 +184,38 @@ ${this.getComplianceConstraints()}`;
 
   private getSalesApproachGuidelines(): string {
     const urgency = {
-      low: 'No pressure tactics, focus on education.',
-      medium: 'Gentle encouragement to move forward.',
-      high: 'Create appropriate urgency to act.'
+      low: "No pressure tactics, focus on education.",
+      medium: "Gentle encouragement to move forward.",
+      high: "Create appropriate urgency to act.",
     };
 
     const trust = {
-      low: 'Standard professional approach.',
-      medium: 'Include trust-building elements.',
-      high: 'Prioritize trust and rapport building.'
+      low: "Standard professional approach.",
+      medium: "Include trust-building elements.",
+      high: "Prioritize trust and rapport building.",
     };
 
     return `Sales Approach:
 - ${urgency[this.variables.urgency_level]}
 - ${trust[this.variables.trust_building_priority]}
-- Education focus: ${this.variables.education_focus ? 'Prioritize teaching over selling' : 'Balance education with conversion'}`;
+- Education focus: ${this.variables.education_focus ? "Prioritize teaching over selling" : "Balance education with conversion"}`;
   }
 
   private getComplianceConstraints(): string {
-    let constraints = 'Compliance Requirements:\n';
-    
+    let constraints = "Compliance Requirements:\n";
+
     if (this.variables.never_mention.length > 0) {
-      constraints += `- Never mention: ${this.variables.never_mention.join(', ')}\n`;
+      constraints += `- Never mention: ${this.variables.never_mention.join(", ")}\n`;
     }
-    
+
     if (this.variables.always_include.length > 0) {
-      constraints += `- Always mention: ${this.variables.always_include.join(', ')}\n`;
+      constraints += `- Always mention: ${this.variables.always_include.join(", ")}\n`;
     }
 
     const complianceLevels = {
-      basic: 'Follow standard compliance guidelines.',
-      enhanced: 'Apply enhanced compliance measures.',
-      strict: 'Use strictest compliance protocols.'
+      basic: "Follow standard compliance guidelines.",
+      enhanced: "Apply enhanced compliance measures.",
+      strict: "Use strictest compliance protocols.",
     };
 
     constraints += `- ${complianceLevels[this.variables.compliance_level]}`;
@@ -223,21 +223,21 @@ ${this.getComplianceConstraints()}`;
     // Add phone collection guidelines based on settings
     if (this.variables.phone_collection_enabled) {
       const phoneApproach = {
-        soft_ask: 'Gently ask for phone number if conversation flows naturally',
-        incentivized: 'Offer value in exchange for phone number',
-        direct: 'Directly request phone number for faster service'
+        soft_ask: "Gently ask for phone number if conversation flows naturally",
+        incentivized: "Offer value in exchange for phone number",
+        direct: "Directly request phone number for faster service",
       };
 
       const phoneTimings = {
-        early: 'Ask for phone early in conversation',
-        mid_conversation: 'Ask for phone during middle of conversation',
-        end: 'Ask for phone at end of conversation'
+        early: "Ask for phone early in conversation",
+        mid_conversation: "Ask for phone during middle of conversation",
+        end: "Ask for phone at end of conversation",
       };
 
       const phonePriority = {
-        required: 'Phone number is required to proceed',
-        optional: 'Phone number is helpful but not required',
-        disabled: 'Do not ask for phone number'
+        required: "Phone number is required to proceed",
+        optional: "Phone number is helpful but not required",
+        disabled: "Do not ask for phone number",
       };
 
       constraints += `\n\nPhone Collection Guidelines:
@@ -250,12 +250,12 @@ ${this.getComplianceConstraints()}`;
   }
 
   private applyGreetingStyle(response: string, customerName: string): string {
-    const firstName = customerName.split(' ')[0];
-    
+    const firstName = customerName.split(" ")[0];
+
     const greetings = {
       casual: `Hey ${firstName}!`,
       professional: `Hello ${firstName},`,
-      warm: `Hi ${firstName}!`
+      warm: `Hi ${firstName}!`,
     };
 
     // Replace generic greetings with styled ones
@@ -269,23 +269,23 @@ ${this.getComplianceConstraints()}`;
 
   private applyLengthConstraints(response: string): string {
     const sentences = response.split(/[.!?]+/).filter(s => s.trim());
-    
-    if (this.variables.max_response_length === 'short' && sentences.length > 6) {
-      return sentences.slice(0, 6).join('. ') + '.';
+
+    if (this.variables.max_response_length === "short" && sentences.length > 6) {
+      return sentences.slice(0, 6).join(". ") + ".";
     }
-    
+
     return response;
   }
 
   private applyLineBreaks(response: string): string {
-    if (this.variables.line_break_frequency === 'minimal') {
-      return response.replace(/\n\n/g, ' ');
+    if (this.variables.line_break_frequency === "minimal") {
+      return response.replace(/\n\n/g, " ");
     }
-    
-    if (this.variables.line_break_frequency === 'frequent') {
-      return response.replace(/\.\s/g, '.\n\n');
+
+    if (this.variables.line_break_frequency === "frequent") {
+      return response.replace(/\.\s/g, ".\n\n");
     }
-    
+
     return response; // moderate - keep as is
   }
 }

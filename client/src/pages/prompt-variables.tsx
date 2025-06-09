@@ -1,41 +1,47 @@
-import { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
-import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from '@/lib/queryClient';
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 interface PromptVariables {
-  greeting_style: 'casual' | 'professional' | 'warm';
-  enthusiasm_level: 'low' | 'medium' | 'high';
-  formality: 'informal' | 'semi-formal' | 'formal';
+  greeting_style: "casual" | "professional" | "warm";
+  enthusiasm_level: "low" | "medium" | "high";
+  formality: "informal" | "semi-formal" | "formal";
   avoid_words: string[];
   preferred_terms: Record<string, string>;
-  max_response_length: 'short' | 'medium' | 'long';
-  line_break_frequency: 'minimal' | 'moderate' | 'frequent';
-  urgency_level: 'low' | 'medium' | 'high';
+  max_response_length: "short" | "medium" | "long";
+  line_break_frequency: "minimal" | "moderate" | "frequent";
+  urgency_level: "low" | "medium" | "high";
   education_focus: boolean;
-  trust_building_priority: 'low' | 'medium' | 'high';
+  trust_building_priority: "low" | "medium" | "high";
   never_mention: string[];
   always_include: string[];
-  compliance_level: 'basic' | 'enhanced' | 'strict';
+  compliance_level: "basic" | "enhanced" | "strict";
 }
 
 export default function PromptVariables() {
   const [variables, setVariables] = useState<PromptVariables | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [newAvoidWord, setNewAvoidWord] = useState('');
-  const [newNeverMention, setNewNeverMention] = useState('');
-  const [newAlwaysInclude, setNewAlwaysInclude] = useState('');
-  const [newPreferredKey, setNewPreferredKey] = useState('');
-  const [newPreferredValue, setNewPreferredValue] = useState('');
+  const [newAvoidWord, setNewAvoidWord] = useState("");
+  const [newNeverMention, setNewNeverMention] = useState("");
+  const [newAlwaysInclude, setNewAlwaysInclude] = useState("");
+  const [newPreferredKey, setNewPreferredKey] = useState("");
+  const [newPreferredValue, setNewPreferredValue] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -44,13 +50,13 @@ export default function PromptVariables() {
 
   const loadVariables = async () => {
     try {
-      const response = await apiRequest('/api/test/variables');
+      const response = await apiRequest("/api/test/variables");
       setVariables(response);
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'Failed to load prompt variables',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to load prompt variables",
+        variant: "destructive",
       });
     } finally {
       setLoading(false);
@@ -59,23 +65,23 @@ export default function PromptVariables() {
 
   const saveVariables = async () => {
     if (!variables) return;
-    
+
     setSaving(true);
     try {
-      await apiRequest('/api/test/variables', {
-        method: 'POST',
+      await apiRequest("/api/test/variables", {
+        method: "POST",
         data: variables,
       });
-      
+
       toast({
-        title: 'Success',
-        description: 'Prompt variables updated successfully',
+        title: "Success",
+        description: "Prompt variables updated successfully",
       });
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'Failed to update prompt variables',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to update prompt variables",
+        variant: "destructive",
       });
     } finally {
       setSaving(false);
@@ -85,21 +91,21 @@ export default function PromptVariables() {
   const resetToDefaults = async () => {
     setSaving(true);
     try {
-      await apiRequest('/api/test/variables/reset', {
-        method: 'POST',
+      await apiRequest("/api/test/variables/reset", {
+        method: "POST",
       });
-      
+
       await loadVariables();
-      
+
       toast({
-        title: 'Success',
-        description: 'Prompt variables reset to defaults',
+        title: "Success",
+        description: "Prompt variables reset to defaults",
       });
     } catch (error) {
       toast({
-        title: 'Error',
-        description: 'Failed to reset prompt variables',
-        variant: 'destructive',
+        title: "Error",
+        description: "Failed to reset prompt variables",
+        variant: "destructive",
       });
     } finally {
       setSaving(false);
@@ -111,7 +117,7 @@ export default function PromptVariables() {
     setVariables({ ...variables, [key]: value });
   };
 
-  const addArrayItem = (key: 'avoid_words' | 'never_mention' | 'always_include', value: string) => {
+  const addArrayItem = (key: "avoid_words" | "never_mention" | "always_include", value: string) => {
     if (!variables || !value.trim()) return;
     const currentArray = variables[key];
     if (!currentArray.includes(value.trim())) {
@@ -119,27 +125,33 @@ export default function PromptVariables() {
     }
   };
 
-  const removeArrayItem = (key: 'avoid_words' | 'never_mention' | 'always_include', index: number) => {
+  const removeArrayItem = (
+    key: "avoid_words" | "never_mention" | "always_include",
+    index: number
+  ) => {
     if (!variables) return;
     const currentArray = variables[key];
-    updateVariable(key, currentArray.filter((_, i) => i !== index));
+    updateVariable(
+      key,
+      currentArray.filter((_, i) => i !== index)
+    );
   };
 
   const addPreferredTerm = () => {
     if (!variables || !newPreferredKey.trim() || !newPreferredValue.trim()) return;
-    updateVariable('preferred_terms', {
+    updateVariable("preferred_terms", {
       ...variables.preferred_terms,
-      [newPreferredKey.trim()]: newPreferredValue.trim()
+      [newPreferredKey.trim()]: newPreferredValue.trim(),
     });
-    setNewPreferredKey('');
-    setNewPreferredValue('');
+    setNewPreferredKey("");
+    setNewPreferredValue("");
   };
 
   const removePreferredTerm = (key: string) => {
     if (!variables) return;
     const newTerms = { ...variables.preferred_terms };
     delete newTerms[key];
-    updateVariable('preferred_terms', newTerms);
+    updateVariable("preferred_terms", newTerms);
   };
 
   if (loading) {
@@ -184,7 +196,7 @@ export default function PromptVariables() {
             Reset to Defaults
           </Button>
           <Button onClick={saveVariables} disabled={saving}>
-            {saving ? 'Saving...' : 'Save Changes'}
+            {saving ? "Saving..." : "Save Changes"}
           </Button>
         </div>
       </div>
@@ -199,7 +211,10 @@ export default function PromptVariables() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <Label htmlFor="greeting_style">Greeting Style</Label>
-              <Select value={variables.greeting_style} onValueChange={(value) => updateVariable('greeting_style', value)}>
+              <Select
+                value={variables.greeting_style}
+                onValueChange={value => updateVariable("greeting_style", value)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -213,7 +228,10 @@ export default function PromptVariables() {
 
             <div>
               <Label htmlFor="enthusiasm_level">Enthusiasm Level</Label>
-              <Select value={variables.enthusiasm_level} onValueChange={(value) => updateVariable('enthusiasm_level', value)}>
+              <Select
+                value={variables.enthusiasm_level}
+                onValueChange={value => updateVariable("enthusiasm_level", value)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -227,7 +245,10 @@ export default function PromptVariables() {
 
             <div>
               <Label htmlFor="formality">Formality</Label>
-              <Select value={variables.formality} onValueChange={(value) => updateVariable('formality', value)}>
+              <Select
+                value={variables.formality}
+                onValueChange={value => updateVariable("formality", value)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -255,19 +276,19 @@ export default function PromptVariables() {
               <Input
                 placeholder="Add word to avoid..."
                 value={newAvoidWord}
-                onChange={(e) => setNewAvoidWord(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    addArrayItem('avoid_words', newAvoidWord);
-                    setNewAvoidWord('');
+                onChange={e => setNewAvoidWord(e.target.value)}
+                onKeyPress={e => {
+                  if (e.key === "Enter") {
+                    addArrayItem("avoid_words", newAvoidWord);
+                    setNewAvoidWord("");
                   }
                 }}
               />
               <Button
                 variant="outline"
                 onClick={() => {
-                  addArrayItem('avoid_words', newAvoidWord);
-                  setNewAvoidWord('');
+                  addArrayItem("avoid_words", newAvoidWord);
+                  setNewAvoidWord("");
                 }}
               >
                 Add
@@ -275,7 +296,12 @@ export default function PromptVariables() {
             </div>
             <div className="flex flex-wrap gap-2">
               {variables.avoid_words.map((word, index) => (
-                <Badge key={index} variant="secondary" className="cursor-pointer" onClick={() => removeArrayItem('avoid_words', index)}>
+                <Badge
+                  key={index}
+                  variant="secondary"
+                  className="cursor-pointer"
+                  onClick={() => removeArrayItem("avoid_words", index)}
+                >
                   {word} ✕
                 </Badge>
               ))}
@@ -290,14 +316,14 @@ export default function PromptVariables() {
               <Input
                 placeholder="Replace this term..."
                 value={newPreferredKey}
-                onChange={(e) => setNewPreferredKey(e.target.value)}
+                onChange={e => setNewPreferredKey(e.target.value)}
               />
               <Input
                 placeholder="With this term..."
                 value={newPreferredValue}
-                onChange={(e) => setNewPreferredValue(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
+                onChange={e => setNewPreferredValue(e.target.value)}
+                onKeyPress={e => {
+                  if (e.key === "Enter") {
                     addPreferredTerm();
                   }
                 }}
@@ -309,7 +335,9 @@ export default function PromptVariables() {
             <div className="space-y-2">
               {Object.entries(variables.preferred_terms).map(([key, value]) => (
                 <div key={key} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                  <span>"{key}" → "{value}"</span>
+                  <span>
+                    "{key}" → "{value}"
+                  </span>
                   <Button variant="ghost" size="sm" onClick={() => removePreferredTerm(key)}>
                     ✕
                   </Button>
@@ -330,7 +358,10 @@ export default function PromptVariables() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="max_response_length">Maximum Response Length</Label>
-              <Select value={variables.max_response_length} onValueChange={(value) => updateVariable('max_response_length', value)}>
+              <Select
+                value={variables.max_response_length}
+                onValueChange={value => updateVariable("max_response_length", value)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -344,7 +375,10 @@ export default function PromptVariables() {
 
             <div>
               <Label htmlFor="line_break_frequency">Line Break Frequency</Label>
-              <Select value={variables.line_break_frequency} onValueChange={(value) => updateVariable('line_break_frequency', value)}>
+              <Select
+                value={variables.line_break_frequency}
+                onValueChange={value => updateVariable("line_break_frequency", value)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -369,7 +403,10 @@ export default function PromptVariables() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <Label htmlFor="urgency_level">Urgency Level</Label>
-              <Select value={variables.urgency_level} onValueChange={(value) => updateVariable('urgency_level', value)}>
+              <Select
+                value={variables.urgency_level}
+                onValueChange={value => updateVariable("urgency_level", value)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -383,7 +420,10 @@ export default function PromptVariables() {
 
             <div>
               <Label htmlFor="trust_building_priority">Trust Building Priority</Label>
-              <Select value={variables.trust_building_priority} onValueChange={(value) => updateVariable('trust_building_priority', value)}>
+              <Select
+                value={variables.trust_building_priority}
+                onValueChange={value => updateVariable("trust_building_priority", value)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -397,7 +437,10 @@ export default function PromptVariables() {
 
             <div>
               <Label htmlFor="compliance_level">Compliance Level</Label>
-              <Select value={variables.compliance_level} onValueChange={(value) => updateVariable('compliance_level', value)}>
+              <Select
+                value={variables.compliance_level}
+                onValueChange={value => updateVariable("compliance_level", value)}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -414,7 +457,7 @@ export default function PromptVariables() {
             <Switch
               id="education_focus"
               checked={variables.education_focus}
-              onCheckedChange={(checked) => updateVariable('education_focus', checked)}
+              onCheckedChange={checked => updateVariable("education_focus", checked)}
             />
             <Label htmlFor="education_focus">Prioritize Education Over Sales</Label>
           </div>
@@ -425,7 +468,9 @@ export default function PromptVariables() {
       <Card>
         <CardHeader>
           <CardTitle>Compliance Constraints</CardTitle>
-          <CardDescription>Configure what should never be mentioned and what should always be included</CardDescription>
+          <CardDescription>
+            Configure what should never be mentioned and what should always be included
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
@@ -434,19 +479,19 @@ export default function PromptVariables() {
               <Input
                 placeholder="Add item to never mention..."
                 value={newNeverMention}
-                onChange={(e) => setNewNeverMention(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    addArrayItem('never_mention', newNeverMention);
-                    setNewNeverMention('');
+                onChange={e => setNewNeverMention(e.target.value)}
+                onKeyPress={e => {
+                  if (e.key === "Enter") {
+                    addArrayItem("never_mention", newNeverMention);
+                    setNewNeverMention("");
                   }
                 }}
               />
               <Button
                 variant="outline"
                 onClick={() => {
-                  addArrayItem('never_mention', newNeverMention);
-                  setNewNeverMention('');
+                  addArrayItem("never_mention", newNeverMention);
+                  setNewNeverMention("");
                 }}
               >
                 Add
@@ -454,7 +499,12 @@ export default function PromptVariables() {
             </div>
             <div className="flex flex-wrap gap-2">
               {variables.never_mention.map((item, index) => (
-                <Badge key={index} variant="destructive" className="cursor-pointer" onClick={() => removeArrayItem('never_mention', index)}>
+                <Badge
+                  key={index}
+                  variant="destructive"
+                  className="cursor-pointer"
+                  onClick={() => removeArrayItem("never_mention", index)}
+                >
                   {item} ✕
                 </Badge>
               ))}
@@ -469,19 +519,19 @@ export default function PromptVariables() {
               <Input
                 placeholder="Add item to always include..."
                 value={newAlwaysInclude}
-                onChange={(e) => setNewAlwaysInclude(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    addArrayItem('always_include', newAlwaysInclude);
-                    setNewAlwaysInclude('');
+                onChange={e => setNewAlwaysInclude(e.target.value)}
+                onKeyPress={e => {
+                  if (e.key === "Enter") {
+                    addArrayItem("always_include", newAlwaysInclude);
+                    setNewAlwaysInclude("");
                   }
                 }}
               />
               <Button
                 variant="outline"
                 onClick={() => {
-                  addArrayItem('always_include', newAlwaysInclude);
-                  setNewAlwaysInclude('');
+                  addArrayItem("always_include", newAlwaysInclude);
+                  setNewAlwaysInclude("");
                 }}
               >
                 Add
@@ -489,7 +539,12 @@ export default function PromptVariables() {
             </div>
             <div className="flex flex-wrap gap-2">
               {variables.always_include.map((item, index) => (
-                <Badge key={index} variant="secondary" className="cursor-pointer" onClick={() => removeArrayItem('always_include', index)}>
+                <Badge
+                  key={index}
+                  variant="secondary"
+                  className="cursor-pointer"
+                  onClick={() => removeArrayItem("always_include", index)}
+                >
                   {item} ✕
                 </Badge>
               ))}

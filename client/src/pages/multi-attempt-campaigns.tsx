@@ -1,16 +1,22 @@
-import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiRequest } from '@/lib/queryClient';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useToast } from '@/hooks/use-toast';
-import { Calendar, Clock, Mail, Users, Play, Pause, Settings, Plus, Trash2 } from 'lucide-react';
+import { useState, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
+import { Calendar, Clock, Mail, Users, Play, Pause, Settings, Plus, Trash2 } from "lucide-react";
 
 interface AttemptConfig {
   attemptNumber: number;
@@ -38,33 +44,35 @@ export default function MultiAttemptCampaigns() {
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [selectedSchedule, setSelectedSchedule] = useState<string | null>(null);
   const [newSchedule, setNewSchedule] = useState({
-    name: '',
-    description: '',
-    attempts: [{ attemptNumber: 1, templateId: '', delayHours: 0, delayDays: 1 }] as AttemptConfig[]
+    name: "",
+    description: "",
+    attempts: [
+      { attemptNumber: 1, templateId: "", delayHours: 0, delayDays: 1 },
+    ] as AttemptConfig[],
   });
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Fetch active schedules
   const { data: schedulesData, isLoading: schedulesLoading } = useQuery({
-    queryKey: ['/api/email-campaigns/schedules'],
+    queryKey: ["/api/email-campaigns/schedules"],
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
   // Fetch email templates
   const { data: templatesData } = useQuery({
-    queryKey: ['/api/email-campaigns/templates'],
+    queryKey: ["/api/email-campaigns/templates"],
   });
 
   // Fetch upcoming attempts
   const { data: upcomingData } = useQuery({
-    queryKey: ['/api/email-campaigns/schedules/upcoming'],
+    queryKey: ["/api/email-campaigns/schedules/upcoming"],
     refetchInterval: 60000, // Refresh every minute
   });
 
   // Fetch leads for enrollment
   const { data: leadsData } = useQuery({
-    queryKey: ['/api/leads'],
+    queryKey: ["/api/leads"],
   });
 
   useEffect(() => {
@@ -76,8 +84,8 @@ export default function MultiAttemptCampaigns() {
   // Create schedule mutation
   const createScheduleMutation = useMutation({
     mutationFn: async (scheduleData: any) => {
-      return apiRequest('/api/email-campaigns/schedules', {
-        method: 'POST',
+      return apiRequest("/api/email-campaigns/schedules", {
+        method: "POST",
         body: JSON.stringify(scheduleData),
       });
     },
@@ -86,11 +94,11 @@ export default function MultiAttemptCampaigns() {
         title: "Schedule Created",
         description: "Multi-attempt campaign schedule created successfully",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/email-campaigns/schedules'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/email-campaigns/schedules"] });
       setNewSchedule({
-        name: '',
-        description: '',
-        attempts: [{ attemptNumber: 1, templateId: '', delayHours: 0, delayDays: 1 }]
+        name: "",
+        description: "",
+        attempts: [{ attemptNumber: 1, templateId: "", delayHours: 0, delayDays: 1 }],
       });
     },
     onError: (error: any) => {
@@ -106,12 +114,12 @@ export default function MultiAttemptCampaigns() {
   const toggleScheduleMutation = useMutation({
     mutationFn: async ({ scheduleId, isActive }: { scheduleId: string; isActive: boolean }) => {
       return apiRequest(`/api/email-campaigns/schedules/${scheduleId}/toggle`, {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify({ isActive }),
       });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/email-campaigns/schedules'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/email-campaigns/schedules"] });
       toast({
         title: "Schedule Updated",
         description: "Schedule status updated successfully",
@@ -130,7 +138,7 @@ export default function MultiAttemptCampaigns() {
   const bulkEnrollMutation = useMutation({
     mutationFn: async ({ scheduleId, leadIds }: { scheduleId: string; leadIds: string[] }) => {
       return apiRequest(`/api/email-campaigns/schedules/${scheduleId}/bulk-enroll`, {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify({ leadIds }),
       });
     },
@@ -139,7 +147,7 @@ export default function MultiAttemptCampaigns() {
         title: "Enrollment Complete",
         description: `${data.data.successCount} leads enrolled successfully`,
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/email-campaigns/schedules/upcoming'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/email-campaigns/schedules/upcoming"] });
     },
     onError: (error: any) => {
       toast({
@@ -156,29 +164,29 @@ export default function MultiAttemptCampaigns() {
       ...prev,
       attempts: [
         ...prev.attempts,
-        { 
-          attemptNumber: nextNumber, 
-          templateId: '', 
-          delayHours: 0, 
-          delayDays: nextNumber 
-        }
-      ]
+        {
+          attemptNumber: nextNumber,
+          templateId: "",
+          delayHours: 0,
+          delayDays: nextNumber,
+        },
+      ],
     }));
   };
 
   const removeAttempt = (index: number) => {
     setNewSchedule(prev => ({
       ...prev,
-      attempts: prev.attempts.filter((_, i) => i !== index)
+      attempts: prev.attempts.filter((_, i) => i !== index),
     }));
   };
 
   const updateAttempt = (index: number, field: keyof AttemptConfig, value: any) => {
     setNewSchedule(prev => ({
       ...prev,
-      attempts: prev.attempts.map((attempt, i) => 
+      attempts: prev.attempts.map((attempt, i) =>
         i === index ? { ...attempt, [field]: value } : attempt
-      )
+      ),
     }));
   };
 
@@ -254,7 +262,7 @@ export default function MultiAttemptCampaigns() {
                 </CardContent>
               </Card>
             ) : (
-              schedules.map((schedule) => (
+              schedules.map(schedule => (
                 <Card key={schedule.id} className="relative">
                   <CardHeader>
                     <div className="flex items-center justify-between">
@@ -276,12 +284,13 @@ export default function MultiAttemptCampaigns() {
                         {Math.max(...schedule.attempts.map(a => a.delayDays))} days max
                       </div>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <h4 className="font-medium text-sm">Attempt Schedule:</h4>
                       {schedule.attempts.map((attempt, index) => (
                         <div key={index} className="text-xs bg-muted p-2 rounded">
-                          Attempt {attempt.attemptNumber}: {attempt.delayDays}d {attempt.delayHours}h delay
+                          Attempt {attempt.attemptNumber}: {attempt.delayDays}d {attempt.delayHours}
+                          h delay
                         </div>
                       ))}
                     </div>
@@ -290,16 +299,22 @@ export default function MultiAttemptCampaigns() {
                       <Button
                         size="sm"
                         variant={schedule.isActive ? "outline" : "default"}
-                        onClick={() => toggleScheduleMutation.mutate({
-                          scheduleId: schedule.id,
-                          isActive: !schedule.isActive
-                        })}
+                        onClick={() =>
+                          toggleScheduleMutation.mutate({
+                            scheduleId: schedule.id,
+                            isActive: !schedule.isActive,
+                          })
+                        }
                         disabled={toggleScheduleMutation.isPending}
                       >
-                        {schedule.isActive ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                        {schedule.isActive ? (
+                          <Pause className="h-4 w-4" />
+                        ) : (
+                          <Play className="h-4 w-4" />
+                        )}
                         {schedule.isActive ? "Pause" : "Activate"}
                       </Button>
-                      
+
                       <Button
                         size="sm"
                         variant="outline"
@@ -333,7 +348,7 @@ export default function MultiAttemptCampaigns() {
                     id="name"
                     placeholder="e.g., Weekly Re-engagement"
                     value={newSchedule.name}
-                    onChange={(e) => setNewSchedule(prev => ({...prev, name: e.target.value}))}
+                    onChange={e => setNewSchedule(prev => ({ ...prev, name: e.target.value }))}
                   />
                 </div>
                 <div className="space-y-2">
@@ -342,7 +357,9 @@ export default function MultiAttemptCampaigns() {
                     id="description"
                     placeholder="Brief description of this campaign"
                     value={newSchedule.description}
-                    onChange={(e) => setNewSchedule(prev => ({...prev, description: e.target.value}))}
+                    onChange={e =>
+                      setNewSchedule(prev => ({ ...prev, description: e.target.value }))
+                    }
                   />
                 </div>
               </div>
@@ -361,22 +378,18 @@ export default function MultiAttemptCampaigns() {
                     <div className="flex items-center justify-between mb-4">
                       <h4 className="font-medium">Attempt {attempt.attemptNumber}</h4>
                       {newSchedule.attempts.length > 1 && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => removeAttempt(index)}
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => removeAttempt(index)}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       )}
                     </div>
-                    
+
                     <div className="grid gap-4 md:grid-cols-3">
                       <div className="space-y-2">
                         <Label>Email Template</Label>
                         <Select
                           value={attempt.templateId}
-                          onValueChange={(value) => updateAttempt(index, 'templateId', value)}
+                          onValueChange={value => updateAttempt(index, "templateId", value)}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Select template" />
@@ -390,17 +403,19 @@ export default function MultiAttemptCampaigns() {
                           </SelectContent>
                         </Select>
                       </div>
-                      
+
                       <div className="space-y-2">
                         <Label>Delay Days</Label>
                         <Input
                           type="number"
                           min="0"
                           value={attempt.delayDays}
-                          onChange={(e) => updateAttempt(index, 'delayDays', parseInt(e.target.value) || 0)}
+                          onChange={e =>
+                            updateAttempt(index, "delayDays", parseInt(e.target.value) || 0)
+                          }
                         />
                       </div>
-                      
+
                       <div className="space-y-2">
                         <Label>Delay Hours</Label>
                         <Input
@@ -408,7 +423,9 @@ export default function MultiAttemptCampaigns() {
                           min="0"
                           max="23"
                           value={attempt.delayHours}
-                          onChange={(e) => updateAttempt(index, 'delayHours', parseInt(e.target.value) || 0)}
+                          onChange={e =>
+                            updateAttempt(index, "delayHours", parseInt(e.target.value) || 0)
+                          }
                         />
                       </div>
                     </div>
@@ -416,7 +433,7 @@ export default function MultiAttemptCampaigns() {
                 ))}
               </div>
 
-              <Button 
+              <Button
                 onClick={createSchedule}
                 disabled={createScheduleMutation.isPending}
                 className="w-full"
@@ -431,9 +448,7 @@ export default function MultiAttemptCampaigns() {
           <Card>
             <CardHeader>
               <CardTitle>Upcoming Scheduled Attempts</CardTitle>
-              <CardDescription>
-                Email attempts scheduled for the next 24 hours
-              </CardDescription>
+              <CardDescription>Email attempts scheduled for the next 24 hours</CardDescription>
             </CardHeader>
             <CardContent>
               {upcomingData?.data?.attempts?.length === 0 ? (
@@ -443,7 +458,10 @@ export default function MultiAttemptCampaigns() {
               ) : (
                 <div className="space-y-4">
                   {upcomingData?.data?.attempts?.map((attempt: any) => (
-                    <div key={attempt.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div
+                      key={attempt.id}
+                      className="flex items-center justify-between p-4 border rounded-lg"
+                    >
                       <div className="space-y-1">
                         <div className="font-medium">Attempt {attempt.attemptNumber}</div>
                         <div className="text-sm text-muted-foreground">

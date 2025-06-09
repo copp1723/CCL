@@ -5,7 +5,7 @@ import path from "path";
 export default defineConfig({
   plugins: [
     react(),
-    // Replit-specific plugins removed for universal compatibility
+    // Bundle size monitoring integrated with build process
   ],
   resolve: {
     alias: {
@@ -18,6 +18,14 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ["react", "react-dom"],
+          ui: ["@radix-ui/react-dialog", "@radix-ui/react-dropdown-menu"],
+        },
+      },
+    },
   },
   server: {
     fs: {

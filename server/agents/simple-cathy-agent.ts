@@ -31,21 +31,21 @@ Focus on building trust and guiding toward the soft credit check phone number co
 
   async generateResponse(message: string, sessionId: string): Promise<string> {
     try {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
         headers: {
-          'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`,
-          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: 'gpt-4',
+          model: "gpt-4",
           messages: [
-            { role: 'system', content: this.systemPrompt },
-            { role: 'user', content: message }
+            { role: "system", content: this.systemPrompt },
+            { role: "user", content: message },
           ],
           max_tokens: 150,
-          temperature: 0.8
-        })
+          temperature: 0.8,
+        }),
       });
 
       if (response.ok) {
@@ -53,7 +53,7 @@ Focus on building trust and guiding toward the soft credit check phone number co
         return data.choices[0].message.content.trim();
       }
     } catch (error) {
-      console.error('OpenAI API error:', error);
+      console.error("OpenAI API error:", error);
     }
 
     // Enhanced fallback responses
@@ -62,28 +62,41 @@ Focus on building trust and guiding toward the soft credit check phone number co
 
   private generateFallbackResponse(message: string): string {
     const lowerMsg = message.toLowerCase();
-    
-    if (lowerMsg.includes('hello') || lowerMsg.includes('hi') || lowerMsg.includes('hey')) {
+
+    if (lowerMsg.includes("hello") || lowerMsg.includes("hi") || lowerMsg.includes("hey")) {
       return "Hi there! I'm Cathy from Complete Car Loans.\n\nI saw you were looking into financing options and wanted to reach out personally.\n\nHow's your car search going so far?";
     }
-    
-    if (lowerMsg.includes('credit') || lowerMsg.includes('bad') || lowerMsg.includes('low score') || lowerMsg.includes('poor')) {
+
+    if (
+      lowerMsg.includes("credit") ||
+      lowerMsg.includes("bad") ||
+      lowerMsg.includes("low score") ||
+      lowerMsg.includes("poor")
+    ) {
       return "I completely understand that concern. We actually specialize in helping people with all credit situations - that's our specialty!\n\nThe quickest way to see what you qualify for is a soft credit check that won't impact your score at all.";
     }
-    
-    if (lowerMsg.includes('approved') || lowerMsg.includes('approval') || lowerMsg.includes('qualify')) {
+
+    if (
+      lowerMsg.includes("approved") ||
+      lowerMsg.includes("approval") ||
+      lowerMsg.includes("qualify")
+    ) {
       return "That's exactly what we're here for! I'm confident we can find some great options for you.\n\nTo get you pre-approved, I'd just need to run a quick soft credit check - do you have a good phone number I can use for that?";
     }
-    
-    if (lowerMsg.includes('rate') || lowerMsg.includes('payment') || lowerMsg.includes('interest')) {
+
+    if (
+      lowerMsg.includes("rate") ||
+      lowerMsg.includes("payment") ||
+      lowerMsg.includes("interest")
+    ) {
       return "Great question! Your rate will depend on your specific situation, but the good news is we work with many different lenders.\n\nLet me run a soft credit check to see your personalized options - what's the best phone number to reach you?";
     }
-    
-    if (lowerMsg.includes('help') || lowerMsg.includes('question') || lowerMsg.includes('info')) {
+
+    if (lowerMsg.includes("help") || lowerMsg.includes("question") || lowerMsg.includes("info")) {
       return "I'm absolutely here to help! Auto financing can feel overwhelming, but I'll make it as easy as possible.\n\nWhat's your biggest concern right now?";
     }
 
-    if (lowerMsg.includes('car') || lowerMsg.includes('vehicle') || lowerMsg.includes('looking')) {
+    if (lowerMsg.includes("car") || lowerMsg.includes("vehicle") || lowerMsg.includes("looking")) {
       return "That's exciting! Finding the right car is such an important step.\n\nHave you found any vehicles you're interested in, or are you still browsing? Either way, getting pre-approved first gives you so much more negotiating power.";
     }
 

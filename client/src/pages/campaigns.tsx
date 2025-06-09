@@ -1,7 +1,7 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle } from 'lucide-react';
+import { PlusCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -9,11 +9,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import {
   Form,
   FormControl,
@@ -21,48 +21,48 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
+} from "@/components/ui/form";
 
 // API fetcher functions
 const fetchCampaigns = async () => {
-  const res = await fetch('/api/campaigns');
+  const res = await fetch("/api/campaigns");
   if (!res.ok) {
-    throw new Error('Network response was not ok');
+    throw new Error("Network response was not ok");
   }
   return res.json();
 };
 
 const createCampaign = async (data: any) => {
-  const res = await fetch('/api/campaigns', {
-    method: 'POST',
+  const res = await fetch("/api/campaigns", {
+    method: "POST",
     headers: {
-      'Content-Type': 'application/json',
+      "Content-Type": "application/json",
     },
     body: JSON.stringify(data),
   });
   if (!res.ok) {
-    throw new Error('Failed to create campaign');
+    throw new Error("Failed to create campaign");
   }
   return res.json();
 };
 
 // Zod schema for the form
 const campaignSchema = z.object({
-  name: z.string().min(3, 'Campaign name must be at least 3 characters.'),
-  goal_prompt: z.string().min(10, 'AI goal prompt must be at least 10 characters.'),
+  name: z.string().min(3, "Campaign name must be at least 3 characters."),
+  goal_prompt: z.string().min(10, "AI goal prompt must be at least 10 characters."),
 });
 
 function CreateCampaignForm({ setOpen }: { setOpen: (open: boolean) => void }) {
   const queryClient = useQueryClient();
   const form = useForm<z.infer<typeof campaignSchema>>({
     resolver: zodResolver(campaignSchema),
-    defaultValues: { name: '', goal_prompt: '' },
+    defaultValues: { name: "", goal_prompt: "" },
   });
 
   const mutation = useMutation({
     mutationFn: createCampaign,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['campaigns'] });
+      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
       setOpen(false);
     },
   });
@@ -104,7 +104,7 @@ function CreateCampaignForm({ setOpen }: { setOpen: (open: boolean) => void }) {
           )}
         />
         <Button type="submit" disabled={mutation.isLoading}>
-          {mutation.isLoading ? 'Creating...' : 'Create Campaign'}
+          {mutation.isLoading ? "Creating..." : "Create Campaign"}
         </Button>
       </form>
     </Form>
@@ -113,8 +113,12 @@ function CreateCampaignForm({ setOpen }: { setOpen: (open: boolean) => void }) {
 
 export default function CampaignsPage() {
   const [open, setOpen] = React.useState(false);
-  const { data: campaigns, isLoading, error } = useQuery({
-    queryKey: ['campaigns'],
+  const {
+    data: campaigns,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["campaigns"],
     queryFn: fetchCampaigns,
   });
 
@@ -148,9 +152,13 @@ export default function CampaignsPage() {
             <CardContent>
               <p className="text-sm text-muted-foreground">{campaign.goal_prompt}</p>
               <div className="mt-4">
-                <span className={`px-2 py-1 text-xs rounded-full ${
-                  campaign.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                }`}>
+                <span
+                  className={`px-2 py-1 text-xs rounded-full ${
+                    campaign.status === "active"
+                      ? "bg-green-100 text-green-800"
+                      : "bg-gray-100 text-gray-800"
+                  }`}
+                >
                   {campaign.status}
                 </span>
               </div>
@@ -164,5 +172,5 @@ export default function CampaignsPage() {
 
 // Add a declaration for React to prevent JSX error in some setups
 declare global {
-    namespace React {}
+  namespace React {}
 }

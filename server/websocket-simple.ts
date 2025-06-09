@@ -1,6 +1,6 @@
-import { WebSocketServer, WebSocket } from 'ws';
-import { Server } from 'http';
-import { storage } from './storage.js';
+import { WebSocketServer, WebSocket } from "ws";
+import { Server } from "http";
+import { storage } from "./storage.js";
 
 interface ChatWebSocket extends WebSocket {
   sessionId?: string;
@@ -12,9 +12,9 @@ export class ChatWebSocketServer {
   private clients: Map<string, ChatWebSocket> = new Map();
 
   constructor(server: Server) {
-    this.wss = new WebSocketServer({ 
+    this.wss = new WebSocketServer({
       server,
-      path: '/ws/chat'
+      path: "/ws/chat",
     });
 
     this.setupWebSocketServer();
@@ -22,51 +22,51 @@ export class ChatWebSocketServer {
   }
 
   private setupWebSocketServer(): void {
-    this.wss.on('connection', (ws: ChatWebSocket, req) => {
-      console.log('[WebSocket] New connection established');
+    this.wss.on("connection", (ws: ChatWebSocket, req) => {
+      console.log("[WebSocket] New connection established");
 
       // Generate session ID
       const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
+
       ws.sessionId = sessionId;
       ws.isAlive = true;
       this.clients.set(sessionId, ws);
 
       // Send welcome message
       this.sendMessage(ws, {
-        type: 'system',
-        message: 'Connected to CCL Assistant',
-        sessionId
+        type: "system",
+        message: "Connected to CCL Assistant",
+        sessionId,
       });
 
       // Handle incoming messages
-      ws.on('message', async (data) => {
+      ws.on("message", async data => {
         try {
           const message = JSON.parse(data.toString());
           await this.handleMessage(ws, message);
         } catch (error) {
-          console.error('[WebSocket] Error handling message:', error);
+          console.error("[WebSocket] Error handling message:", error);
           this.sendMessage(ws, {
-            type: 'error',
-            message: 'Sorry, I encountered an error processing your message.'
+            type: "error",
+            message: "Sorry, I encountered an error processing your message.",
           });
         }
       });
 
       // Handle connection close
-      ws.on('close', () => {
+      ws.on("close", () => {
         console.log(`[WebSocket] Connection closed for session: ${sessionId}`);
         this.clients.delete(sessionId);
       });
 
       // Handle errors
-      ws.on('error', (error) => {
+      ws.on("error", error => {
         console.error(`[WebSocket] Error for session ${sessionId}:`, error);
         this.clients.delete(sessionId);
       });
 
       // Heartbeat
-      ws.on('pong', () => {
+      ws.on("pong", () => {
         ws.isAlive = true;
       });
     });
@@ -74,19 +74,23 @@ export class ChatWebSocketServer {
 
   private async handleMessage(ws: ChatWebSocket, message: any): Promise<void> {
     try {
-      if (message.type === 'chat') {
+      if (message.type === "chat") {
         await this.handleChatMessage(ws, message.content, ws.sessionId!);
       }
     } catch (error) {
-      console.error('[WebSocket] Error in handleMessage:', error);
+      console.error("[WebSocket] Error in handleMessage:", error);
       this.sendMessage(ws, {
-        type: 'error',
-        message: 'Sorry, I encountered an error processing your message.'
+        type: "error",
+        message: "Sorry, I encountered an error processing your message.",
       });
     }
   }
 
-  private async handleChatMessage(ws: ChatWebSocket, content: string, sessionId: string): Promise<void> {
+  private async handleChatMessage(
+    ws: ChatWebSocket,
+    content: string,
+    sessionId: string
+  ): Promise<void> {
     try {
       // Cathy's empathetic responses under 50 words
       const cathyResponses = [
@@ -97,29 +101,29 @@ export class ChatWebSocketServer {
         "I'm here to make this process as smooth as possible. What questions do you have?",
         "Every situation is unique. Let's find the right solution for you.",
         "Bad credit? No problem! We work with many lenders who specialize in second chances.",
-        "I can connect you with our loan specialist for a personalized quote."
+        "I can connect you with our loan specialist for a personalized quote.",
       ];
-      
+
       const response = cathyResponses[Math.floor(Math.random() * cathyResponses.length)];
-      
+
       this.sendMessage(ws, {
-        type: 'chat',
+        type: "chat",
         message: response,
-        metadata: { sessionId, timestamp: new Date().toISOString() }
+        metadata: { sessionId, timestamp: new Date().toISOString() },
       });
 
       // Log activity
       await storage.createActivity(
-        'chat_message',
+        "chat_message",
         `Chat interaction - User: "${content.substring(0, 30)}..." Response provided by Cathy`,
-        'realtime-chat',
+        "realtime-chat",
         { sessionId, messageLength: content.length, responseLength: response.length }
       );
     } catch (error) {
-      console.error('[WebSocket] Chat processing error:', error);
+      console.error("[WebSocket] Chat processing error:", error);
       this.sendMessage(ws, {
-        type: 'error',
-        message: 'I apologize, but I\'m having trouble responding right now. Please try again.'
+        type: "error",
+        message: "I apologize, but I'm having trouble responding right now. Please try again.",
       });
     }
   }
@@ -146,13 +150,13 @@ export class ChatWebSocketServer {
       });
     }, 30000);
 
-    this.wss.on('close', () => {
+    this.wss.on("close", () => {
       clearInterval(interval);
     });
   }
 
   public broadcast(message: any): void {
-    this.wss.clients.forEach((client) => {
+    this.wss.clients.forEach(client => {
       if (client.readyState === WebSocket.OPEN) {
         client.send(JSON.stringify(message));
       }

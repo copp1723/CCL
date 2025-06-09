@@ -9,7 +9,7 @@ import {
   BarChart3,
   FileText,
   Webhook,
-  MessageSquare
+  MessageSquare,
 } from "lucide-react";
 
 interface NavItem {
@@ -24,44 +24,44 @@ const navItems: NavItem[] = [
     title: "Dashboard",
     href: "/",
     icon: Home,
-    description: "Agent status and metrics overview"
+    description: "Agent status and metrics overview",
   },
   {
     title: "Email Campaigns",
     href: "/email-campaigns",
     icon: Mail,
-    description: "Manage re-engagement email campaigns"
+    description: "Manage re-engagement email campaigns",
   },
   {
     title: "Multi-Attempt Campaigns",
     href: "/multi-attempt-campaigns",
     icon: BarChart3,
-    description: "Automated email sequences with timing controls"
+    description: "Automated email sequences with timing controls",
   },
   {
     title: "Campaigns",
     href: "/campaigns",
     icon: FileText,
-    description: "Create and manage automated email campaigns"
+    description: "Create and manage automated email campaigns",
   },
   {
     title: "Data Ingestion",
     href: "/data-ingestion",
     icon: Database,
-    description: "Import lead data from various sources"
+    description: "Import lead data from various sources",
   },
   {
     title: "Prompt Testing",
     href: "/prompt-testing",
     icon: MessageSquare,
-    description: "Test and refine AI agent responses"
+    description: "Test and refine AI agent responses",
   },
   {
     title: "Prompt Variables",
     href: "/prompt-variables",
     icon: Settings,
-    description: "Configure dynamic AI response parameters"
-  }
+    description: "Configure dynamic AI response parameters",
+  },
 ];
 
 export function Sidebar() {
@@ -82,22 +82,25 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 space-y-1 px-3 py-4">
-        {navItems.map((item) => {
-          const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
+        {navItems.map(item => {
+          const isActive =
+            location === item.href || (item.href !== "/" && location.startsWith(item.href));
           const Icon = item.icon;
 
           return (
-
-              <Link key={item.href} href={item.href} className={cn(
-                  "group flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors",
-                  isActive
-                    ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100"
-                    : "text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
-                )}>
-                <Icon className="mr-3 h-5 w-5 flex-shrink-0" />
-                <span>{item.title}</span>
-              </Link>
-
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                "group flex items-center rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                isActive
+                  ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-100"
+                  : "text-gray-700 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-300 dark:hover:bg-gray-800 dark:hover:text-white"
+              )}
+            >
+              <Icon className="mr-3 h-5 w-5 flex-shrink-0" />
+              <span>{item.title}</span>
+            </Link>
           );
         })}
       </nav>

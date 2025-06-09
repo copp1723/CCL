@@ -1,6 +1,6 @@
 export interface LeadData {
   id: string;
-  status: 'new' | 'contacted' | 'qualified' | 'closed';
+  status: "new" | "contacted" | "qualified" | "closed";
   createdAt: string;
   email: string;
   leadData: any;
@@ -18,7 +18,7 @@ export interface Activity {
 export interface Agent {
   id: string;
   name: string;
-  status: 'active' | 'inactive' | 'error';
+  status: "active" | "inactive" | "error";
   processedToday: number;
   description: string;
   icon: string;

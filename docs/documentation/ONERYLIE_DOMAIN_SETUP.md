@@ -1,14 +1,16 @@
 # Onerylie.com Domain Integration - Staging Deployment
 
 ## Domain Status: VERIFIED ✅
+
 - **Domain**: onerylie.com
 - **Email Provider**: Mailgun
 - **MX Records**: Verified ✅
-- **DKIM Setup**: In Progress (maio._domainkey.mail.onerylie.com)
+- **DKIM Setup**: In Progress (maio.\_domainkey.mail.onerylie.com)
 
 ## Application Configuration
 
 ### Environment Variables for Staging
+
 ```bash
 # Email Configuration - Onerylie.com
 MAILGUN_API_KEY=your_mailgun_api_key
@@ -23,21 +25,26 @@ CORS_ORIGIN=https://your-staging-domain.replit.app
 ### New API Endpoints for Domain Integration
 
 #### Domain Verification
+
 - `GET /api/staging/domain-verification` - Verify domain configuration
 - `POST /api/staging/test-email-system` - Test email delivery
 - `GET /api/staging/deployment-status` - Check staging readiness
 
 #### Enhanced Lead Processing
-- `POST /api/staging/process-lead-with-email` - Process leads with welcome emails
+
+- `POST /api/staging/process-lead-with-email` - Process leads with welcome
+  emails
 
 ## Email Templates Configured
 
 ### Welcome Email Template
+
 - **Subject**: "Welcome to Complete Car Loans, {firstName}!"
 - **From**: noreply@onerylie.com
 - **Template**: Professional welcome with next steps
 
-### Follow-up Email Template  
+### Follow-up Email Template
+
 - **Subject**: "{firstName}, your auto loan approval is waiting"
 - **From**: noreply@onerylie.com
 - **Template**: Re-engagement with call-to-action
@@ -45,18 +52,20 @@ CORS_ORIGIN=https://your-staging-domain.replit.app
 ## DNS Records Required
 
 ### Already Verified:
+
 ```
 Type: MX
 Host: mail.onerylie.com
 Value: mxa.mailgun.org (Priority 10)
 Value: mxb.mailgun.org (Priority 10)
 
-Type: TXT  
+Type: TXT
 Host: mail.onerylie.com
 Value: v=spf1 include:mailgun.org ~all
 ```
 
 ### Pending Verification:
+
 ```
 Type: TXT
 Host: maio._domainkey.mail.onerylie.com
@@ -102,4 +111,6 @@ curl -X POST -H "x-api-key: your-api-key" \
 
 ## Domain Integration Complete ✅
 
-The application is now configured to work with your onerylie.com domain. Email templates are professional and ready for customer communication. All staging endpoints are implemented and ready for testing once API keys are configured.
+The application is now configured to work with your onerylie.com domain. Email
+templates are professional and ready for customer communication. All staging
+endpoints are implemented and ready for testing once API keys are configured.

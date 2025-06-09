@@ -1,4 +1,3 @@
-
 /**
  * Centralized API client utility for consistent HTTP requests
  */
@@ -20,20 +19,17 @@ export interface ApiResponse<T = any> {
 class ApiClient {
   private baseUrl: string;
 
-  constructor(baseUrl = '/api') {
+  constructor(baseUrl = "/api") {
     this.baseUrl = baseUrl;
   }
 
-  private async request<T>(
-    endpoint: string,
-    options: RequestInit = {}
-  ): Promise<ApiResponse<T>> {
+  private async request<T>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
     const url = `${this.baseUrl}${endpoint}`;
-    
+
     try {
       const response = await fetch(url, {
         headers: {
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
           ...options.headers,
         },
         ...options,
@@ -45,37 +41,37 @@ class ApiClient {
       return {
         success: false,
         error: {
-          code: 'CLIENT_ERROR',
-          message: 'Network request failed',
-          category: 'client',
+          code: "CLIENT_ERROR",
+          message: "Network request failed",
+          category: "client",
           retryable: true,
-          details: { originalError: error }
+          details: { originalError: error },
         },
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
     }
   }
 
   async get<T>(endpoint: string): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, { method: 'GET' });
+    return this.request<T>(endpoint, { method: "GET" });
   }
 
   async post<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
-      method: 'POST',
+      method: "POST",
       body: data ? JSON.stringify(data) : undefined,
     });
   }
 
   async put<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
-      method: 'PUT',
+      method: "PUT",
       body: data ? JSON.stringify(data) : undefined,
     });
   }
 
   async delete<T>(endpoint: string): Promise<ApiResponse<T>> {
-    return this.request<T>(endpoint, { method: 'DELETE' });
+    return this.request<T>(endpoint, { method: "DELETE" });
   }
 }
 

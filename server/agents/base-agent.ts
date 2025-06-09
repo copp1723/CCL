@@ -1,7 +1,6 @@
-
-import { Agent } from '@openai/agents';
-import { storage } from '../storage';
-import { createHash } from 'crypto';
+import { Agent } from "@openai/agents";
+import { storage } from "../storage";
+import { createHash } from "crypto";
 
 export interface AgentConfig {
   name: string;
@@ -36,21 +35,16 @@ export abstract class BaseAgent {
     metadata?: any
   ): Promise<void> {
     try {
-      await storage.createActivity(
-        action,
-        description,
-        this.agentName,
-        { targetId, ...metadata }
-      );
+      await storage.createActivity(action, description, this.agentName, { targetId, ...metadata });
     } catch (error) {
       console.error(`[${this.agentName}] Failed to log activity:`, error);
     }
   }
 
   protected handleError(operation: string, error: any): AgentResult {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error(`[${this.agentName}] ${operation} failed:`, error);
-    
+
     return {
       success: false,
       error: errorMessage,
@@ -75,10 +69,10 @@ export abstract class BaseAgent {
   }
 
   protected hashEmail(email: string): string {
-    if (!email || typeof email !== 'string') {
-      throw new Error('Invalid email provided for hashing');
+    if (!email || typeof email !== "string") {
+      throw new Error("Invalid email provided for hashing");
     }
-    return createHash('sha256').update(email.toLowerCase().trim()).digest('hex');
+    return createHash("sha256").update(email.toLowerCase().trim()).digest("hex");
   }
 
   protected validateE164(phoneNumber: string): boolean {
@@ -87,15 +81,15 @@ export abstract class BaseAgent {
   }
 
   protected formatToE164(phoneNumber: string): string {
-    const cleaned = phoneNumber.replace(/\D/g, '');
-    
+    const cleaned = phoneNumber.replace(/\D/g, "");
+
     if (cleaned.length === 10) {
       return `+1${cleaned}`;
-    } else if (cleaned.length === 11 && cleaned.startsWith('1')) {
+    } else if (cleaned.length === 11 && cleaned.startsWith("1")) {
       return `+${cleaned}`;
     }
-    
-    return phoneNumber.startsWith('+') ? phoneNumber : `+${cleaned}`;
+
+    return phoneNumber.startsWith("+") ? phoneNumber : `+${cleaned}`;
   }
 
   getAgent(): Agent {

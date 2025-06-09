@@ -1,6 +1,6 @@
-import { Card, CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
-import { TrendingUp, TrendingDown, Bot, Users, Mail, Clock } from 'lucide-react';
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { TrendingUp, TrendingDown, Bot, Users, Mail, Clock } from "lucide-react";
 
 interface Metrics {
   activeAgents: number;
@@ -60,9 +60,11 @@ function MetricCard({ title, value, icon, trend, isLoading }: MetricCardProps) {
         </div>
         {trend && (
           <div className="mt-4 flex items-center">
-            <span className={`text-sm flex items-center ${
-              trend.isPositive ? 'text-green-600' : 'text-red-600'
-            }`}>
+            <span
+              className={`text-sm flex items-center ${
+                trend.isPositive ? "text-green-600" : "text-red-600"
+              }`}
+            >
               {trend.isPositive ? (
                 <TrendingUp className="h-4 w-4 mr-1" />
               ) : (
@@ -88,7 +90,7 @@ export function MetricsGrid({ metrics, isLoading }: MetricsGridProps) {
         trend={{
           value: 8.5,
           isPositive: true,
-          period: 'vs last week',
+          period: "vs last week",
         }}
         isLoading={isLoading}
       />
@@ -100,31 +102,31 @@ export function MetricsGrid({ metrics, isLoading }: MetricsGridProps) {
         trend={{
           value: 12.3,
           isPositive: true,
-          period: 'vs yesterday',
+          period: "vs yesterday",
         }}
         isLoading={isLoading}
       />
 
       <MetricCard
         title="Email Delivery Rate"
-        value={metrics?.emailDeliveryRate ? `${metrics.emailDeliveryRate}%` : '0%'}
+        value={metrics?.emailDeliveryRate ? `${metrics.emailDeliveryRate}%` : "0%"}
         icon={<Mail className="h-6 w-6 text-amber-600" />}
         trend={{
           value: 2.1,
           isPositive: true,
-          period: 'vs last month',
+          period: "vs last month",
         }}
         isLoading={isLoading}
       />
 
       <MetricCard
         title="Avg Response Time"
-        value={metrics?.avgResponseTime ? `${metrics.avgResponseTime}s` : '0s'}
+        value={metrics?.avgResponseTime ? `${metrics.avgResponseTime}s` : "0s"}
         icon={<Clock className="h-6 w-6 text-red-500" />}
         trend={{
           value: 15.2,
           isPositive: true,
-          period: 'faster than target',
+          period: "faster than target",
         }}
         isLoading={isLoading}
       />

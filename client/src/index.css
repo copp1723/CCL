@@ -23,7 +23,7 @@
   --destructive-foreground: 210 40% 98%;
   --ring: 222.2 84% 4.9%;
   --radius: 0.5rem;
-  
+
   /* Custom colors matching the design */
   --sidebar-background: 215 28% 17%; /* #1E293B */
   --sidebar-foreground: 210 40% 98%;
@@ -33,7 +33,7 @@
   --sidebar-accent-foreground: 215 28% 17%;
   --sidebar-border: 215 27.9% 16.9%;
   --sidebar-ring: 215 27.9% 16.9%;
-  
+
   /* Status colors */
   --success: 142 71% 45%; /* #10B981 */
   --warning: 38 92% 50%; /* #F59E0B */
@@ -80,16 +80,16 @@
   .chat-scrollbar::-webkit-scrollbar {
     width: 4px;
   }
-  
+
   .chat-scrollbar::-webkit-scrollbar-track {
     background: #f1f1f1;
   }
-  
+
   .chat-scrollbar::-webkit-scrollbar-thumb {
     background: #c1c1c1;
     border-radius: 4px;
   }
-  
+
   .chat-scrollbar::-webkit-scrollbar-thumb:hover {
     background: #a8a8a8;
   }
@@ -102,12 +102,12 @@
 }
 
 @keyframes fadeIn {
-  from { 
-    opacity: 0; 
-    transform: translateY(10px); 
+  from {
+    opacity: 0;
+    transform: translateY(10px);
   }
-  to { 
-    opacity: 1; 
-    transform: translateY(0); 
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

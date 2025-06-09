@@ -1,8 +1,7 @@
-
-import { BaseAgent, AgentResult } from './base-agent';
-import { tool } from '@openai/agents';
-import { storage } from '../storage';
-import { randomUUID } from 'crypto';
+import { BaseAgent, AgentResult } from "./base-agent";
+import { tool } from "@openai/agents";
+import { storage } from "../storage";
+import { randomUUID } from "crypto";
 
 interface EmailContent {
   subject: string;
@@ -35,7 +34,7 @@ class MockEmailService implements EmailService {
   }
 
   getProviderName(): string {
-    return 'MockProvider';
+    return "MockProvider";
   }
 }
 
@@ -44,7 +43,7 @@ export class EmailReengagementService extends BaseAgent {
 
   constructor() {
     super({
-      name: 'EmailReengagementAgent',
+      name: "EmailReengagementAgent",
       instructions: `
         You are responsible for sending personalized re-engagement emails.
         Your primary tasks:
@@ -68,25 +67,25 @@ export class EmailReengagementService extends BaseAgent {
 
   private createGenerateEmailContentTool() {
     return tool({
-      name: 'generate_email_content',
-      description: 'Generate personalized email content based on visitor abandonment data',
+      name: "generate_email_content",
+      description: "Generate personalized email content based on visitor abandonment data",
       execute: async (params: { visitorId: number; abandonmentStep: number }) => {
         try {
           const { visitorId, abandonmentStep } = params;
-          
+
           const visitor = await storage.getVisitor(visitorId);
           if (!visitor) {
-            throw new Error('Visitor not found');
+            throw new Error("Visitor not found");
           }
 
           const content = this.generatePersonalizedContent(abandonmentStep);
-          
+
           return this.createSuccessResult(content, {
-            operation: 'generate_email_content',
+            operation: "generate_email_content",
             step: abandonmentStep,
           });
         } catch (error) {
-          return this.handleError('generate_email_content', error);
+          return this.handleError("generate_email_content", error);
         }
       },
     });
@@ -94,12 +93,12 @@ export class EmailReengagementService extends BaseAgent {
 
   private createCreateReturnTokenTool() {
     return tool({
-      name: 'create_return_token',
-      description: 'Create a secure return token with 24-hour TTL',
+      name: "create_return_token",
+      description: "Create a secure return token with 24-hour TTL",
       execute: async (params: { visitorId: number }) => {
         try {
           const { visitorId } = params;
-          
+
           const returnToken = randomUUID();
           const expiryTime = new Date();
           expiryTime.setHours(expiryTime.getHours() + 24);
@@ -109,14 +108,17 @@ export class EmailReengagementService extends BaseAgent {
             returnTokenExpiry: expiryTime,
           });
 
-          return this.createSuccessResult({
-            returnToken,
-            expiryTime: expiryTime.toISOString(),
-          }, {
-            operation: 'create_return_token',
-          });
+          return this.createSuccessResult(
+            {
+              returnToken,
+              expiryTime: expiryTime.toISOString(),
+            },
+            {
+              operation: "create_return_token",
+            }
+          );
         } catch (error) {
-          return this.handleError('create_return_token', error);
+          return this.handleError("create_return_token", error);
         }
       },
     });
@@ -124,18 +126,18 @@ export class EmailReengagementService extends BaseAgent {
 
   private createSendEmailTool() {
     return tool({
-      name: 'send_email',
-      description: 'Send re-engagement email via email service provider',
-      execute: async (params: { 
-        visitorId: number; 
-        emailHash: string; 
-        subject: string; 
-        body: string; 
+      name: "send_email",
+      description: "Send re-engagement email via email service provider",
+      execute: async (params: {
+        visitorId: number;
+        emailHash: string;
+        subject: string;
+        body: string;
         returnToken: string;
       }) => {
         try {
           const { visitorId, emailHash, subject, body, returnToken } = params;
-          
+
           const emailResult = await this.emailService.sendReengagementEmail({
             to: emailHash,
             subject,
@@ -145,10 +147,10 @@ export class EmailReengagementService extends BaseAgent {
 
           if (emailResult.success) {
             await this.logActivity(
-              'email_sent',
+              "email_sent",
               `Re-engagement email sent via ${this.emailService.getProviderName()}`,
               visitorId.toString(),
-              { 
+              {
                 messageId: emailResult.messageId,
                 provider: this.emailService.getProviderName(),
               }
@@ -156,11 +158,11 @@ export class EmailReengagementService extends BaseAgent {
           }
 
           return this.createSuccessResult(emailResult, {
-            operation: 'send_email',
+            operation: "send_email",
             provider: this.emailService.getProviderName(),
           });
         } catch (error) {
-          return this.handleError('send_email', error);
+          return this.handleError("send_email", error);
         }
       },
     });
@@ -169,15 +171,15 @@ export class EmailReengagementService extends BaseAgent {
   private generatePersonalizedContent(abandonmentStep: number): EmailContent {
     const stepMessages = {
       1: {
-        subject: 'Complete Your Car Loan Application - Just One More Step!',
+        subject: "Complete Your Car Loan Application - Just One More Step!",
         body: `Hi there!\n\nWe noticed you started your car loan application but didn't finish. Don't worry - we've saved your progress!\n\n✅ Quick 2-minute completion\n✅ Competitive rates starting at 3.9% APR\n✅ Get approved in minutes\n\nClick here to continue: {{RETURN_LINK}}\n\nBest regards,\nThe CCL Team`,
       },
       2: {
-        subject: 'Your Car Loan is Almost Ready - Complete Your Application',
+        subject: "Your Car Loan is Almost Ready - Complete Your Application",
         body: `Hi there!\n\nYou're so close to getting your car loan approved! We just need a few more details.\n\n✅ Pre-qualification in progress\n✅ Rates as low as 3.9% APR\n✅ Multiple lender options\n\nContinue your application: {{RETURN_LINK}}\n\nBest regards,\nThe CCL Team`,
       },
       3: {
-        subject: 'Final Step: Complete Your Car Loan Application Now',
+        subject: "Final Step: Complete Your Car Loan Application Now",
         body: `Hi there!\n\nYou're on the final step! Complete it now to get instant approval.\n\n✅ Almost approved\n✅ Best rates available\n✅ Instant decision\n\nFinish your application: {{RETURN_LINK}}\n\nBest regards,\nThe CCL Team`,
       },
     };
@@ -189,7 +191,7 @@ export class EmailReengagementService extends BaseAgent {
     try {
       const visitor = await storage.getVisitor(visitorId);
       if (!visitor) {
-        throw new Error('Visitor not found');
+        throw new Error("Visitor not found");
       }
 
       const returnToken = randomUUID();
@@ -202,34 +204,40 @@ export class EmailReengagementService extends BaseAgent {
       });
 
       const content = this.generatePersonalizedContent(visitor.abandonmentStep || 1);
-      
+
       const emailResult = await this.emailService.sendReengagementEmail({
         to: visitor.emailHash,
         subject: content.subject,
-        body: content.body.replace('{{RETURN_LINK}}', `${process.env.BASE_URL || 'https://app.completecarloans.com'}/return/${returnToken}`),
+        body: content.body.replace(
+          "{{RETURN_LINK}}",
+          `${process.env.BASE_URL || "https://app.completecarloans.com"}/return/${returnToken}`
+        ),
         returnToken,
       });
 
       if (emailResult.success) {
         await this.logActivity(
-          'email_campaign_sent',
-          'Re-engagement email sent successfully',
+          "email_campaign_sent",
+          "Re-engagement email sent successfully",
           visitorId.toString(),
-          { 
+          {
             messageId: emailResult.messageId,
             abandonmentStep: visitor.abandonmentStep,
           }
         );
 
-        return this.createSuccessResult({ campaignId: 1 }, {
-          operation: 'sendReengagementEmail',
-          messageId: emailResult.messageId,
-        });
+        return this.createSuccessResult(
+          { campaignId: 1 },
+          {
+            operation: "sendReengagementEmail",
+            messageId: emailResult.messageId,
+          }
+        );
       } else {
         throw new Error(`Email sending failed: ${emailResult.error}`);
       }
     } catch (error) {
-      return this.handleError('sendReengagementEmail', error);
+      return this.handleError("sendReengagementEmail", error);
     }
   }
 

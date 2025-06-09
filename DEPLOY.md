@@ -24,12 +24,14 @@
 ### **Method 2: Manual Setup**
 
 #### **A. Create Database**
+
 1. **New → PostgreSQL**
    - Name: `ccl-database`
    - Plan: `Starter` (free)
    - Region: Choose closest to users
 
 #### **B. Create Web Service**
+
 1. **New → Web Service**
    - Connect your GitHub repo
    - **Runtime**: `Node`
@@ -38,6 +40,7 @@
    - **Plan**: `Starter` ($7/month)
 
 #### **C. Environment Variables**
+
 Set these in your web service environment:
 
 ```bash
@@ -60,6 +63,7 @@ MAILGUN_API_KEY=[for email campaigns]
 ### **Required Variables:**
 
 1. **ENCRYPTION_KEY**
+
    ```bash
    # Generate secure key:
    openssl rand -base64 32
@@ -67,6 +71,7 @@ MAILGUN_API_KEY=[for email campaigns]
    ```
 
 2. **API_KEY**
+
    ```bash
    # Generate secure API key:
    openssl rand -hex 32
@@ -88,12 +93,14 @@ MAILGUN_API_KEY=[for email campaigns]
 ## 🚦 Post-Deployment Checklist
 
 ### **1. Verify Health**
+
 ```bash
 curl https://your-app.onrender.com/health
 # Should return: {"status": "healthy"}
 ```
 
 ### **2. Test Database**
+
 ```bash
 curl https://your-app.onrender.com/api/system/stats \
   -H "Authorization: Bearer YOUR_API_KEY"
@@ -101,6 +108,7 @@ curl https://your-app.onrender.com/api/system/stats \
 ```
 
 ### **3. Test Lead Creation**
+
 ```bash
 curl -X POST https://your-app.onrender.com/api/leads \
   -H "Authorization: Bearer YOUR_API_KEY" \
@@ -113,22 +121,26 @@ curl -X POST https://your-app.onrender.com/api/leads \
 ## 🔧 Common Issues & Solutions
 
 ### **Database Connection Issues**
+
 - Verify `DATABASE_URL` is set correctly
 - Check database is in same region as web service
 - Ensure database is running (not paused)
 
 ### **Build Failures**
+
 ```bash
 # Clear Render cache and rebuild
 # In Render dashboard: Manual Deploy → Clear cache
 ```
 
 ### **Environment Variables**
+
 - Verify all required variables are set
 - Check for typos in variable names
 - Ensure no extra spaces in values
 
 ### **SSL/Security Issues**
+
 - Render automatically handles SSL certificates
 - All traffic is HTTPS by default
 - Database connections use SSL automatically
@@ -138,11 +150,13 @@ curl -X POST https://your-app.onrender.com/api/leads \
 ## 📊 Monitoring
 
 ### **Built-in Render Monitoring**
+
 - **Logs**: Real-time in Render dashboard
 - **Metrics**: CPU, memory, response times
 - **Uptime**: Automatic health checks
 
 ### **Custom Monitoring**
+
 - Health endpoint: `/health`
 - System stats: `/api/system/stats`
 - Error tracking in application logs
@@ -152,6 +166,7 @@ curl -X POST https://your-app.onrender.com/api/leads \
 ## 💰 Render Pricing
 
 **Starter Plan (Recommended):**
+
 - **Web Service**: $7/month
 - **PostgreSQL**: Free (512MB)
 - **Bandwidth**: 100GB/month
@@ -164,12 +179,14 @@ curl -X POST https://your-app.onrender.com/api/leads \
 ## 🚀 Going Live
 
 ### **1. Custom Domain**
+
 1. In Render dashboard → Settings
 2. Add your domain (e.g., `app.completecarloans.com`)
 3. Update DNS records as shown
 4. SSL automatically configured
 
 ### **2. Production Optimization**
+
 - Enable **Auto-Deploy** from main branch
 - Set up **Preview Deployments** for staging
 - Configure **Health Check** alerts

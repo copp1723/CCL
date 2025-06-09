@@ -1,4 +1,14 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, varchar, index } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  serial,
+  integer,
+  boolean,
+  timestamp,
+  jsonb,
+  varchar,
+  index,
+} from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -37,7 +47,9 @@ export const chatSessions = pgTable("chat_sessions", {
 
 export const emailCampaigns = pgTable("email_campaigns", {
   id: serial("id").primaryKey(),
-  visitorId: integer("visitor_id").references(() => visitors.id).notNull(),
+  visitorId: integer("visitor_id")
+    .references(() => visitors.id)
+    .notNull(),
   returnToken: text("return_token").notNull().unique(),
   emailSent: boolean("email_sent").default(false),
   emailOpened: boolean("email_opened").default(false),
@@ -45,8 +57,6 @@ export const emailCampaigns = pgTable("email_campaigns", {
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
-
-
 
 // Session storage table for authentication
 export const sessions = pgTable(
@@ -56,7 +66,7 @@ export const sessions = pgTable(
     sess: jsonb("sess").notNull(),
     expire: timestamp("expire").notNull(),
   },
-  (table) => [index("IDX_session_expire").on(table.expire)],
+  table => [index("IDX_session_expire").on(table.expire)]
 );
 
 // System leads table
@@ -104,8 +114,12 @@ export const campaignSchedules = pgTable("campaign_schedules", {
 // Campaign attempts tracking
 export const campaignAttempts = pgTable("campaign_attempts", {
   id: text("id").primaryKey(),
-  scheduleId: text("schedule_id").references(() => campaignSchedules.id).notNull(),
-  leadId: text("lead_id").references(() => systemLeads.id).notNull(),
+  scheduleId: text("schedule_id")
+    .references(() => campaignSchedules.id)
+    .notNull(),
+  leadId: text("lead_id")
+    .references(() => systemLeads.id)
+    .notNull(),
   attemptNumber: integer("attempt_number").notNull(),
   templateId: text("template_id").notNull(),
   scheduledFor: timestamp("scheduled_for").notNull(),
@@ -119,7 +133,9 @@ export const campaignAttempts = pgTable("campaign_attempts", {
 
 export const leads = pgTable("leads", {
   id: serial("id").primaryKey(),
-  visitorId: integer("visitor_id").references(() => visitors.id).notNull(),
+  visitorId: integer("visitor_id")
+    .references(() => visitors.id)
+    .notNull(),
   leadData: jsonb("lead_data").notNull(),
   status: text("status").notNull().default("pending"), // pending, submitted, failed
   dealerResponse: jsonb("dealer_response"),
@@ -167,8 +183,6 @@ export const insertEmailCampaignSchema = createInsertSchema(emailCampaigns).omit
   id: true,
   createdAt: true,
 });
-
-
 
 export const insertLeadSchema = createInsertSchema(leads).omit({
   id: true,
@@ -225,8 +239,6 @@ export type ChatSession = typeof chatSessions.$inferSelect;
 
 export type InsertEmailCampaign = z.infer<typeof insertEmailCampaignSchema>;
 export type EmailCampaign = typeof emailCampaigns.$inferSelect;
-
-
 
 export type InsertLead = z.infer<typeof insertLeadSchema>;
 export type Lead = typeof leads.$inferSelect;

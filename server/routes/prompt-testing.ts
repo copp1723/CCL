@@ -1,7 +1,7 @@
-import express from 'express';
-import { Request, Response } from 'express';
-import { CATHY_SYSTEM_PROMPT } from '../agents/cathy-system-prompt';
-import { promptVariableManager, PromptVariables } from '../config/prompt-variables';
+import express from "express";
+import { Request, Response } from "express";
+import { CATHY_SYSTEM_PROMPT } from "../agents/cathy-system-prompt";
+import { promptVariableManager, PromptVariables } from "../config/prompt-variables";
 
 const router = express.Router();
 
@@ -10,7 +10,7 @@ interface TestChatRequest {
   customerName: string;
   customerSituation?: string;
   conversationHistory?: Array<{
-    type: 'user' | 'agent';
+    type: "user" | "agent";
     content: string;
   }>;
 }
@@ -27,106 +27,112 @@ interface TestResponse {
 }
 
 // Get current system prompt (dynamic)
-router.get('/system-prompt', (req: Request, res: Response) => {
+router.get("/system-prompt", (req: Request, res: Response) => {
   try {
     const dynamicPrompt = promptVariableManager.generateSystemPrompt();
     const currentVariables = promptVariableManager.getVariables();
-    
+
     res.json({
       prompt: dynamicPrompt,
       staticPrompt: CATHY_SYSTEM_PROMPT,
       variables: currentVariables,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error('Error retrieving system prompt:', error);
-    res.status(500).json({ error: 'Failed to retrieve system prompt' });
+    console.error("Error retrieving system prompt:", error);
+    res.status(500).json({ error: "Failed to retrieve system prompt" });
   }
 });
 
 // Get current prompt variables
-router.get('/variables', (req: Request, res: Response) => {
+router.get("/variables", (req: Request, res: Response) => {
   try {
     const variables = promptVariableManager.getVariables();
     res.json(variables);
   } catch (error) {
-    console.error('Error fetching prompt variables:', error);
-    res.status(500).json({ error: 'Failed to fetch prompt variables' });
+    console.error("Error fetching prompt variables:", error);
+    res.status(500).json({ error: "Failed to fetch prompt variables" });
   }
 });
 
 // Update prompt variables
-router.post('/variables', (req: Request, res: Response) => {
+router.post("/variables", (req: Request, res: Response) => {
   try {
     const updates: Partial<PromptVariables> = req.body;
     promptVariableManager.updateVariables(updates);
-    
+
     const updatedVariables = promptVariableManager.getVariables();
     const newSystemPrompt = promptVariableManager.generateSystemPrompt();
-    
+
     res.json({
       success: true,
       variables: updatedVariables,
       systemPrompt: newSystemPrompt,
-      message: 'Prompt variables updated successfully'
+      message: "Prompt variables updated successfully",
     });
   } catch (error) {
-    console.error('Error updating prompt variables:', error);
-    res.status(500).json({ error: 'Failed to update prompt variables' });
+    console.error("Error updating prompt variables:", error);
+    res.status(500).json({ error: "Failed to update prompt variables" });
   }
 });
 
 // Reset variables to defaults
-router.post('/variables/reset', (req: Request, res: Response) => {
+router.post("/variables/reset", (req: Request, res: Response) => {
   try {
-    const { DEFAULT_PROMPT_VARIABLES } = require('../config/prompt-variables');
+    const { DEFAULT_PROMPT_VARIABLES } = require("../config/prompt-variables");
     promptVariableManager.updateVariables(DEFAULT_PROMPT_VARIABLES);
     const defaultVariables = promptVariableManager.getVariables();
-    
+
     res.json({
       success: true,
       variables: defaultVariables,
-      message: 'Prompt variables reset to defaults'
+      message: "Prompt variables reset to defaults",
     });
   } catch (error) {
-    console.error('Error resetting prompt variables:', error);
-    res.status(500).json({ error: 'Failed to reset prompt variables' });
+    console.error("Error resetting prompt variables:", error);
+    res.status(500).json({ error: "Failed to reset prompt variables" });
   }
 });
 
 // Test chat response
-router.post('/chat-response', async (req: Request, res: Response) => {
+router.post("/chat-response", async (req: Request, res: Response) => {
   try {
-    const { userMessage, customerName, customerSituation, conversationHistory }: TestChatRequest = req.body;
+    const { userMessage, customerName, customerSituation, conversationHistory }: TestChatRequest =
+      req.body;
 
     if (!userMessage || !customerName) {
-      return res.status(400).json({ error: 'userMessage and customerName are required' });
+      return res.status(400).json({ error: "userMessage and customerName are required" });
     }
 
-    const response = await generateCathyResponse(userMessage, customerName, customerSituation, conversationHistory);
-    
+    const response = await generateCathyResponse(
+      userMessage,
+      customerName,
+      customerSituation,
+      conversationHistory
+    );
+
     res.json(response);
   } catch (error) {
-    console.error('Error generating chat response:', error);
-    res.status(500).json({ error: 'Failed to generate response' });
+    console.error("Error generating chat response:", error);
+    res.status(500).json({ error: "Failed to generate response" });
   }
 });
 
 // Test email response
-router.post('/email-response', async (req: Request, res: Response) => {
+router.post("/email-response", async (req: Request, res: Response) => {
   try {
     const { userMessage, customerName, customerSituation }: TestChatRequest = req.body;
 
     if (!userMessage || !customerName) {
-      return res.status(400).json({ error: 'userMessage and customerName are required' });
+      return res.status(400).json({ error: "userMessage and customerName are required" });
     }
 
     const response = await generateCathyEmailResponse(userMessage, customerName, customerSituation);
-    
+
     res.json(response);
   } catch (error) {
-    console.error('Error generating email response:', error);
-    res.status(500).json({ error: 'Failed to generate email response' });
+    console.error("Error generating email response:", error);
+    res.status(500).json({ error: "Failed to generate email response" });
   }
 });
 
@@ -135,13 +141,13 @@ async function generateCathyResponse(
   userMessage: string,
   customerName: string,
   customerSituation?: string,
-  conversationHistory?: Array<{ type: 'user' | 'agent'; content: string }>
+  conversationHistory?: Array<{ type: "user" | "agent"; content: string }>
 ): Promise<TestResponse> {
   const lowerMsg = userMessage.toLowerCase();
-  
+
   // Extract first name only for natural greetings
-  const firstName = customerName.split(' ')[0];
-  
+  const firstName = customerName.split(" ")[0];
+
   // Analyze customer intent and generate appropriate response
   let cathyResponse: string;
   let analysis: string;
@@ -149,53 +155,81 @@ async function generateCathyResponse(
   let insights: string;
   let nextSteps: string;
 
-  if (lowerMsg.includes('credit') && (lowerMsg.includes('worried') || lowerMsg.includes('issues') || lowerMsg.includes('anxious'))) {
+  if (
+    lowerMsg.includes("credit") &&
+    (lowerMsg.includes("worried") || lowerMsg.includes("issues") || lowerMsg.includes("anxious"))
+  ) {
     cathyResponse = `Hey ${firstName}! I get it - credit concerns are totally normal.\n\nHere's the thing: I work with customers in all credit situations every day. Your credit history just helps me find the right path for you.\n\nWhat kind of car are you looking for? I'd love to show you what's possible!`;
-    analysis = 'Customer expressing credit anxiety. Responding with empathy and reassurance.';
-    salesReadiness = 'medium';
-    insights = 'Customer has credit concerns but engaged. Building trust is key.';
-    nextSteps = 'Build confidence and show available options despite credit challenges.';
-  } else if (lowerMsg.includes('first') || lowerMsg.includes('new') || lowerMsg.includes('understand') || lowerMsg.includes('how') && lowerMsg.includes('work')) {
+    analysis = "Customer expressing credit anxiety. Responding with empathy and reassurance.";
+    salesReadiness = "medium";
+    insights = "Customer has credit concerns but engaged. Building trust is key.";
+    nextSteps = "Build confidence and show available options despite credit challenges.";
+  } else if (
+    lowerMsg.includes("first") ||
+    lowerMsg.includes("new") ||
+    lowerMsg.includes("understand") ||
+    (lowerMsg.includes("how") && lowerMsg.includes("work"))
+  ) {
     cathyResponse = `Hey ${firstName}! First car - how exciting!\n\nAuto financing is actually pretty simple: quick soft credit check (no impact), see what you qualify for, then find a car that fits your budget.\n\nWant me to walk you through it?`;
-    analysis = 'First-time buyer seeking education. Providing clear, encouraging guidance.';
-    salesReadiness = 'high';
-    insights = 'New to auto financing, receptive to guidance. High conversion potential.';
-    nextSteps = 'Walk through financing process and initiate soft credit check.';
-  } else if (lowerMsg.includes('ready') || lowerMsg.includes('apply') || lowerMsg.includes('pre-approved') || lowerMsg.includes('move forward')) {
+    analysis = "First-time buyer seeking education. Providing clear, encouraging guidance.";
+    salesReadiness = "high";
+    insights = "New to auto financing, receptive to guidance. High conversion potential.";
+    nextSteps = "Walk through financing process and initiate soft credit check.";
+  } else if (
+    lowerMsg.includes("ready") ||
+    lowerMsg.includes("apply") ||
+    lowerMsg.includes("pre-approved") ||
+    lowerMsg.includes("move forward")
+  ) {
     cathyResponse = `Love it, ${firstName}! Ready to move forward - that's what I like to hear.\n\nI can get your pre-qualification started right now with a soft credit check. Zero impact to your score, and you'll know what you qualify for in minutes.\n\nSound good?`;
-    analysis = 'Customer showing high intent. Moving toward pre-qualification.';
-    salesReadiness = 'high';
-    insights = 'Highly motivated, ready for action. Prime for immediate pre-qualification.';
-    nextSteps = 'Guide through soft credit check and pre-qualification application.';
-  } else if (lowerMsg.includes('confused') || lowerMsg.includes('overwhelmed') || lowerMsg.includes('different things')) {
+    analysis = "Customer showing high intent. Moving toward pre-qualification.";
+    salesReadiness = "high";
+    insights = "Highly motivated, ready for action. Prime for immediate pre-qualification.";
+    nextSteps = "Guide through soft credit check and pre-qualification application.";
+  } else if (
+    lowerMsg.includes("confused") ||
+    lowerMsg.includes("overwhelmed") ||
+    lowerMsg.includes("different things")
+  ) {
     cathyResponse = `${firstName}, I totally get that! Everyone telling you different things is so frustrating.\n\nLet me cut through the noise and give you straight answers. No pressure, just facts.\n\nWhat's your biggest question right now?`;
-    analysis = 'Customer overwhelmed by conflicting information. Positioning as trusted advisor.';
-    salesReadiness = 'medium';
-    insights = 'Needs clarity and trust-building. Opportunity to differentiate through transparency.';
-    nextSteps = 'Address specific concerns and build trust through clear information.';
-  } else if (lowerMsg.includes('payment') || lowerMsg.includes('monthly') || lowerMsg.includes('budget') || lowerMsg.includes('afford')) {
+    analysis = "Customer overwhelmed by conflicting information. Positioning as trusted advisor.";
+    salesReadiness = "medium";
+    insights =
+      "Needs clarity and trust-building. Opportunity to differentiate through transparency.";
+    nextSteps = "Address specific concerns and build trust through clear information.";
+  } else if (
+    lowerMsg.includes("payment") ||
+    lowerMsg.includes("monthly") ||
+    lowerMsg.includes("budget") ||
+    lowerMsg.includes("afford")
+  ) {
     cathyResponse = `Absolutely, ${firstName}! Staying within budget is super important.\n\n$300/month is totally doable - I help customers in that range all the time. It's all about finding the right car and loan terms.\n\nWhat type of vehicle are you thinking?`;
-    analysis = 'Customer focused on monthly payment and budget. Addressing affordability directly.';
-    salesReadiness = 'high';
-    insights = 'Has specific budget parameters, actively seeking solutions. Good qualification opportunity.';
-    nextSteps = 'Gather vehicle preferences and show financing options within budget.';
-  } else if (lowerMsg.includes('started') || lowerMsg.includes('application') || lowerMsg.includes('paperwork')) {
+    analysis = "Customer focused on monthly payment and budget. Addressing affordability directly.";
+    salesReadiness = "high";
+    insights =
+      "Has specific budget parameters, actively seeking solutions. Good qualification opportunity.";
+    nextSteps = "Gather vehicle preferences and show financing options within budget.";
+  } else if (
+    lowerMsg.includes("started") ||
+    lowerMsg.includes("application") ||
+    lowerMsg.includes("paperwork")
+  ) {
     cathyResponse = `No worries, ${firstName}! You don't need to start over.\n\nI can pull up what you already did and help you finish. Paperwork can be a pain - that's why I'm here!\n\nWant me to see where you left off?`;
-    analysis = 'Previous abandonment, needs reassurance and guidance to complete.';
-    salesReadiness = 'high';
-    insights = 'Shown previous intent. Strong re-engagement opportunity.';
-    nextSteps = 'Reassure and provide guided completion assistance.';
+    analysis = "Previous abandonment, needs reassurance and guidance to complete.";
+    salesReadiness = "high";
+    insights = "Shown previous intent. Strong re-engagement opportunity.";
+    nextSteps = "Reassure and provide guided completion assistance.";
   } else {
     cathyResponse = `Hey ${firstName}! Great to hear from you.\n\nI'm Cathy - I help people find the right auto financing, no matter their credit situation. Every situation is unique, and I'm here to make it easy.\n\nWhat can I help you with today?`;
-    analysis = 'General inquiry. Establishing rapport and gathering needs.';
-    salesReadiness = 'medium';
-    insights = 'Early discovery phase. Opportunity to build relationship and understand needs.';
-    nextSteps = 'Build rapport, ask qualifying questions, identify specific needs.';
+    analysis = "General inquiry. Establishing rapport and gathering needs.";
+    salesReadiness = "medium";
+    insights = "Early discovery phase. Opportunity to build relationship and understand needs.";
+    nextSteps = "Build rapport, ask qualifying questions, identify specific needs.";
   }
 
   // Apply dynamic prompt variables to response
   const finalResponse = promptVariableManager.applyToResponse(cathyResponse, {
-    customerName: customerName
+    customerName: customerName,
   });
 
   return {
@@ -204,9 +238,9 @@ async function generateCathyResponse(
     analysis,
     salesReadiness,
     customerName,
-    channel: 'web_chat',
+    channel: "web_chat",
     insights,
-    nextSteps
+    nextSteps,
   };
 }
 
@@ -215,37 +249,42 @@ async function generateCathyEmailResponse(
   userMessage: string,
   customerName: string,
   customerSituation?: string
-): Promise<TestResponse & { email?: { subject: string; salutation: string; body: string; signoff: string } }> {
+): Promise<
+  TestResponse & { email?: { subject: string; salutation: string; body: string; signoff: string } }
+> {
   const chatResponse = await generateCathyResponse(userMessage, customerName, customerSituation);
-  
+
   // Generate email-specific formatting
   const email = {
     subject: generateEmailSubject(userMessage, customerName),
     salutation: `Hi ${customerName},`,
     body: formatForEmail(chatResponse.cathyResponse),
-    signoff: `Best regards,\n\nCathy\nAuto Finance Specialist\nComplete Car Loans\n\nP.S. I'm here whenever you have questions - just reply to this email or give me a call!`
+    signoff: `Best regards,\n\nCathy\nAuto Finance Specialist\nComplete Car Loans\n\nP.S. I'm here whenever you have questions - just reply to this email or give me a call!`,
   };
 
   return {
     ...chatResponse,
     cathyResponse: email.body,
-    channel: 'email',
-    email
+    channel: "email",
+    email,
   };
 }
 
 function generateEmailSubject(userMessage: string, customerName: string): string {
   const lowerMsg = userMessage.toLowerCase();
-  
-  if (lowerMsg.includes('credit') && (lowerMsg.includes('worried') || lowerMsg.includes('issues'))) {
+
+  if (
+    lowerMsg.includes("credit") &&
+    (lowerMsg.includes("worried") || lowerMsg.includes("issues"))
+  ) {
     return `${customerName}, let's find you the right auto financing solution`;
-  } else if (lowerMsg.includes('first') || lowerMsg.includes('new')) {
+  } else if (lowerMsg.includes("first") || lowerMsg.includes("new")) {
     return `${customerName}, your auto financing questions answered`;
-  } else if (lowerMsg.includes('ready') || lowerMsg.includes('apply')) {
+  } else if (lowerMsg.includes("ready") || lowerMsg.includes("apply")) {
     return `${customerName}, let's get your pre-approval started`;
-  } else if (lowerMsg.includes('confused') || lowerMsg.includes('overwhelmed')) {
+  } else if (lowerMsg.includes("confused") || lowerMsg.includes("overwhelmed")) {
     return `${customerName}, let me clear up the confusion`;
-  } else if (lowerMsg.includes('payment') || lowerMsg.includes('budget')) {
+  } else if (lowerMsg.includes("payment") || lowerMsg.includes("budget")) {
     return `${customerName}, financing options that fit your budget`;
   } else {
     return `${customerName}, I'm here to help with your auto financing`;
@@ -254,9 +293,7 @@ function generateEmailSubject(userMessage: string, customerName: string): string
 
 function formatForEmail(chatResponse: string): string {
   // Convert chat response to email format
-  return chatResponse
-    .replace(/\n\n/g, '\n\n')
-    .replace(/\n/g, '\n\n');
+  return chatResponse.replace(/\n\n/g, "\n\n").replace(/\n/g, "\n\n");
 }
 
 export default router;

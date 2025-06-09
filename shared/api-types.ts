@@ -1,4 +1,3 @@
-
 // API Response Types for Client-Server Communication
 
 export interface ApiResponse<T = any> {
@@ -19,7 +18,7 @@ export interface ApiResponse<T = any> {
 export interface AgentStatusResponse {
   id: string;
   name: string;
-  status: 'active' | 'inactive' | 'error';
+  status: "active" | "inactive" | "error";
   lastActivity: string;
   processedToday: number;
   description: string;
@@ -39,7 +38,7 @@ export interface ActivityResponse {
 // Lead API Response Types
 export interface LeadResponse {
   id: string;
-  status: 'new' | 'contacted' | 'qualified' | 'closed';
+  status: "new" | "contacted" | "qualified" | "closed";
   createdAt: string;
   email: string;
   leadData: any;
@@ -108,7 +107,7 @@ export interface SystemStatsResponse {
 export interface CreditCheckResponse {
   approved: boolean;
   creditScore?: number;
-  riskTier: 'prime' | 'near-prime' | 'sub-prime' | 'deep-sub-prime';
+  riskTier: "prime" | "near-prime" | "sub-prime" | "deep-sub-prime";
   maxLoanAmount?: number;
   estimatedRate?: number;
   externalId: string;
@@ -117,7 +116,7 @@ export interface CreditCheckResponse {
 
 // WebSocket Message Types
 export interface WebSocketMessage {
-  type: 'agent_update' | 'new_activity' | 'system_alert' | 'chat_message';
+  type: "agent_update" | "new_activity" | "system_alert" | "chat_message";
   data: any;
   timestamp: string;
 }
@@ -135,7 +134,7 @@ export interface ErrorResponse {
 export interface BulkEmailSendRequest {
   csvData: string;
   campaignName: string;
-  scheduleType: 'immediate' | 'delayed';
+  scheduleType: "immediate" | "delayed";
   timingSettings?: {
     step1Delay: number;
     step2Delay: number;

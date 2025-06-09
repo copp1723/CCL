@@ -2,45 +2,45 @@ name: Test Suite
 
 on:
   push:
-    branches: [ main, develop, feature/* ]
+    branches: [main, develop, feature/*]
   pull_request:
-    branches: [ main, develop ]
+    branches: [main, develop]
 
 jobs:
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20.x'
-        cache: 'npm'
-    
-    - name: Install dependencies
-      run: npm ci
-    
-    - name: Run unit tests
-      run: npm test
-      continue-on-error: true
-    
-    - name: Generate test coverage
-      run: npm run test:coverage
-      continue-on-error: true
-    
-    - name: Upload coverage reports
-      uses: codecov/codecov-action@v3
-      with:
-        file: ./coverage/lcov.info
-        fail_ci_if_error: false
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run unit tests
+        run: npm test
+        continue-on-error: true
+
+      - name: Generate test coverage
+        run: npm run test:coverage
+        continue-on-error: true
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage/lcov.info
+          fail_ci_if_error: false
 
   integration-tests:
     name: Integration Tests
     runs-on: ubuntu-latest
-    
+
     services:
       postgres:
         image: postgres:15
@@ -52,68 +52,68 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20.x'
-        cache: 'npm'
-    
-    - name: Install dependencies
-      run: npm ci
-    
-    - name: Run database migrations
-      run: npm run db:migrate
-      env:
-        DATABASE_URL: postgresql://postgres:test@localhost:5432/ccl_test
-    
-    - name: Run integration tests
-      run: npm run test:integration
-      env:
-        DATABASE_URL: postgresql://postgres:test@localhost:5432/ccl_test
-        NODE_ENV: test
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run database migrations
+        run: npm run db:migrate
+        env:
+          DATABASE_URL: postgresql://postgres:test@localhost:5432/ccl_test
+
+      - name: Run integration tests
+        run: npm run test:integration
+        env:
+          DATABASE_URL: postgresql://postgres:test@localhost:5432/ccl_test
+          NODE_ENV: test
 
   e2e-tests:
     name: End-to-End Tests
     runs-on: ubuntu-latest
-    
+
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20.x'
-        cache: 'npm'
-    
-    - name: Install dependencies
-      run: npm ci
-    
-    - name: Install Playwright
-      run: npx playwright install --with-deps
-    
-    - name: Build application
-      run: npm run build
-    
-    - name: Start application
-      run: npm start &
-      env:
-        NODE_ENV: test
-        PORT: 3000
-    
-    - name: Wait for application
-      run: npx wait-on http://localhost:3000 --timeout 60000
-    
-    - name: Run E2E tests
-      run: npx playwright test
-    
-    - name: Upload test results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: playwright-report
-        path: playwright-report/
-        retention-days: 7
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps
+
+      - name: Build application
+        run: npm run build
+
+      - name: Start application
+        run: npm start &
+        env:
+          NODE_ENV: test
+          PORT: 3000
+
+      - name: Wait for application
+        run: npx wait-on http://localhost:3000 --timeout 60000
+
+      - name: Run E2E tests
+        run: npx playwright test
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7

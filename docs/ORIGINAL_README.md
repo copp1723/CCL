@@ -1,6 +1,7 @@
 # Complete Car Loans - AI Agent System
 
-> A sophisticated multi-agent auto-loan recovery system leveraging advanced AI technologies.
+> A sophisticated multi-agent auto-loan recovery system leveraging advanced AI
+> technologies.
 
 ## 🚀 Quick Start
 
@@ -68,9 +69,11 @@ MIT License
 
 ## Features
 
-- **Multi-Agent AI System**: 5 specialized agents working together for optimal lead recovery
+- **Multi-Agent AI System**: 5 specialized agents working together for optimal
+  lead recovery
 - **Real-time Chat**: Intelligent customer interaction with seamless handoffs
-- **Email Campaigns**: Automated re-engagement sequences with Mailgun integration
+- **Email Campaigns**: Automated re-engagement sequences with Mailgun
+  integration
 - **Credit Checking**: FlexPath API integration for instant credit assessments
 - **Data Processing**: Flexible APIs for bulk uploads and real-time processing
 - **Comprehensive Monitoring**: Real-time agent status and performance metrics
@@ -105,23 +108,27 @@ MIT License
 ### Installation
 
 1. **Clone the repository**
+
    ```bash
    git clone <repository-url>
    cd ccl-agents
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 3. **Configure environment**
+
    ```bash
    cp .env.example .env
    # Edit .env with your configuration
    ```
 
 4. **Set up database**
+
    ```bash
    npm run db:push
    ```
@@ -162,6 +169,7 @@ See `.env.example` for complete configuration options.
 ### Data Ingestion APIs
 
 1. **Bulk Dataset Processing**
+
    ```bash
    POST /api/email-campaigns/bulk-send
    Content-Type: application/json
@@ -173,6 +181,7 @@ See `.env.example` for complete configuration options.
    ```
 
 2. **Real-time Lead Processing**
+
    ```bash
    POST /api/leads/process
    Content-Type: application/json
@@ -334,6 +343,7 @@ NODE_ENV=development DEBUG=* npm run dev
 ### Support
 
 For technical support:
+
 - Check GitHub Issues
 - Review deployment logs
 - Contact development team

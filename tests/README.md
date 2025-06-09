@@ -1,4 +1,3 @@
-
 # Tests Directory
 
 This directory contains all test files for the application.

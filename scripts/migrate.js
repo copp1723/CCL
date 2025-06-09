@@ -3,7 +3,7 @@
  * Automatically runs on deployment to ensure database schema is ready
  */
 
-import { Pool } from 'pg';
+import { Pool } from "pg";
 
 const MAX_RETRIES = 5;
 const RETRY_DELAY = 5000; // 5 seconds
@@ -12,7 +12,7 @@ async function migrateDatabase() {
   for (let i = 0; i < MAX_RETRIES; i++) {
     try {
       if (!process.env.DATABASE_URL) {
-        console.log('⚠️  No DATABASE_URL found, skipping migration');
+        console.log("⚠️  No DATABASE_URL found, skipping migration");
         return;
       }
 
@@ -20,11 +20,11 @@ async function migrateDatabase() {
 
       const pool = new Pool({
         connectionString: process.env.DATABASE_URL,
-        ssl: { rejectUnauthorized: false }
+        ssl: { rejectUnauthorized: false },
       });
 
       await pool.connect();
-      console.log('✅ Database connection successful.');
+      console.log("✅ Database connection successful.");
 
       const createTablesQuery = `
         CREATE TABLE IF NOT EXISTS leads (
@@ -99,10 +99,10 @@ async function migrateDatabase() {
       `;
 
       await pool.query(createTablesQuery);
-      console.log('✅ Database schema updated successfully.');
+      console.log("✅ Database schema updated successfully.");
 
       await pool.end();
-      console.log('🎉 Database migration completed successfully.');
+      console.log("🎉 Database migration completed successfully.");
       return; // Exit the loop on success
     } catch (error) {
       console.error(`❌ Attempt ${i + 1} failed:`, error.message);
@@ -110,7 +110,7 @@ async function migrateDatabase() {
         console.log(`Retrying in ${RETRY_DELAY / 1000} seconds...`);
         await new Promise(res => setTimeout(res, RETRY_DELAY));
       } else {
-        console.error('💥 All migration attempts failed. Exiting.');
+        console.error("💥 All migration attempts failed. Exiting.");
         process.exit(1);
       }
     }
@@ -118,10 +118,12 @@ async function migrateDatabase() {
 }
 
 // Run migration
-migrateDatabase().then(() => {
-  console.log('🎉 Database migration completed successfully.');
-  process.exit(0); // Explicitly exit with success code
-}).catch(error => {
-  console.error('💥 Migration error:', error);
-  process.exit(1); // Exit with failure code
-});
+migrateDatabase()
+  .then(() => {
+    console.log("🎉 Database migration completed successfully.");
+    process.exit(0); // Explicitly exit with success code
+  })
+  .catch(error => {
+    console.error("💥 Migration error:", error);
+    process.exit(1); // Exit with failure code
+  });

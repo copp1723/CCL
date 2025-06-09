@@ -97,7 +97,9 @@ const sanitizeInput = (req: Request, res: Response, next: NextFunction) => {
       return obj.trim();
     } else if (typeof obj === "object" && obj !== null) {
       for (const key in obj) {
-        (obj as { [key: string]: unknown })[key] = sanitize((obj as { [key: string]: unknown })[key]);
+        (obj as { [key: string]: unknown })[key] = sanitize(
+          (obj as { [key: string]: unknown })[key]
+        );
       }
     }
     return obj;
@@ -184,7 +186,9 @@ app.post("/api/leads", async (req: Request, res: Response) => {
     const lead = await storageService.createLead({ email, phoneNumber, status, leadData });
     res.json({ success: true, data: lead });
   } catch (error: unknown) {
-    res.status(500).json({ success: false, error: (error as Error).message || "Failed to create lead" });
+    res
+      .status(500)
+      .json({ success: false, error: (error as Error).message || "Failed to create lead" });
   }
 });
 

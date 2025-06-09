@@ -2,18 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { 
-  CheckCircle, 
-  Clock,
-  Users,
-  Mail,
-  Activity
-} from "lucide-react";
+import { CheckCircle, Clock, Users, Mail, Activity } from "lucide-react";
 
 interface Agent {
   id: string;
   name: string;
-  status: 'active' | 'inactive' | 'error';
+  status: "active" | "inactive" | "error";
   processedToday: number;
   description: string;
   icon: string;
@@ -45,22 +39,22 @@ interface Metrics {
 
 export default function Dashboard() {
   const { data: agentsResponse } = useQuery({
-    queryKey: ['/api/agents/status'],
+    queryKey: ["/api/agents/status"],
     refetchInterval: 30000,
   });
 
   const { data: metricsResponse } = useQuery({
-    queryKey: ['/api/metrics'],
+    queryKey: ["/api/metrics"],
     refetchInterval: 30000,
   });
 
   const { data: activitiesResponse } = useQuery({
-    queryKey: ['/api/activity'],
+    queryKey: ["/api/activity"],
     refetchInterval: 10000,
   });
 
   const { data: leadsResponse } = useQuery({
-    queryKey: ['/api/leads'],
+    queryKey: ["/api/leads"],
     refetchInterval: 30000,
   });
 
@@ -141,17 +135,22 @@ export default function Dashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {agents.map((agent) => (
+              {agents.map(agent => (
                 <div key={agent.id} className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <Activity className={`h-5 w-5 ${agent.status === 'active' ? 'text-green-600' : 'text-gray-600'}`} />
+                    <Activity
+                      className={`h-5 w-5 ${agent.status === "active" ? "text-green-600" : "text-gray-600"}`}
+                    />
                     <div>
-                      <p className="text-sm font-medium">{agent.name.replace('Agent', '')}</p>
+                      <p className="text-sm font-medium">{agent.name.replace("Agent", "")}</p>
                       <p className="text-xs text-muted-foreground">{agent.description}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <Badge variant="outline" className={agent.status === 'active' ? 'text-green-600' : 'text-gray-600'}>
+                    <Badge
+                      variant="outline"
+                      className={agent.status === "active" ? "text-green-600" : "text-gray-600"}
+                    >
                       {agent.status}
                     </Badge>
                     <p className="text-xs text-muted-foreground mt-1">
@@ -173,27 +172,26 @@ export default function Dashboard() {
           <CardContent>
             <ScrollArea className="h-64">
               <div className="space-y-2">
-                {Array.isArray(activities) ? activities.slice(0, 10).map((activity) => (
-                  <div key={activity.id} className="flex items-center space-x-3 p-2 text-sm">
-                    <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">
-                        {(activity.agentType || 'System').replace('Agent', '')}: {activity.description}
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {new Date(activity.timestamp).toLocaleTimeString()}
+                {Array.isArray(activities) ? (
+                  activities.slice(0, 10).map(activity => (
+                    <div key={activity.id} className="flex items-center space-x-3 p-2 text-sm">
+                      <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium truncate">
+                          {(activity.agentType || "System").replace("Agent", "")}:{" "}
+                          {activity.description}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {new Date(activity.timestamp).toLocaleTimeString()}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )) : (
-                  <div className="text-center text-muted-foreground py-4">
-                    No recent activity
-                  </div>
+                  ))
+                ) : (
+                  <div className="text-center text-muted-foreground py-4">No recent activity</div>
                 )}
                 {activities.length === 0 && (
-                  <div className="text-center text-muted-foreground py-4">
-                    No recent activity
-                  </div>
+                  <div className="text-center text-muted-foreground py-4">No recent activity</div>
                 )}
               </div>
             </ScrollArea>
@@ -209,7 +207,7 @@ export default function Dashboard() {
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
-            {leads.slice(0, 5).map((lead) => (
+            {leads.slice(0, 5).map(lead => (
               <div key={lead.id} className="flex items-center justify-between p-2 border rounded">
                 <div>
                   <p className="text-sm font-medium">{lead.email}</p>
@@ -221,9 +219,7 @@ export default function Dashboard() {
               </div>
             ))}
             {leads.length === 0 && (
-              <div className="text-center text-muted-foreground py-4">
-                No leads processed yet
-              </div>
+              <div className="text-center text-muted-foreground py-4">No leads processed yet</div>
             )}
           </div>
         </CardContent>

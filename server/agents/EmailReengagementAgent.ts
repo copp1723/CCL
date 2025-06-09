@@ -1,15 +1,15 @@
-import { Agent, tool } from '@openai/agents';
-import { storage } from '../storage';
-import { EmailService } from '../services/EmailService';
-import { randomUUID } from 'crypto';
-import type { InsertEmailCampaign } from '@shared/schema';
-import { 
-  CORE_PERSONALITY, 
+import { Agent, tool } from "@openai/agents";
+import { storage } from "../storage";
+import { EmailService } from "../services/EmailService";
+import { randomUUID } from "crypto";
+import type { InsertEmailCampaign } from "@shared/schema";
+import {
+  CORE_PERSONALITY,
   SPECIAL_SCENARIOS,
   getPersonalizedIntroduction,
   formatResponseByTone,
-  getCreditProfileApproach
-} from './core-personality';
+  getCreditProfileApproach,
+} from "./core-personality";
 
 export class EmailReengagementAgent {
   private agent: Agent;
@@ -17,9 +17,9 @@ export class EmailReengagementAgent {
 
   constructor() {
     this.emailService = new EmailService();
-    
+
     this.agent = new Agent({
-      name: 'Email Re-engagement Agent',
+      name: "Email Re-engagement Agent",
       instructions: `
         You are Cathy, a sub-prime credit specialist and human finance expert at Complete Car Loans, specializing in helping customers with all credit situations find the best auto financing options.
         
@@ -68,19 +68,19 @@ export class EmailReengagementAgent {
 
   private createGenerateEmailContentTool() {
     return tool({
-      name: 'generate_email_content',
-      description: 'Generate personalized email content based on visitor abandonment data',
+      name: "generate_email_content",
+      description: "Generate personalized email content based on visitor abandonment data",
       execute: async (params: { visitorId: number; abandonmentStep: number }) => {
         try {
           const { visitorId, abandonmentStep } = params;
-          
+
           const visitor = await storage.getVisitor(visitorId);
           if (!visitor) {
-            throw new Error('Visitor not found');
+            throw new Error("Visitor not found");
           }
 
           const content = this.generatePersonalizedContent(abandonmentStep);
-          
+
           return {
             success: true,
             content,
@@ -88,10 +88,10 @@ export class EmailReengagementAgent {
             body: content.body,
           };
         } catch (error) {
-          console.error('[EmailReengagementAgent] Error generating email content:', error);
+          console.error("[EmailReengagementAgent] Error generating email content:", error);
           return {
             success: false,
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: error instanceof Error ? error.message : "Unknown error",
           };
         }
       },
@@ -100,12 +100,12 @@ export class EmailReengagementAgent {
 
   private createCreateReturnTokenTool() {
     return tool({
-      name: 'create_return_token',
-      description: 'Create a secure return token with 24-hour TTL',
+      name: "create_return_token",
+      description: "Create a secure return token with 24-hour TTL",
       execute: async (params: { visitorId: number }) => {
         try {
           const { visitorId } = params;
-          
+
           const returnToken = randomUUID();
           const expiryTime = new Date();
           expiryTime.setHours(expiryTime.getHours() + 24); // 24-hour TTL
@@ -117,18 +117,18 @@ export class EmailReengagementAgent {
           });
 
           console.log(`[EmailReengagementAgent] Created return token for visitor: ${visitorId}`);
-          
+
           return {
             success: true,
             returnToken,
             expiryTime: expiryTime.toISOString(),
-            message: 'Return token created successfully',
+            message: "Return token created successfully",
           };
         } catch (error) {
-          console.error('[EmailReengagementAgent] Error creating return token:', error);
+          console.error("[EmailReengagementAgent] Error creating return token:", error);
           return {
             success: false,
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: error instanceof Error ? error.message : "Unknown error",
           };
         }
       },
@@ -137,25 +137,25 @@ export class EmailReengagementAgent {
 
   private createSendEmailTool() {
     return tool({
-      name: 'send_email',
-      description: 'Send re-engagement email via email service provider',
-      execute: async (params: { 
-        visitorId: number; 
-        emailHash: string; 
-        subject: string; 
-        body: string; 
+      name: "send_email",
+      description: "Send re-engagement email via email service provider",
+      execute: async (params: {
+        visitorId: number;
+        emailHash: string;
+        subject: string;
+        body: string;
         returnToken: string;
       }) => {
         try {
           const { visitorId, emailHash, subject, body, returnToken } = params;
-          
+
           // Create email campaign record
           const campaign: InsertEmailCampaign = {
             visitorId,
-            templateId: 'abandonment_reengagement',
+            templateId: "abandonment_reengagement",
             emailHash,
             returnToken,
-            status: 'sent',
+            status: "sent",
           };
 
           const emailCampaign = await storage.createEmailCampaign(campaign);
@@ -170,30 +170,32 @@ export class EmailReengagementAgent {
 
           // Log activity
           await storage.createAgentActivity({
-            agentType: 'email_reengagement',
-            action: 'email_sent',
+            agentType: "email_reengagement",
+            action: "email_sent",
             description: `Re-engagement email sent via ${this.emailService.getProviderName()}`,
             targetId: visitorId.toString(),
-            metadata: { 
+            metadata: {
               emailCampaignId: emailCampaign.id,
               returnToken,
               provider: this.emailService.getProviderName(),
             },
           });
 
-          console.log(`[EmailReengagementAgent] Sent email for visitor: ${visitorId}, campaign: ${emailCampaign.id}`);
-          
+          console.log(
+            `[EmailReengagementAgent] Sent email for visitor: ${visitorId}, campaign: ${emailCampaign.id}`
+          );
+
           return {
             success: true,
             emailCampaignId: emailCampaign.id,
             emailResult,
-            message: 'Email sent successfully',
+            message: "Email sent successfully",
           };
         } catch (error) {
-          console.error('[EmailReengagementAgent] Error sending email:', error);
+          console.error("[EmailReengagementAgent] Error sending email:", error);
           return {
             success: false,
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: error instanceof Error ? error.message : "Unknown error",
           };
         }
       },
@@ -203,7 +205,7 @@ export class EmailReengagementAgent {
   private generatePersonalizedContent(abandonmentStep: number): { subject: string; body: string } {
     const stepMessages = {
       1: {
-        subject: 'Complete Your Car Loan Application - Just One More Step!',
+        subject: "Complete Your Car Loan Application - Just One More Step!",
         body: `
           Hi there!
           
@@ -223,7 +225,7 @@ export class EmailReengagementAgent {
         `,
       },
       2: {
-        subject: 'Your Car Loan is Almost Ready - Complete Your Application',
+        subject: "Your Car Loan is Almost Ready - Complete Your Application",
         body: `
           Hi there!
           
@@ -243,7 +245,7 @@ export class EmailReengagementAgent {
         `,
       },
       3: {
-        subject: 'Final Step: Complete Your Car Loan Application Now',
+        subject: "Final Step: Complete Your Car Loan Application Now",
         body: `
           Hi there!
           
@@ -267,11 +269,13 @@ export class EmailReengagementAgent {
     return stepMessages[abandonmentStep as keyof typeof stepMessages] || stepMessages[1];
   }
 
-  async sendReengagementEmail(visitorId: number): Promise<{ success: boolean; campaignId?: number; error?: string }> {
+  async sendReengagementEmail(
+    visitorId: number
+  ): Promise<{ success: boolean; campaignId?: number; error?: string }> {
     try {
       const visitor = await storage.getVisitor(visitorId);
       if (!visitor) {
-        throw new Error('Visitor not found');
+        throw new Error("Visitor not found");
       }
 
       // Generate return token
@@ -287,14 +291,14 @@ export class EmailReengagementAgent {
 
       // Generate personalized content
       const content = this.generatePersonalizedContent(visitor.abandonmentStep || 1);
-      
+
       // Create email campaign
       const campaign: InsertEmailCampaign = {
         visitorId,
-        templateId: 'abandonment_reengagement',
+        templateId: "abandonment_reengagement",
         emailHash: visitor.emailHash,
         returnToken,
-        status: 'sent',
+        status: "sent",
       };
 
       const emailCampaign = await storage.createEmailCampaign(campaign);
@@ -303,17 +307,20 @@ export class EmailReengagementAgent {
       const emailResult = await this.emailService.sendReengagementEmail({
         to: visitor.emailHash,
         subject: content.subject,
-        body: content.body.replace('{{RETURN_LINK}}', `${process.env.BASE_URL || 'https://app.completecarloans.com'}/return/${returnToken}`),
+        body: content.body.replace(
+          "{{RETURN_LINK}}",
+          `${process.env.BASE_URL || "https://app.completecarloans.com"}/return/${returnToken}`
+        ),
         returnToken,
       });
 
       // Log activity
       await storage.createAgentActivity({
-        agentType: 'email_reengagement',
-        action: 'email_sent',
-        description: 'Re-engagement email sent successfully',
+        agentType: "email_reengagement",
+        action: "email_sent",
+        description: "Re-engagement email sent successfully",
         targetId: visitorId.toString(),
-        metadata: { 
+        metadata: {
           emailCampaignId: emailCampaign.id,
           returnToken,
           abandonmentStep: visitor.abandonmentStep,
@@ -321,13 +328,13 @@ export class EmailReengagementAgent {
       });
 
       console.log(`[EmailReengagementAgent] Sent re-engagement email for visitor: ${visitorId}`);
-      
+
       return { success: true, campaignId: emailCampaign.id };
     } catch (error) {
-      console.error('[EmailReengagementAgent] Error sending re-engagement email:', error);
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+      console.error("[EmailReengagementAgent] Error sending re-engagement email:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }

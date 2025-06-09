@@ -7,12 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { 
-  Mail,
-  Clock,
-  Users,
-  Send
-} from "lucide-react";
+import { Mail, Clock, Users, Send } from "lucide-react";
 
 interface EmailCampaignSettings {
   timing: {
@@ -39,23 +34,23 @@ export default function EmailCampaigns() {
   const [timingSettings, setTimingSettings] = useState({
     step1Delay: 30,
     step2Delay: 180,
-    step3Delay: 720
+    step3Delay: 720,
   });
 
   const { data: settings } = useQuery<EmailCampaignSettings>({
-    queryKey: ['/api/email-campaigns/settings'],
+    queryKey: ["/api/email-campaigns/settings"],
     refetchInterval: 60000,
   });
 
   const { data: campaigns = [] } = useQuery<EmailCampaign[]>({
-    queryKey: ['/api/email-campaigns'],
+    queryKey: ["/api/email-campaigns"],
     refetchInterval: 30000,
   });
 
   const bulkEmailMutation = useMutation({
     mutationFn: async (data: { campaignName: string; data: any[] }) => {
-      return apiRequest('/api/email-campaigns/bulk-send', {
-        method: 'POST',
+      return apiRequest("/api/email-campaigns/bulk-send", {
+        method: "POST",
         data: data,
       });
     },
@@ -64,8 +59,8 @@ export default function EmailCampaigns() {
         title: "Campaign Launched",
         description: `${campaignName} campaign processing started`,
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/email-campaigns'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/activity'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/email-campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/activity"] });
     },
     onError: (error: any) => {
       toast({
@@ -78,8 +73,8 @@ export default function EmailCampaigns() {
 
   const saveSettingsMutation = useMutation({
     mutationFn: async (settings: any) => {
-      return apiRequest('/api/email-campaigns/settings', {
-        method: 'POST',
+      return apiRequest("/api/email-campaigns/settings", {
+        method: "POST",
         data: settings,
       });
     },
@@ -95,18 +90,18 @@ export default function EmailCampaigns() {
     const mockData = [
       { email: "customer1@example.com", abandonmentStep: 1, vehicleInterest: "Honda Civic" },
       { email: "customer2@example.com", abandonmentStep: 2, vehicleInterest: "Toyota Camry" },
-      { email: "customer3@example.com", abandonmentStep: 3, vehicleInterest: "Ford F-150" }
+      { email: "customer3@example.com", abandonmentStep: 3, vehicleInterest: "Ford F-150" },
     ];
 
     bulkEmailMutation.mutate({
       campaignName,
-      data: mockData
+      data: mockData,
     });
   };
 
   const handleSaveSettings = () => {
     saveSettingsMutation.mutate({
-      timing: timingSettings
+      timing: timingSettings,
     });
   };
 
@@ -137,12 +132,12 @@ export default function EmailCampaigns() {
               <Input
                 id="campaignName"
                 value={campaignName}
-                onChange={(e) => setCampaignName(e.target.value)}
+                onChange={e => setCampaignName(e.target.value)}
                 placeholder="Enter campaign name"
               />
             </div>
-            
-            <Button 
+
+            <Button
               onClick={handleBulkCampaign}
               disabled={bulkEmailMutation.isPending}
               className="w-full"
@@ -160,9 +155,7 @@ export default function EmailCampaigns() {
               <Clock className="h-5 w-5" />
               Timing Configuration
             </CardTitle>
-            <CardDescription>
-              Configure delays between Cathy's email sequence steps
-            </CardDescription>
+            <CardDescription>Configure delays between Cathy's email sequence steps</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-3 gap-4">
@@ -172,10 +165,12 @@ export default function EmailCampaigns() {
                   id="step1"
                   type="number"
                   value={timingSettings.step1Delay}
-                  onChange={(e) => setTimingSettings(prev => ({
-                    ...prev,
-                    step1Delay: parseInt(e.target.value) || 30
-                  }))}
+                  onChange={e =>
+                    setTimingSettings(prev => ({
+                      ...prev,
+                      step1Delay: parseInt(e.target.value) || 30,
+                    }))
+                  }
                 />
               </div>
               <div>
@@ -184,10 +179,12 @@ export default function EmailCampaigns() {
                   id="step2"
                   type="number"
                   value={timingSettings.step2Delay}
-                  onChange={(e) => setTimingSettings(prev => ({
-                    ...prev,
-                    step2Delay: parseInt(e.target.value) || 180
-                  }))}
+                  onChange={e =>
+                    setTimingSettings(prev => ({
+                      ...prev,
+                      step2Delay: parseInt(e.target.value) || 180,
+                    }))
+                  }
                 />
               </div>
               <div>
@@ -196,15 +193,17 @@ export default function EmailCampaigns() {
                   id="step3"
                   type="number"
                   value={timingSettings.step3Delay}
-                  onChange={(e) => setTimingSettings(prev => ({
-                    ...prev,
-                    step3Delay: parseInt(e.target.value) || 720
-                  }))}
+                  onChange={e =>
+                    setTimingSettings(prev => ({
+                      ...prev,
+                      step3Delay: parseInt(e.target.value) || 720,
+                    }))
+                  }
                 />
               </div>
             </div>
-            
-            <Button 
+
+            <Button
               onClick={handleSaveSettings}
               disabled={saveSettingsMutation.isPending}
               variant="outline"
@@ -227,12 +226,15 @@ export default function EmailCampaigns() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {campaigns.map((campaign) => (
-              <div key={campaign.id} className="flex items-center justify-between p-4 border rounded-lg">
+            {campaigns.map(campaign => (
+              <div
+                key={campaign.id}
+                className="flex items-center justify-between p-4 border rounded-lg"
+              >
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
                     <h3 className="font-medium">{campaign.name}</h3>
-                    <Badge variant={campaign.status === 'active' ? 'default' : 'secondary'}>
+                    <Badge variant={campaign.status === "active" ? "default" : "secondary"}>
                       {campaign.status}
                     </Badge>
                   </div>

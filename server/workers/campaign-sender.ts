@@ -1,5 +1,5 @@
-import { storageService } from '../services/storage-service';
-import { Pool } from 'pg';
+import { storageService } from "../services/storage-service";
+import { Pool } from "pg";
 
 // This worker runs periodically to send scheduled campaign emails.
 class CampaignSender {
@@ -9,12 +9,12 @@ class CampaignSender {
   constructor() {
     this.pool = new Pool({
       connectionString: process.env.DATABASE_URL,
-      ssl: { rejectUnauthorized: false }
+      ssl: { rejectUnauthorized: false },
     });
   }
 
   start() {
-    console.log('🚀 Starting Campaign Sender Worker...');
+    console.log("🚀 Starting Campaign Sender Worker...");
     // Run every minute to check for emails to send.
     // In a high-volume production environment, you might use a more robust
     // job queue system like BullMQ or a dedicated cron job service.
@@ -24,12 +24,12 @@ class CampaignSender {
   stop() {
     if (this.interval) {
       clearInterval(this.interval);
-      console.log('🛑 Stopping Campaign Sender Worker...');
+      console.log("🛑 Stopping Campaign Sender Worker...");
     }
   }
 
   async processScheduledEmails() {
-    console.log('⚙️ Checking for scheduled emails...');
+    console.log("⚙️ Checking for scheduled emails...");
     const client = await this.pool.connect();
     try {
       // Find all leads with a next_touch_at in the past and status 'in_progress'
@@ -40,7 +40,7 @@ class CampaignSender {
       const { rows } = await client.query(scheduledQuery);
 
       if (rows.length === 0) {
-        console.log('✅ No scheduled emails to send at this time.');
+        console.log("✅ No scheduled emails to send at this time.");
         return;
       }
 
@@ -61,25 +61,30 @@ class CampaignSender {
         if (template) {
           // In a real implementation, you would use an email service here.
           // e.g., await emailService.send(lead.email, template.subject, template.body);
-          console.log(`📬 SENDING EMAIL: To Lead ${lead_id}, Campaign ${campaign_id}, Step ${nextStep}`);
+          console.log(
+            `📬 SENDING EMAIL: To Lead ${lead_id}, Campaign ${campaign_id}, Step ${nextStep}`
+          );
           console.log(`   Subject: ${template.subject}`);
-          
+
           // Get the next template in the sequence to schedule the next touch
           const nextTemplateQuery = `
             SELECT delay_hours FROM email_templates
             WHERE campaign_id = $1 AND sequence_order = $2;
           `;
-          const nextTemplateResult = await client.query(nextTemplateQuery, [campaign_id, nextStep + 1]);
+          const nextTemplateResult = await client.query(nextTemplateQuery, [
+            campaign_id,
+            nextStep + 1,
+          ]);
           const nextTemplate = nextTemplateResult.rows[0];
 
-          let newStatus = 'in_progress';
+          let newStatus = "in_progress";
           let nextTouchAt: Date | null = new Date();
 
           if (nextTemplate) {
             nextTouchAt.setHours(nextTouchAt.getHours() + nextTemplate.delay_hours);
           } else {
             // This was the last email in the sequence
-            newStatus = 'completed';
+            newStatus = "completed";
             nextTouchAt = null;
           }
 
@@ -91,7 +96,6 @@ class CampaignSender {
           `;
           await client.query(updateQuery, [nextStep, newStatus, nextTouchAt, lead_id, campaign_id]);
           console.log(`   Lead ${lead_id} updated to step ${nextStep}, status '${newStatus}'.`);
-
         } else {
           // No more templates in the sequence, mark as completed
           const updateQuery = `
@@ -100,11 +104,13 @@ class CampaignSender {
             WHERE lead_id = $1 AND campaign_id = $2;
           `;
           await client.query(updateQuery, [lead_id, campaign_id]);
-          console.log(`   No more templates for Lead ${lead_id} in Campaign ${campaign_id}. Marking as completed.`);
+          console.log(
+            `   No more templates for Lead ${lead_id} in Campaign ${campaign_id}. Marking as completed.`
+          );
         }
       }
     } catch (error) {
-      console.error('❌ Error processing scheduled emails:', error);
+      console.error("❌ Error processing scheduled emails:", error);
     } finally {
       client.release();
     }

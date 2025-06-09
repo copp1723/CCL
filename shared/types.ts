@@ -29,7 +29,7 @@ export interface DetailedMetrics extends Metrics {
 
 export interface AgentStatus {
   name: string;
-  status: 'active' | 'inactive' | 'error';
+  status: "active" | "inactive" | "error";
   lastActivity: Date;
   processedToday: number;
   description: string;

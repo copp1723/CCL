@@ -1,9 +1,20 @@
-import React from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useParams, Link } from 'wouter';
+import React from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useParams, Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle, Mail, Clock, ArrowLeft, Check, Trash2, Pause, Play, Edit2, FilePlus } from 'lucide-react';
+import {
+  PlusCircle,
+  Mail,
+  Clock,
+  ArrowLeft,
+  Check,
+  Trash2,
+  Pause,
+  Play,
+  Edit2,
+  FilePlus,
+} from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -11,11 +22,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import * as z from 'zod';
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import * as z from "zod";
 import {
   Form,
   FormControl,
@@ -23,99 +34,105 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from '@/components/ui/form';
+} from "@/components/ui/form";
 
 // API fetchers
 const fetchCampaignById = async (id: string) => {
   const res = await fetch(`/api/campaigns/${id}`);
-  if (!res.ok) throw new Error('Failed to fetch campaign');
+  if (!res.ok) throw new Error("Failed to fetch campaign");
   return res.json();
 };
 
 const fetchTemplatesForCampaign = async (id: string) => {
   const res = await fetch(`/api/campaigns/${id}/templates`);
-  if (!res.ok) throw new Error('Failed to fetch templates');
+  if (!res.ok) throw new Error("Failed to fetch templates");
   return res.json();
 };
 
-const addEmailTemplate = async ({ campaignId, data }: { campaignId: string, data: any }) => {
+const addEmailTemplate = async ({ campaignId, data }: { campaignId: string; data: any }) => {
   const res = await fetch(`/api/campaigns/${campaignId}/templates`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  if (!res.ok) throw new Error('Failed to add template');
+  if (!res.ok) throw new Error("Failed to add template");
   return res.json();
 };
 
 const fetchAllLeads = async (campaignId: string) => {
   const res = await fetch(`/api/campaigns/${campaignId}/leads/all`);
-  if (!res.ok) throw new Error('Failed to fetch leads');
+  if (!res.ok) throw new Error("Failed to fetch leads");
   return res.json();
 };
 
 const fetchEnrolledLeads = async (campaignId: string) => {
   const res = await fetch(`/api/campaigns/${campaignId}/leads/enrolled`);
-  if (!res.ok) throw new Error('Failed to fetch enrolled leads');
+  if (!res.ok) throw new Error("Failed to fetch enrolled leads");
   return res.json();
 };
 
-const enrollLeads = async ({ campaignId, leadIds }: { campaignId: string, leadIds: string[] }) => {
+const enrollLeads = async ({ campaignId, leadIds }: { campaignId: string; leadIds: string[] }) => {
   const res = await fetch(`/api/campaigns/${campaignId}/enroll`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ leadIds }),
   });
-  if (!res.ok) throw new Error('Failed to enroll leads');
+  if (!res.ok) throw new Error("Failed to enroll leads");
   return res.json();
 };
 
-const updateCampaign = async ({ campaignId, updates }: { campaignId: string, updates: any }) => {
+const updateCampaign = async ({ campaignId, updates }: { campaignId: string; updates: any }) => {
   const res = await fetch(`/api/campaigns/${campaignId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(updates)
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(updates),
   });
-  if (!res.ok) throw new Error('Failed to update campaign');
+  if (!res.ok) throw new Error("Failed to update campaign");
   return res.json();
 };
 
 const deleteCampaign = async (campaignId: string) => {
-  const res = await fetch(`/api/campaigns/${campaignId}`, { method: 'DELETE' });
-  if (!res.ok && res.status !== 204) throw new Error('Failed to delete campaign');
+  const res = await fetch(`/api/campaigns/${campaignId}`, { method: "DELETE" });
+  if (!res.ok && res.status !== 204) throw new Error("Failed to delete campaign");
   return true;
 };
 
 const cloneCampaign = async (campaignId: string) => {
-  const res = await fetch(`/api/campaigns/${campaignId}/clone`, { method: 'POST' });
-  if (!res.ok) throw new Error('Failed to clone campaign');
+  const res = await fetch(`/api/campaigns/${campaignId}/clone`, { method: "POST" });
+  if (!res.ok) throw new Error("Failed to clone campaign");
   return res.json();
 };
 
 // Zod schemas
 const templateSchema = z.object({
-  subject: z.string().min(3, 'Subject must be at least 3 characters.'),
-  body: z.string().min(10, 'Body must be at least 10 characters.'),
-  sequence_order: z.coerce.number().min(1, 'Sequence order must be at least 1.'),
-  delay_hours: z.coerce.number().min(1, 'Delay must be at least 1 hour.'),
+  subject: z.string().min(3, "Subject must be at least 3 characters."),
+  body: z.string().min(10, "Body must be at least 10 characters."),
+  sequence_order: z.coerce.number().min(1, "Sequence order must be at least 1."),
+  delay_hours: z.coerce.number().min(1, "Delay must be at least 1 hour."),
 });
 
 const campaignEditSchema = z.object({
   name: z.string().min(3),
-  goal_prompt: z.string().min(10)
+  goal_prompt: z.string().min(10),
 });
 
-function AddTemplateForm({ campaignId, setOpen }: { campaignId: string, setOpen: (open: boolean) => void }) {
+function AddTemplateForm({
+  campaignId,
+  setOpen,
+}: {
+  campaignId: string;
+  setOpen: (open: boolean) => void;
+}) {
   const queryClient = useQueryClient();
   const form = useForm<z.infer<typeof templateSchema>>({
     resolver: zodResolver(templateSchema),
-    defaultValues: { subject: '', body: '', sequence_order: 1, delay_hours: 24 },
+    defaultValues: { subject: "", body: "", sequence_order: 1, delay_hours: 24 },
   });
 
   const mutation = useMutation({
     mutationFn: (data: any) => addEmailTemplate({ campaignId, data }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['templates', campaignId] });
+      queryClient.invalidateQueries({ queryKey: ["templates", campaignId] });
       setOpen(false);
     },
   });
@@ -127,25 +144,73 @@ function AddTemplateForm({ campaignId, setOpen }: { campaignId: string, setOpen:
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField name="subject" control={form.control} render={({ field }) => (
-          <FormItem><FormLabel>Subject</FormLabel><FormControl><Input placeholder="Email Subject" {...field} /></FormControl><FormMessage /></FormItem>
-        )} />
-        <FormField name="body" control={form.control} render={({ field }) => (
-          <FormItem><FormLabel>Body</FormLabel><FormControl><Textarea placeholder="Email content..." {...field} /></FormControl><FormMessage /></FormItem>
-        )} />
-        <FormField name="sequence_order" control={form.control} render={({ field }) => (
-          <FormItem><FormLabel>Sequence Order</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-        )} />
-        <FormField name="delay_hours" control={form.control} render={({ field }) => (
-          <FormItem><FormLabel>Delay (hours)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
-        )} />
-        <Button type="submit" disabled={mutation.isLoading}>{mutation.isLoading ? 'Adding...' : 'Add Template'}</Button>
+        <FormField
+          name="subject"
+          control={form.control}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Subject</FormLabel>
+              <FormControl>
+                <Input placeholder="Email Subject" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          name="body"
+          control={form.control}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Body</FormLabel>
+              <FormControl>
+                <Textarea placeholder="Email content..." {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          name="sequence_order"
+          control={form.control}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Sequence Order</FormLabel>
+              <FormControl>
+                <Input type="number" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          name="delay_hours"
+          control={form.control}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Delay (hours)</FormLabel>
+              <FormControl>
+                <Input type="number" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <Button type="submit" disabled={mutation.isLoading}>
+          {mutation.isLoading ? "Adding..." : "Add Template"}
+        </Button>
       </form>
     </Form>
   );
 }
 
-function EditCampaignForm({ campaign, setOpen }: { campaign: any, setOpen: (open: boolean) => void }) {
+function EditCampaignForm({
+  campaign,
+  setOpen,
+}: {
+  campaign: any;
+  setOpen: (open: boolean) => void;
+}) {
   const queryClient = useQueryClient();
   const form = useForm<z.infer<typeof campaignEditSchema>>({
     resolver: zodResolver(campaignEditSchema),
@@ -153,11 +218,12 @@ function EditCampaignForm({ campaign, setOpen }: { campaign: any, setOpen: (open
   });
 
   const mutation = useMutation({
-    mutationFn: (updates: z.infer<typeof campaignEditSchema>) => updateCampaign({ campaignId: campaign.id, updates }),
+    mutationFn: (updates: z.infer<typeof campaignEditSchema>) =>
+      updateCampaign({ campaignId: campaign.id, updates }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['campaign', campaign.id] });
+      queryClient.invalidateQueries({ queryKey: ["campaign", campaign.id] });
       setOpen(false);
-    }
+    },
   });
 
   function onSubmit(values: z.infer<typeof campaignEditSchema>) {
@@ -167,13 +233,35 @@ function EditCampaignForm({ campaign, setOpen }: { campaign: any, setOpen: (open
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <FormField name="name" control={form.control} render={({ field }) => (
-          <FormItem><FormLabel>Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
-        )} />
-        <FormField name="goal_prompt" control={form.control} render={({ field }) => (
-          <FormItem><FormLabel>AI Goal Prompt</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem>
-        )} />
-        <Button type="submit" disabled={mutation.isLoading}>{mutation.isLoading ? 'Saving...' : 'Save Changes'}</Button>
+        <FormField
+          name="name"
+          control={form.control}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Name</FormLabel>
+              <FormControl>
+                <Input {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          name="goal_prompt"
+          control={form.control}
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>AI Goal Prompt</FormLabel>
+              <FormControl>
+                <Textarea {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <Button type="submit" disabled={mutation.isLoading}>
+          {mutation.isLoading ? "Saving..." : "Save Changes"}
+        </Button>
       </form>
     </Form>
   );
@@ -190,23 +278,31 @@ export default function CampaignDetailPage() {
 
   const queryClient = useQueryClient();
 
-  const { data: campaign, isLoading: campaignLoading, error: campaignError } = useQuery({
-    queryKey: ['campaign', campaignId],
+  const {
+    data: campaign,
+    isLoading: campaignLoading,
+    error: campaignError,
+  } = useQuery({
+    queryKey: ["campaign", campaignId],
     queryFn: () => fetchCampaignById(campaignId!),
     enabled: !!campaignId,
   });
-  const { data: templates, isLoading: templatesLoading, error: templatesError } = useQuery({
-    queryKey: ['templates', campaignId],
+  const {
+    data: templates,
+    isLoading: templatesLoading,
+    error: templatesError,
+  } = useQuery({
+    queryKey: ["templates", campaignId],
     queryFn: () => fetchTemplatesForCampaign(campaignId!),
     enabled: !!campaignId,
   });
   const { data: allLeads, isLoading: allLeadsLoading } = useQuery({
-    queryKey: ['allLeads', campaignId],
+    queryKey: ["allLeads", campaignId],
     queryFn: () => fetchAllLeads(campaignId!),
     enabled: !!campaignId,
   });
   const { data: enrolledLeads, isLoading: enrolledLeadsLoading } = useQuery({
-    queryKey: ['enrolledLeads', campaignId],
+    queryKey: ["enrolledLeads", campaignId],
     queryFn: () => fetchEnrolledLeads(campaignId!),
     enabled: !!campaignId,
   });
@@ -216,22 +312,25 @@ export default function CampaignDetailPage() {
     mutationFn: () => deleteCampaign(campaignId!),
     onSuccess: () => {
       setConfirmDelete(false);
-      window.location.href = '/campaigns';
-    }
+      window.location.href = "/campaigns";
+    },
   });
 
   const mutationEnroll = useMutation({
     mutationFn: (leadIds: string[]) => enrollLeads({ campaignId: campaignId!, leadIds }),
     onSuccess: () => {
       setEnrollOpen(false);
-      queryClient.invalidateQueries({ queryKey: ['enrolledLeads', campaignId] });
-    }
+      queryClient.invalidateQueries({ queryKey: ["enrolledLeads", campaignId] });
+    },
   });
 
   // Pause/Start
   const mutationPauseStart = useMutation({
-    mutationFn: (status: string) => updateCampaign({ campaignId: campaignId!, updates: { status } }),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['campaign', campaignId] }); }
+    mutationFn: (status: string) =>
+      updateCampaign({ campaignId: campaignId!, updates: { status } }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["campaign", campaignId] });
+    },
   });
 
   // Clone
@@ -239,7 +338,7 @@ export default function CampaignDetailPage() {
     setCloneLoading(true);
     await cloneCampaign(campaignId!);
     setCloneLoading(false);
-    window.location.href = '/campaigns';
+    window.location.href = "/campaigns";
   };
 
   // Compute available leads for enrollment
@@ -247,7 +346,8 @@ export default function CampaignDetailPage() {
   const availableLeads = (allLeads || []).filter((l: any) => !enrolledIds.has(l.id));
   const [selectedLeadIds, setSelectedLeadIds] = React.useState<string[]>([]);
 
-  if (campaignLoading || templatesLoading || allLeadsLoading || enrolledLeadsLoading) return <div>Loading...</div>;
+  if (campaignLoading || templatesLoading || allLeadsLoading || enrolledLeadsLoading)
+    return <div>Loading...</div>;
   if (campaignError || templatesError) return <div>Error loading campaign details.</div>;
   if (!campaign) return <div>Campaign not found.</div>;
 
@@ -263,26 +363,57 @@ export default function CampaignDetailPage() {
       <div className="flex gap-2 mb-2">
         <Dialog open={editOpen} onOpenChange={setEditOpen}>
           <DialogTrigger asChild>
-            <Button variant="outline"><Edit2 className="mr-2 h-4 w-4" />Edit</Button>
+            <Button variant="outline">
+              <Edit2 className="mr-2 h-4 w-4" />
+              Edit
+            </Button>
           </DialogTrigger>
           <DialogContent>
-            <DialogHeader><DialogTitle>Edit Campaign</DialogTitle></DialogHeader>
+            <DialogHeader>
+              <DialogTitle>Edit Campaign</DialogTitle>
+            </DialogHeader>
             <EditCampaignForm campaign={campaign} setOpen={setEditOpen} />
           </DialogContent>
         </Dialog>
-        <Button variant="outline" color="destructive" onClick={() => setConfirmDelete(true)}><Trash2 className="mr-2 h-4 w-4" />Delete</Button>
-        <Button variant={campaign.status === 'paused' ? "default" : "outline"} onClick={() => mutationPauseStart.mutate(campaign.status === 'active' ? 'paused' : 'active')}>
-          {campaign.status === 'active' ? (<><Pause className="mr-2 h-4 w-4" />Pause</>) : (<><Play className="mr-2 h-4 w-4" />Start</>)}
+        <Button variant="outline" color="destructive" onClick={() => setConfirmDelete(true)}>
+          <Trash2 className="mr-2 h-4 w-4" />
+          Delete
         </Button>
-        <Button variant="outline" onClick={handleClone} disabled={cloneLoading}><FilePlus className="mr-2 h-4 w-4" />{cloneLoading ? 'Cloning...' : 'Clone'}</Button>
+        <Button
+          variant={campaign.status === "paused" ? "default" : "outline"}
+          onClick={() =>
+            mutationPauseStart.mutate(campaign.status === "active" ? "paused" : "active")
+          }
+        >
+          {campaign.status === "active" ? (
+            <>
+              <Pause className="mr-2 h-4 w-4" />
+              Pause
+            </>
+          ) : (
+            <>
+              <Play className="mr-2 h-4 w-4" />
+              Start
+            </>
+          )}
+        </Button>
+        <Button variant="outline" onClick={handleClone} disabled={cloneLoading}>
+          <FilePlus className="mr-2 h-4 w-4" />
+          {cloneLoading ? "Cloning..." : "Clone"}
+        </Button>
       </div>
       {/* Delete confirmation */}
       {confirmDelete && (
         <div className="mb-4 bg-red-50 p-4 rounded border border-red-200 text-red-600">
           <p>Are you sure you want to delete this campaign? This action cannot be undone.</p>
           <div className="flex gap-2 mt-2">
-            <Button variant="destructive" onClick={() => mutationDelete.mutate()}><Trash2 className="mr-2 h-4 w-4" />Yes, Delete</Button>
-            <Button variant="outline" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => mutationDelete.mutate()}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              Yes, Delete
+            </Button>
+            <Button variant="outline" onClick={() => setConfirmDelete(false)}>
+              Cancel
+            </Button>
           </div>
         </div>
       )}
@@ -337,17 +468,25 @@ export default function CampaignDetailPage() {
           <h2 className="text-lg font-semibold">Enrolled Leads</h2>
           <Dialog open={enrollOpen} onOpenChange={setEnrollOpen}>
             <DialogTrigger asChild>
-              <Button variant="secondary"><PlusCircle className="mr-1 h-4 w-4" />Enroll Leads</Button>
+              <Button variant="secondary">
+                <PlusCircle className="mr-1 h-4 w-4" />
+                Enroll Leads
+              </Button>
             </DialogTrigger>
             <DialogContent>
-              <DialogHeader><DialogTitle>Enroll Leads In Campaign</DialogTitle></DialogHeader>
+              <DialogHeader>
+                <DialogTitle>Enroll Leads In Campaign</DialogTitle>
+              </DialogHeader>
               <div>
                 <p>Select leads to enroll in this campaign:</p>
                 {availableLeads.length > 0 ? (
                   <div className="max-h-40 overflow-y-auto mt-2 space-y-1">
                     {availableLeads.map((l: any) => (
                       <label key={l.id} className="flex items-center gap-2">
-                        <input type="checkbox" value={l.id} checked={selectedLeadIds.includes(l.id)}
+                        <input
+                          type="checkbox"
+                          value={l.id}
+                          checked={selectedLeadIds.includes(l.id)}
                           onChange={e => {
                             if (e.target.checked) {
                               setSelectedLeadIds(ids => [...ids, l.id]);
@@ -360,10 +499,16 @@ export default function CampaignDetailPage() {
                       </label>
                     ))}
                   </div>
-                ) : <div className="py-2">No available leads to enroll.</div>}
-                <Button className="mt-2" disabled={selectedLeadIds.length === 0 || mutationEnroll.isLoading}
-                  onClick={() => mutationEnroll.mutate(selectedLeadIds)}>
-                  {mutationEnroll.isLoading ? 'Enrolling...' : 'Enroll Selected'}</Button>
+                ) : (
+                  <div className="py-2">No available leads to enroll.</div>
+                )}
+                <Button
+                  className="mt-2"
+                  disabled={selectedLeadIds.length === 0 || mutationEnroll.isLoading}
+                  onClick={() => mutationEnroll.mutate(selectedLeadIds)}
+                >
+                  {mutationEnroll.isLoading ? "Enrolling..." : "Enroll Selected"}
+                </Button>
               </div>
             </DialogContent>
           </Dialog>
@@ -381,7 +526,12 @@ export default function CampaignDetailPage() {
               {enrolledLeads?.map((l: any) => (
                 <tr key={l.id} className="border-b last:border-0">
                   <td className="p-2">{l.email}</td>
-                  <td className="p-2 capitalize">{l.campaign_status} {l.campaign_status === 'completed' ? <Check className="inline ml-1 text-green-600" /> : null}</td>
+                  <td className="p-2 capitalize">
+                    {l.campaign_status}{" "}
+                    {l.campaign_status === "completed" ? (
+                      <Check className="inline ml-1 text-green-600" />
+                    ) : null}
+                  </td>
                   <td className="p-2">{l.current_step ?? 0}</td>
                 </tr>
               ))}
