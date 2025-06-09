@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import DOMPurify from "dompurify";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -447,9 +448,11 @@ export default function EmailCampaigns() {
                 <div
                   className="mt-2 bg-white border rounded p-4"
                   dangerouslySetInnerHTML={{
-                    __html: selectedTemplate.html.replace(
-                      /\{\{(\w+)\}\}/g,
-                      (match, key) => previewVariables[key] || match
+                    __html: DOMPurify.sanitize(
+                      selectedTemplate.html.replace(
+                        /\{\{(\w+)\}\}/g,
+                        (match, key) => previewVariables[key] || match
+                      )
                     ),
                   }}
                 />

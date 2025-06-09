@@ -1,4 +1,5 @@
 import { Response } from "express";
+import { randomBytes } from "crypto";
 import { ErrorCode, getErrorDefinition, type ErrorDefinition } from "./error-codes";
 
 // Re-export ErrorCode for other modules
@@ -197,7 +198,7 @@ export function validateFieldLength(value: string, fieldName: string, maxLength:
 
 // Request ID generation utility
 export function generateRequestId(): string {
-  return `req_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  return `req_${Date.now()}_${randomBytes(4).toString('hex')}`;
 }
 
 // Centralized async wrapper for route handlers

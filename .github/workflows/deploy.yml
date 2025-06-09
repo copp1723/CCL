@@ -24,11 +24,13 @@ jobs:
     steps:
       - name: Determine deployment environment
         id: determine-env
+        env:
+          BRANCH_NAME: ${{ github.event.workflow_run.head_branch }}
         run: |
-          if [[ "${{ github.event.workflow_run.head_branch }}" == "main" ]]; then
+          if [[ "$BRANCH_NAME" == "main" ]]; then
             echo "environment=production" >> $GITHUB_OUTPUT
             echo "deploy-url=https://ccl-agents.replit.app" >> $GITHUB_OUTPUT
-          elif [[ "${{ github.event.workflow_run.head_branch }}" == "develop" ]]; then
+          elif [[ "$BRANCH_NAME" == "develop" ]]; then
             echo "environment=staging" >> $GITHUB_OUTPUT
             echo "deploy-url=https://ccl-staging.replit.app" >> $GITHUB_OUTPUT
           fi

@@ -70,6 +70,7 @@ jobs:
       security-events: write
       actions: read
       contents: read
+      pull-requests: read
 
     steps:
       - uses: actions/checkout@v4
@@ -93,13 +94,39 @@ jobs:
           name: security-audit
           path: audit-report.json
 
-      - name: Run CodeQL Analysis
+      - name: Run ESLint Security Rules
+        run: |
+          npx eslint . --ext .ts,.tsx,.js,.jsx \
+            --config .eslintrc.json \
+            --format json \
+            --output-file eslint-security.json || true
+        continue-on-error: true
+
+      - name: Run Semgrep Security Scan
+        uses: returntocorp/semgrep-action@v1
+        with:
+          config: >-
+            p/security-audit
+            p/secrets
+            p/javascript
+            p/typescript
+        continue-on-error: true
+
+      - name: Initialize CodeQL (Analysis Only)
         uses: github/codeql-action/init@v3
         with:
           languages: javascript
+          queries: security-and-quality
 
-      - name: Perform CodeQL Analysis
+      - name: Build application for CodeQL analysis
+        run: npm run build
+
+      - name: Perform CodeQL Analysis (Local Only)
         uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript"
+          upload-database: false
+        continue-on-error: true
 
   dependency-review:
     name: Dependency Review
