@@ -115,7 +115,8 @@
     "prettier": "^3.1.1",
     "tailwindcss-animate": "^1.0.7",
     "tsx": "^4.19.1",
-    "vitest": "^3.2.3"
+    "vitest": "^3.2.3",
+    "wait-on": "^8.0.3"
   },
   "optionalDependencies": {
     "bufferutil": "^4.0.8"
