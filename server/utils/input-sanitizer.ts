@@ -19,7 +19,7 @@ export function sanitizeCampaignName(input: string): string {
 
   // Check for remaining suspicious patterns
   if (sanitized.includes("etc") || sanitized.includes("passwd") || sanitized.includes("config")) {
-    throw new ApiError(ErrorCode.VALIDATION_001, "Campaign name contains invalid characters");
+    throw new ApiError(ErrorCode.REQUIRED_FIELD_MISSING, "Campaign name contains invalid characters");
   }
 
   // Ensure minimum length

@@ -73,7 +73,7 @@ export const sessions = pgTable(
 export const systemLeads = pgTable("system_leads", {
   id: text("id").primaryKey(),
   email: text("email").notNull(),
-  status: text("status").notNull().default("new"), // new, contacted, qualified, closed
+  status: text("status", { enum: ["new", "contacted", "qualified", "closed"] }).notNull().default("new"),
   leadData: jsonb("lead_data").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -92,7 +92,7 @@ export const systemActivities = pgTable("system_activities", {
 export const systemAgents = pgTable("system_agents", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
-  status: text("status").notNull().default("active"), // active, inactive, error
+  status: text("status", { enum: ["active", "inactive", "error"] }).notNull().default("active"),
   processedToday: integer("processed_today").default(0),
   description: text("description").notNull(),
   icon: text("icon").notNull(),
@@ -124,7 +124,7 @@ export const campaignAttempts = pgTable("campaign_attempts", {
   templateId: text("template_id").notNull(),
   scheduledFor: timestamp("scheduled_for").notNull(),
   sentAt: timestamp("sent_at"),
-  status: text("status").notNull().default("scheduled"), // scheduled, sent, failed, skipped
+  status: text("status", { enum: ["scheduled", "sent", "failed", "skipped"] }).notNull().default("scheduled"),
   messageId: text("message_id"),
   errorMessage: text("error_message"),
   variables: jsonb("variables"),
@@ -137,7 +137,7 @@ export const leads = pgTable("leads", {
     .references(() => visitors.id)
     .notNull(),
   leadData: jsonb("lead_data").notNull(),
-  status: text("status").notNull().default("pending"), // pending, submitted, failed
+  status: text("status", { enum: ["pending", "submitted", "failed"] }).notNull().default("pending"),
   dealerResponse: jsonb("dealer_response"),
   submittedAt: timestamp("submitted_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -150,16 +150,20 @@ export const agentActivity = pgTable("agent_activity", {
   details: text("details"),
   visitorId: integer("visitor_id").references(() => visitors.id),
   leadId: integer("lead_id").references(() => leads.id),
-  status: text("status").notNull(), // success, error, pending
+  status: text("status", { enum: ["success", "error", "pending"] }).notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 // Insert schemas for system tables
-export const insertSystemLeadSchema = createInsertSchema(systemLeads).omit({
+export const insertSystemLeadSchema = createInsertSchema(systemLeads, {
+  leadData: z.any(),
+}).omit({
   createdAt: true,
 });
 
-export const insertSystemActivitySchema = createInsertSchema(systemActivities).omit({
+export const insertSystemActivitySchema = createInsertSchema(systemActivities, {
+  metadata: z.any().optional(),
+}).omit({
   timestamp: true,
 });
 
@@ -168,12 +172,16 @@ export const insertSystemAgentSchema = createInsertSchema(systemAgents).omit({
 });
 
 // Insert schemas
-export const insertVisitorSchema = createInsertSchema(visitors).omit({
+export const insertVisitorSchema = createInsertSchema(visitors, {
+  metadata: z.any().optional(),
+}).omit({
   id: true,
   createdAt: true,
 });
 
-export const insertChatSessionSchema = createInsertSchema(chatSessions).omit({
+export const insertChatSessionSchema = createInsertSchema(chatSessions, {
+  messages: z.any().optional(),
+}).omit({
   id: true,
   createdAt: true,
   updatedAt: true,
@@ -184,7 +192,10 @@ export const insertEmailCampaignSchema = createInsertSchema(emailCampaigns).omit
   createdAt: true,
 });
 
-export const insertLeadSchema = createInsertSchema(leads).omit({
+export const insertLeadSchema = createInsertSchema(leads, {
+  leadData: z.any(),
+  dealerResponse: z.any().optional(),
+}).omit({
   id: true,
   createdAt: true,
 });
@@ -195,12 +206,16 @@ export const insertAgentActivitySchema = createInsertSchema(agentActivity).omit(
 });
 
 // Campaign schedule schemas
-export const insertCampaignScheduleSchema = createInsertSchema(campaignSchedules).omit({
+export const insertCampaignScheduleSchema = createInsertSchema(campaignSchedules, {
+  attempts: z.any(),
+}).omit({
   createdAt: true,
   updatedAt: true,
 });
 
-export const insertCampaignAttemptSchema = createInsertSchema(campaignAttempts).omit({
+export const insertCampaignAttemptSchema = createInsertSchema(campaignAttempts, {
+  variables: z.any().optional(),
+}).omit({
   createdAt: true,
 });
 

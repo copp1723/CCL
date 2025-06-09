@@ -18,6 +18,47 @@ export interface MailgunEmailResponse {
   error?: string;
 }
 
+export interface FlexPathCreditRequest {
+  phoneNumber: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  ipAddress?: string;
+  userAgent?: string;
+}
+
+export interface FlexPathCreditResponse {
+  success: boolean;
+  approved: boolean;
+  creditScore?: number;
+  riskTier: 'prime' | 'near-prime' | 'sub-prime' | 'deep-sub-prime';
+  maxLoanAmount?: number;
+  estimatedRate?: number;
+  externalId: string;
+  reasons?: string[];
+  error?: string;
+}
+
+export class FlexPathService {
+  private apiKey: string;
+  private baseUrl: string;
+  private timeout: number;
+
+  constructor() {
+    this.apiKey = process.env.FLEXPATH_API_KEY || '';
+    this.baseUrl = process.env.FLEXPATH_BASE_URL || 'https://api.flexpath.com/v1';
+    this.timeout = 10000; // 10 seconds
+
+    if (!this.apiKey) {
+      console.warn('FlexPath API key not configured. Credit checks will use simulation mode.');
+    }
+  }
+
+  async performCreditCheck(request: FlexPathCreditRequest): Promise<FlexPathCreditResponse> {
+    if (!this.apiKey) {
+      return this.simulateCreditCheck(request);
+    }
+
     try {
       const response = await fetch(`${this.baseUrl}/credit-check`, {
         method: 'POST',

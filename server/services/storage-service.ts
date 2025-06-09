@@ -234,13 +234,13 @@ class StorageService {
     });
   }
 
-  async updateLead(id: string, updates: any): Promise<boolean> {
+  async updateLead(id: string, updates: Partial<{ email: string; status: string; leadData: any; phoneNumber: string }>): Promise<boolean> {
     if (updates.email) {
       this.validateLeadData(updates);
       updates.email = await this.encrypt(updates.email);
     }
     if (updates.phoneNumber) {
-      updates.phone_number = await this.encrypt(updates.phoneNumber);
+      (updates as any).phone_number = await this.encrypt(updates.phoneNumber);
       delete updates.phoneNumber;
     }
 
@@ -799,7 +799,7 @@ export const storageService = {
   async getLeadById(id: string) {
     return this.instance.getLeadById(id);
   },
-  async updateLead(id: string, updates: any) {
+  async updateLead(id: string, updates: Partial<{ email: string; status: string; leadData: any; phoneNumber: string }>) {
     return this.instance.updateLead(id, updates);
   },
   async deleteLead(id: string) {

@@ -1,6 +1,9 @@
 import { Response } from "express";
 import { ErrorCode, getErrorDefinition, type ErrorDefinition } from "./error-codes";
 
+// Re-export ErrorCode for other modules
+export { ErrorCode };
+
 export interface StandardError {
   success: false;
   error: {
