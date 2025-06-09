@@ -1,14 +1,13 @@
-
 #!/usr/bin/env node
 
-const SystemValidator = require('../tests/system-validation.test.js');
+import SystemValidator from "../tests/system-validation.test.js";
 
 async function runSystemTests() {
-  console.log('🔧 Complete Car Loans System Validation');
-  console.log('=' * 40);
+  console.log("🔧 Complete Car Loans System Validation");
+  console.log("=".repeat(40));
   
   // Wait a moment for the server to be ready
-  console.log('Waiting for server to be ready...');
+  console.log("Waiting for server to be ready...");
   await new Promise(resolve => setTimeout(resolve, 2000));
   
   const validator = new SystemValidator();
@@ -18,6 +17,6 @@ async function runSystemTests() {
 }
 
 runSystemTests().catch(error => {
-  console.error('System test runner failed:', error);
+  console.error("System test runner failed:", error);
   process.exit(1);
 });
