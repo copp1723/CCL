@@ -41,18 +41,6 @@ jobs:
     name: Integration Tests
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:15
-        env:
-          POSTGRES_PASSWORD: test
-          POSTGRES_DB: ccl_test
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     steps:
       - uses: actions/checkout@v4
 
@@ -65,15 +53,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run database migrations
-        run: npm run db:migrate
-        env:
-          DATABASE_URL: postgresql://postgres:test@localhost:5432/ccl_test
-
       - name: Run integration tests
         run: npm run test:integration
         env:
-          DATABASE_URL: postgresql://postgres:test@localhost:5432/ccl_test
+          ENCRYPTION_KEY: "test-encryption-key-for-integration-testing-32-chars-minimum-secure-key-123456789"
           NODE_ENV: test
 
   e2e-tests:
@@ -98,17 +81,10 @@ jobs:
       - name: Build application
         run: npm run build
 
-      - name: Start application
-        run: npm start &
+      - name: Run E2E tests (CI mode)
+        run: CI=true npx playwright test
         env:
           NODE_ENV: test
-          PORT: 3000
-
-      - name: Wait for application
-        run: npx wait-on http://localhost:3000 --timeout 60000
-
-      - name: Run E2E tests
-        run: npx playwright test
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
