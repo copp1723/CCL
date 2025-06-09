@@ -1,3 +1,5 @@
+
+import './db-fix';
 import express, { Request, Response, NextFunction } from "express";
 import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
@@ -41,12 +43,12 @@ app.use(
 app.use(requestLogger);
 app.use(apiRateLimiter);
 
-// Add the campaign and webhook routers
+// Add the campaign and webhook routes
 app.use("/api/campaigns", campaignRoutes);
 app.use("/api/webhooks", webhookRoutes);
 
 // CORS configuration
-const allowedOrigins = ["http://localhost:5173", "http://12y7.0.0.1:5173"];
+const allowedOrigins = ["http://localhost:5173", "http://127.0.0.1:5173"];
 if (process.env.FRONTEND_URL) {
   allowedOrigins.push(process.env.FRONTEND_URL);
 }
@@ -77,7 +79,7 @@ const sanitizeInput = (req: Request, res: Response, next: NextFunction) => {
     /on\w+\s*=/gi,
     /eval\s*\(/gi,
     /expression\s*\(/gi,
-    /\.\./g, // Path traversal
+    /\.\.\//g, // Path traversal
     /union\s+select/gi,
     /drop\s+table/gi,
     /insert\s+into/gi,
