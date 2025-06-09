@@ -198,7 +198,7 @@ export const securityMonitor = new SecurityMonitor();
 export function requestLogging() {
   return (req: Request, res: Response, next: NextFunction) => {
     const start = Date.now();
-    const requestId = `req_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
+    const requestId = `req_${Date.now()}_${crypto.randomBytes(4).toString("hex")}`;
     req.requestId = requestId;
 
     res.on("finish", () => {

@@ -198,7 +198,7 @@ export function validateFieldLength(value: string, fieldName: string, maxLength:
 
 // Request ID generation utility
 export function generateRequestId(): string {
-  return `req_${Date.now()}_${randomBytes(4).toString('hex')}`;
+  return `req_${Date.now()}_${randomBytes(4).toString("hex")}`;
 }
 
 // Centralized async wrapper for route handlers

@@ -75,15 +75,16 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
   const sanitizedCSS = Object.entries(THEMES)
     .map(([theme, prefix]) => {
       // Sanitize prefix and id to prevent CSS injection
-      const safePrefix = prefix.replace(/[^a-zA-Z0-9\-_\s\[\]\.#:]/g, '');
-      const safeId = id.replace(/[^a-zA-Z0-9\-_]/g, '');
+      const safePrefix = prefix.replace(/[^a-zA-Z0-9\-_\s\[\]\.#:]/g, "");
+      const safeId = id.replace(/[^a-zA-Z0-9\-_]/g, "");
 
       const colorRules = colorConfig
         .map(([key, itemConfig]) => {
-          const color = itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
+          const color =
+            itemConfig.theme?.[theme as keyof typeof itemConfig.theme] || itemConfig.color;
           // Validate color format (hex, rgb, hsl, named colors)
           const colorRegex = /^(#[0-9a-fA-F]{3,8}|rgb\([^)]+\)|hsl\([^)]+\)|[a-zA-Z]+)$/;
-          const safeKey = key.replace(/[^a-zA-Z0-9\-_]/g, '');
+          const safeKey = key.replace(/[^a-zA-Z0-9\-_]/g, "");
           return color && colorRegex.test(color) ? `  --color-${safeKey}: ${color};` : null;
         })
         .filter(Boolean)
