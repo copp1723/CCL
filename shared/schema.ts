@@ -73,7 +73,9 @@ export const sessions = pgTable(
 export const systemLeads = pgTable("system_leads", {
   id: text("id").primaryKey(),
   email: text("email").notNull(),
-  status: text("status", { enum: ["new", "contacted", "qualified", "closed"] }).notNull().default("new"),
+  status: text("status", { enum: ["new", "contacted", "qualified", "closed"] })
+    .notNull()
+    .default("new"),
   leadData: jsonb("lead_data").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -92,7 +94,9 @@ export const systemActivities = pgTable("system_activities", {
 export const systemAgents = pgTable("system_agents", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
-  status: text("status", { enum: ["active", "inactive", "error"] }).notNull().default("active"),
+  status: text("status", { enum: ["active", "inactive", "error"] })
+    .notNull()
+    .default("active"),
   processedToday: integer("processed_today").default(0),
   description: text("description").notNull(),
   icon: text("icon").notNull(),
@@ -124,7 +128,9 @@ export const campaignAttempts = pgTable("campaign_attempts", {
   templateId: text("template_id").notNull(),
   scheduledFor: timestamp("scheduled_for").notNull(),
   sentAt: timestamp("sent_at"),
-  status: text("status", { enum: ["scheduled", "sent", "failed", "skipped"] }).notNull().default("scheduled"),
+  status: text("status", { enum: ["scheduled", "sent", "failed", "skipped"] })
+    .notNull()
+    .default("scheduled"),
   messageId: text("message_id"),
   errorMessage: text("error_message"),
   variables: jsonb("variables"),
@@ -137,7 +143,9 @@ export const leads = pgTable("leads", {
     .references(() => visitors.id)
     .notNull(),
   leadData: jsonb("lead_data").notNull(),
-  status: text("status", { enum: ["pending", "submitted", "failed"] }).notNull().default("pending"),
+  status: text("status", { enum: ["pending", "submitted", "failed"] })
+    .notNull()
+    .default("pending"),
   dealerResponse: jsonb("dealer_response"),
   submittedAt: timestamp("submitted_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
