@@ -1,4 +1,4 @@
-import config from '../config/environment';
+import config from "../config/environment";
 
 export interface EmailTemplate {
   id: string;
@@ -7,7 +7,7 @@ export interface EmailTemplate {
   html: string;
   text: string;
   variables: string[];
-  category: 'welcome' | 'followup' | 'reminder' | 'approval' | 'custom';
+  category: "welcome" | "followup" | "reminder" | "approval" | "custom";
 }
 
 export interface CampaignConfig {
@@ -35,59 +35,59 @@ class EmailCampaignTemplateManager {
   private initializeDefaultTemplates() {
     const templates: EmailTemplate[] = [
       {
-        id: 'welcome_application',
-        name: 'Welcome - Application Started',
-        category: 'welcome',
-        subject: '{{firstName}}, your auto loan application is being processed',
-        variables: ['firstName', 'vehicleInterest'],
+        id: "welcome_application",
+        name: "Welcome - Application Started",
+        category: "welcome",
+        subject: "{{firstName}}, your auto loan application is being processed",
+        variables: ["firstName", "vehicleInterest"],
         html: this.getWelcomeApplicationTemplate(),
-        text: this.getWelcomeApplicationTextTemplate()
+        text: this.getWelcomeApplicationTextTemplate(),
       },
       {
-        id: 'followup_24h',
-        name: 'Follow-up - 24 Hours',
-        category: 'followup',
-        subject: '{{firstName}}, your auto loan pre-approval is ready',
-        variables: ['firstName', 'vehicleInterest', 'preApprovalAmount'],
+        id: "followup_24h",
+        name: "Follow-up - 24 Hours",
+        category: "followup",
+        subject: "{{firstName}}, your auto loan pre-approval is ready",
+        variables: ["firstName", "vehicleInterest", "preApprovalAmount"],
         html: this.getFollowup24hTemplate(),
-        text: this.getFollowup24hTextTemplate()
+        text: this.getFollowup24hTextTemplate(),
       },
       {
-        id: 'followup_3day',
-        name: 'Follow-up - 3 Days',
-        category: 'followup',
-        subject: '{{firstName}}, don\'t miss out on your auto loan approval',
-        variables: ['firstName', 'vehicleInterest'],
+        id: "followup_3day",
+        name: "Follow-up - 3 Days",
+        category: "followup",
+        subject: "{{firstName}}, don't miss out on your auto loan approval",
+        variables: ["firstName", "vehicleInterest"],
         html: this.getFollowup3DayTemplate(),
-        text: this.getFollowup3DayTextTemplate()
+        text: this.getFollowup3DayTextTemplate(),
       },
       {
-        id: 'followup_7day',
-        name: 'Follow-up - 7 Days Final',
-        category: 'followup',
-        subject: '{{firstName}}, last chance for your auto loan',
-        variables: ['firstName', 'vehicleInterest'],
+        id: "followup_7day",
+        name: "Follow-up - 7 Days Final",
+        category: "followup",
+        subject: "{{firstName}}, last chance for your auto loan",
+        variables: ["firstName", "vehicleInterest"],
         html: this.getFollowup7DayTemplate(),
-        text: this.getFollowup7DayTextTemplate()
+        text: this.getFollowup7DayTextTemplate(),
       },
       {
-        id: 'approval_notification',
-        name: 'Approval Notification',
-        category: 'approval',
-        subject: '🎉 {{firstName}}, you\'re approved! Let\'s get your car',
-        variables: ['firstName', 'approvalAmount', 'monthlyPayment', 'vehicleInterest'],
+        id: "approval_notification",
+        name: "Approval Notification",
+        category: "approval",
+        subject: "🎉 {{firstName}}, you're approved! Let's get your car",
+        variables: ["firstName", "approvalAmount", "monthlyPayment", "vehicleInterest"],
         html: this.getApprovalTemplate(),
-        text: this.getApprovalTextTemplate()
+        text: this.getApprovalTextTemplate(),
       },
       {
-        id: 'credit_challenge',
-        name: 'Credit Challenge Campaign',
-        category: 'custom',
-        subject: '{{firstName}}, bad credit? No problem with Complete Car Loans',
-        variables: ['firstName', 'vehicleInterest'],
+        id: "credit_challenge",
+        name: "Credit Challenge Campaign",
+        category: "custom",
+        subject: "{{firstName}}, bad credit? No problem with Complete Car Loans",
+        variables: ["firstName", "vehicleInterest"],
         html: this.getCreditChallengeTemplate(),
-        text: this.getCreditChallengeTextTemplate()
-      }
+        text: this.getCreditChallengeTextTemplate(),
+      },
     ];
 
     templates.forEach(template => {
@@ -98,43 +98,40 @@ class EmailCampaignTemplateManager {
   private initializeDefaultCampaigns() {
     const campaigns: CampaignConfig[] = [
       {
-        id: 'new_application_sequence',
-        name: 'New Application Sequence',
-        description: 'Automated follow-up sequence for new applications',
+        id: "new_application_sequence",
+        name: "New Application Sequence",
+        description: "Automated follow-up sequence for new applications",
         templates: [
-          this.templates.get('welcome_application')!,
-          this.templates.get('followup_24h')!,
-          this.templates.get('followup_3day')!,
-          this.templates.get('followup_7day')!
+          this.templates.get("welcome_application")!,
+          this.templates.get("followup_24h")!,
+          this.templates.get("followup_3day")!,
+          this.templates.get("followup_7day")!,
         ],
         triggerConditions: {
-          leadStatus: ['new', 'contacted']
-        }
+          leadStatus: ["new", "contacted"],
+        },
       },
       {
-        id: 'credit_challenged_campaign',
-        name: 'Credit Challenged Campaign',
-        description: 'Specialized campaign for customers with credit challenges',
-        templates: [
-          this.templates.get('credit_challenge')!,
-          this.templates.get('followup_3day')!
-        ],
+        id: "credit_challenged_campaign",
+        name: "Credit Challenged Campaign",
+        description: "Specialized campaign for customers with credit challenges",
+        templates: [this.templates.get("credit_challenge")!, this.templates.get("followup_3day")!],
         triggerConditions: {
-          creditScore: 'poor'
-        }
+          creditScore: "poor",
+        },
       },
       {
-        id: 'truck_suv_campaign',
-        name: 'Truck & SUV Campaign',
-        description: 'Targeted campaign for truck and SUV buyers',
+        id: "truck_suv_campaign",
+        name: "Truck & SUV Campaign",
+        description: "Targeted campaign for truck and SUV buyers",
         templates: [
-          this.templates.get('welcome_application')!,
-          this.templates.get('followup_24h')!
+          this.templates.get("welcome_application")!,
+          this.templates.get("followup_24h")!,
         ],
         triggerConditions: {
-          vehicleInterest: ['truck', 'suv', 'pickup']
-        }
-      }
+          vehicleInterest: ["truck", "suv", "pickup"],
+        },
+      },
     ];
 
     campaigns.forEach(campaign => {
@@ -143,7 +140,7 @@ class EmailCampaignTemplateManager {
   }
 
   // Template creation and management methods
-  createTemplate(template: Omit<EmailTemplate, 'id'>): EmailTemplate {
+  createTemplate(template: Omit<EmailTemplate, "id">): EmailTemplate {
     const id = `custom_${Date.now()}`;
     const newTemplate: EmailTemplate = { ...template, id };
     this.templates.set(id, newTemplate);
@@ -153,7 +150,7 @@ class EmailCampaignTemplateManager {
   updateTemplate(id: string, updates: Partial<EmailTemplate>): EmailTemplate | null {
     const template = this.templates.get(id);
     if (!template) return null;
-    
+
     const updatedTemplate = { ...template, ...updates, id };
     this.templates.set(id, updatedTemplate);
     return updatedTemplate;
@@ -171,12 +168,12 @@ class EmailCampaignTemplateManager {
     return Array.from(this.templates.values());
   }
 
-  getTemplatesByCategory(category: EmailTemplate['category']): EmailTemplate[] {
+  getTemplatesByCategory(category: EmailTemplate["category"]): EmailTemplate[] {
     return Array.from(this.templates.values()).filter(t => t.category === category);
   }
 
   // Campaign management methods
-  createCampaign(campaign: Omit<CampaignConfig, 'id'>): CampaignConfig {
+  createCampaign(campaign: Omit<CampaignConfig, "id">): CampaignConfig {
     const id = `campaign_${Date.now()}`;
     const newCampaign: CampaignConfig = { ...campaign, id };
     this.campaigns.set(id, newCampaign);
@@ -192,7 +189,10 @@ class EmailCampaignTemplateManager {
   }
 
   // Template rendering with variable substitution
-  renderTemplate(templateId: string, variables: Record<string, string>): { subject: string; html: string; text: string } | null {
+  renderTemplate(
+    templateId: string,
+    variables: Record<string, string>
+  ): { subject: string; html: string; text: string } | null {
     const template = this.templates.get(templateId);
     if (!template) return null;
 
@@ -205,7 +205,7 @@ class EmailCampaignTemplateManager {
     return {
       subject: renderString(template.subject),
       html: renderString(template.html),
-      text: renderString(template.text)
+      text: renderString(template.text),
     };
   }
 

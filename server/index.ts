@@ -1,468 +1,454 @@
-// ================================================
-// 🚀 CCL LEAN & MEAN - UNIFIED SERVER ARCHITECTURE
-// ================================================
+import express, { Request, Response, NextFunction } from "express";
+import { createServer } from "http";
+import { WebSocketServer, WebSocket } from "ws";
+import multer from "multer";
+import cors from "cors";
+import { storage } from "./database-storage.js";
+import { storageService } from "./services/storage-service.js";
+import { requestLogger } from "./middleware/logger.js";
+import { apiRateLimiter } from "./middleware/rate-limit.js";
+import { setupVite, serveStatic } from "./vite.js";
+import { campaignSender } from "./workers/campaign-sender";
+import campaignRoutes from "./routes/campaigns";
+import webhookRoutes from "./routes/webhooks";
 
-const PORT = parseInt(process.env.PORT || '5000', 10);
-const IS_PRODUCTION = process.env.NODE_ENV === 'production';
-
-console.log(`🚀 CCL Server starting on port ${PORT} (${IS_PRODUCTION ? 'PRODUCTION' : 'DEVELOPMENT'})`);
-
-import express from 'express';
-import { createServer } from 'http';
-import { WebSocketServer } from 'ws';
-import cors from 'cors';
-
-// ================================================
-// UNIFIED TYPES & CONSTANTS
-// ================================================
-
-interface Agent {
-  id: string;
-  name: string;
-  status: 'active' | 'inactive' | 'error';
-  processedToday: number;
-  description: string;
-  icon: string;
-  color: string;
-}
-
-interface Activity {
-  id: string;
-  type: string;
-  timestamp: string;
-  description: string;
-  agentType?: string;
-}
-
-interface LeadData {
-  id: string;
-  email: string;
-  status: 'new' | 'contacted' | 'qualified' | 'closed';
-  createdAt: string;
-  metadata?: any;
-}
-
-interface SystemStats {
-  leads: number;
-  activities: number;
-  agents: number;
-  uptime: number;
-  timestamp: string;
-  services: {
-    database: string;
-    agents: string;
-    websocket: string;
-  };
-}
-
-// Static agent configuration - single source of truth
-const AGENTS: Agent[] = [
-  {
-    id: 'agent_1',
-    name: 'VisitorIdentifierAgent',
-    status: 'active',
-    processedToday: 0,
-    description: 'Detects abandoned applications',
-    icon: 'Users',
-    color: 'text-blue-600'
-  },
-  {
-    id: 'agent_2',
-    name: 'RealtimeChatAgent',
-    status: 'active',
-    processedToday: 0,
-    description: 'Handles live customer chat',
-    icon: 'MessageCircle',
-    color: 'text-green-600'
-  },
-  {
-    id: 'agent_3',
-    name: 'EmailReengagementAgent',
-    status: 'active',
-    processedToday: 0,
-    description: 'Sends personalized email campaigns',
-    icon: 'Mail',
-    color: 'text-purple-600'
-  },
-  {
-    id: 'agent_4',
-    name: 'LeadPackagingAgent',
-    status: 'active',
-    processedToday: 0,
-    description: 'Packages leads for dealer submission',
-    icon: 'Package',
-    color: 'text-indigo-600'
-  }
-];
-
-// ================================================
-// UNIFIED STORAGE CLASS (Database + In-Memory)
-// ================================================
-
-class UnifiedStorage {
-  private leads: LeadData[] = [];
-  private activities: Activity[] = [];
-  private agents: Agent[] = [...AGENTS];
-  private leadCounter = 0;
-  private activityCounter = 0;
-  private dbConnected = false;
-  private db: any = null;
-
-  constructor() {
-    this.initializeDatabase();
-    this.createActivity('system_startup', 'CCL System initialized', 'System');
-  }
-
-  private async initializeDatabase() {
-    try {
-      if (process.env.DATABASE_URL) {
-        const { Pool } = await import('pg');
-        this.db = new Pool({
-          connectionString: process.env.DATABASE_URL,
-          ssl: { rejectUnauthorized: false },
-          connectionTimeoutMillis: 3000,
-          idleTimeoutMillis: 5000,
-        });
-        
-        // Test connection
-        const client = await this.db.connect();
-        await client.query('SELECT 1');
-        client.release();
-        
-        this.dbConnected = true;
-        console.log('✅ Database connected successfully');
-        this.createActivity('database_connected', 'Database persistence enabled', 'System');
-      }
-    } catch (error) {
-      console.log('⚠️ Database unavailable, using in-memory storage:', error.message);
-      this.createActivity('fallback_storage', 'Using in-memory storage (database unavailable)', 'System');
-    }
-  }
-
-  // Unified methods that work with both database and in-memory
-  createLead(data: Omit<LeadData, 'id' | 'createdAt'>): LeadData {
-    const lead: LeadData = {
-      id: `lead_${++this.leadCounter}_${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      ...data
-    };
-    
-    this.leads.unshift(lead);
-    this.createActivity('lead_created', `New lead created: ${data.email}`, 'VisitorIdentifierAgent');
-    
-    return lead;
-  }
-
-  getLeads(): LeadData[] {
-    return this.leads;
-  }
-
-  createActivity(type: string, description: string, agentType?: string): Activity {
-    const activity: Activity = {
-      id: `activity_${++this.activityCounter}_${Date.now()}`,
-      type,
-      description,
-      agentType,
-      timestamp: new Date().toISOString()
-    };
-    
-    this.activities.unshift(activity);
-    
-    // Update agent processed count
-    if (agentType && agentType !== 'System') {
-      const agent = this.agents.find(a => a.name === agentType);
-      if (agent) agent.processedToday++;
-    }
-    
-    return activity;
-  }
-
-  getActivities(limit = 20): Activity[] {
-    return this.activities.slice(0, limit);
-  }
-
-  getAgents(): Agent[] {
-    return this.agents;
-  }
-
-  updateAgent(id: string, updates: Partial<Agent>): void {
-    const agentIndex = this.agents.findIndex(a => a.id === id);
-    if (agentIndex > -1) {
-      this.agents[agentIndex] = { ...this.agents[agentIndex], ...updates };
-    }
-  }
-
-  getStats(): SystemStats {
-    return {
-      leads: this.leads.length,
-      activities: this.activities.length,
-      agents: this.agents.length,
-      uptime: Math.round(process.uptime()),
-      timestamp: new Date().toISOString(),
-      services: {
-        database: this.dbConnected ? 'connected' : 'unavailable',
-        agents: 'active',
-        websocket: 'ready'
-      }
-    };
-  }
-
-  createVisitor(data: { ipAddress?: string; userAgent?: string; metadata?: any }): { id: string } {
-    const id = `visitor_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    this.createActivity('visitor_tracked', `New visitor tracked from ${data.ipAddress || 'unknown IP'}`, 'VisitorIdentifierAgent');
-    return { id };
-  }
-}
-
-// ================================================
-// EXPRESS APP SETUP
-// ================================================
+// Start background workers
+campaignSender.start();
 
 const app = express();
-const server = createServer(app);
-const storage = new UnifiedStorage();
+const upload = multer({ storage: multer.memoryStorage() });
 
-// CORS setup
-const allowedOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173'];
-if (process.env.FRONTEND_URL) allowedOrigins.push(process.env.FRONTEND_URL);
+// Middleware - Order matters!
+app.use(
+  express.json({
+    limit: "10mb",
+    verify: (req: Request, res, buf) => {
+      if (buf.length > 10 * 1024 * 1024) {
+        throw new Error("Request too large");
+      }
+    },
+  })
+);
+app.use(
+  express.urlencoded({
+    extended: true,
+    limit: "10mb",
+    parameterLimit: 100,
+  })
+);
 
-app.use(cors({
-  origin: allowedOrigins,
-  credentials: true,
-  optionsSuccessStatus: 200
-}));
+// Add our new security middleware first
+app.use(requestLogger);
+app.use(apiRateLimiter);
 
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+// Add the campaign and webhook routers
+app.use("/api/campaigns", campaignRoutes);
+app.use("/api/webhooks", webhookRoutes);
+
+// CORS configuration
+const allowedOrigins = ["http://localhost:5173", "http://12y7.0.0.1:5173"];
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(process.env.FRONTEND_URL);
+}
+
+app.use(
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+    optionsSuccessStatus: 200,
+  })
+);
 
 // Security headers
-app.use((req, res, next) => {
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-  if (IS_PRODUCTION) {
-    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
-  }
+app.use((req: Request, res: Response, next: NextFunction) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("X-XSS-Protection", "1; mode=block");
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
   next();
 });
 
-// ================================================
-// UNIFIED API ROUTES
-// ================================================
+// Input sanitization middleware
+const sanitizeInput = (req: Request, res: Response, next: NextFunction) => {
+  const dangerousPatterns = [
+    /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
+    /javascript:/gi,
+    /on\w+\s*=/gi,
+    /eval\s*\(/gi,
+    /expression\s*\(/gi,
+    /\.\./g, // Path traversal
+    /union\s+select/gi,
+    /drop\s+table/gi,
+    /insert\s+into/gi,
+    /delete\s+from/gi,
+  ];
 
-// Health check - CRITICAL for Render
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'healthy',
+  const sanitize = (obj: unknown): unknown => {
+    if (typeof obj === "string") {
+      for (const pattern of dangerousPatterns) {
+        if (pattern.test(obj)) {
+          return res.status(400).json({
+            error: "Invalid input detected",
+            code: "SECURITY_VIOLATION",
+          });
+        }
+      }
+      return obj.trim();
+    } else if (typeof obj === "object" && obj !== null) {
+      for (const key in obj) {
+        (obj as { [key: string]: unknown })[key] = sanitize(
+          (obj as { [key: string]: unknown })[key]
+        );
+      }
+    }
+    return obj;
+  };
+
+  if (req.body) {
+    try {
+      req.body = sanitize(req.body);
+    } catch (error) {
+      return res.status(400).json({
+        error: "Invalid request data",
+        code: "SANITIZATION_ERROR",
+      });
+    }
+  }
+
+  if (req.query) {
+    try {
+      req.query = sanitize(req.query) as { [key: string]: string };
+    } catch (error) {
+      return res.status(400).json({
+        error: "Invalid query parameters",
+        code: "SANITIZATION_ERROR",
+      });
+    }
+  }
+
+  next();
+};
+
+app.use(sanitizeInput);
+
+// API Key validation middleware
+const apiKeyAuth = (req: Request, res: Response, next: NextFunction) => {
+  const apiKey = req.headers["x-api-key"] || req.query.apiKey;
+  const validApiKey = process.env.CCL_API_KEY || process.env.FLEXPATH_API_KEY;
+
+  if (!validApiKey) {
+    return res.status(500).json({ error: "Server configuration error" });
+  }
+
+  if (!apiKey || apiKey !== validApiKey) {
+    return res.status(401).json({
+      error: "Unauthorized",
+      message: "Valid API key required",
+    });
+  }
+  next();
+};
+
+// Health check
+app.get("/health", (req: Request, res: Response) => {
+  res.json({
+    status: "healthy",
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV,
-    port: PORT,
-    uptime: Math.round(process.uptime())
   });
 });
 
-// System status with full stats
-app.get('/api/system/status', (req, res) => {
-  res.json({
-    success: true,
-    status: 'operational',
-    ...storage.getStats()
-  });
+// System stats endpoint (protected)
+app.get("/api/system/stats", apiKeyAuth, async (req: Request, res: Response) => {
+  try {
+    // Use the improved storageService for stats
+    const stats = await storageService.getStats();
+    res.json({ success: true, data: stats });
+  } catch (error) {
+    res.status(500).json({ success: false, error: "Failed to fetch stats" });
+  }
+});
+
+// Leads endpoints - Using improved storageService
+app.get("/api/leads", async (req: Request, res: Response) => {
+  try {
+    const leads = await storageService.getLeads();
+    res.json(leads);
+  } catch (error) {
+    res.status(500).json({ success: false, error: "Failed to fetch leads" });
+  }
+});
+
+app.post("/api/leads", async (req: Request, res: Response) => {
+  try {
+    const { email, phoneNumber, status = "new", leadData } = req.body;
+    const lead = await storageService.createLead({ email, phoneNumber, status, leadData });
+    res.json({ success: true, data: lead });
+  } catch (error: unknown) {
+    res
+      .status(500)
+      .json({ success: false, error: (error as Error).message || "Failed to create lead" });
+  }
+});
+
+// Activities endpoint - Using improved storageService
+app.get("/api/activities", async (req: Request, res: Response) => {
+  try {
+    const activities = await storageService.getActivities(20);
+    res.json(activities);
+  } catch (error) {
+    res.status(500).json({ success: false, error: "Failed to fetch activities" });
+  }
 });
 
 // Agents endpoint
-app.get('/api/agents', (req, res) => {
-  res.json(storage.getAgents());
-});
-
-// Leads endpoints
-app.get('/api/leads', (req, res) => {
-  res.json(storage.getLeads());
-});
-
-app.post('/api/leads', (req, res) => {
+app.get("/api/agents", async (req: Request, res: Response) => {
   try {
-    const { email, status = 'new', metadata } = req.body;
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
-    }
-    
-    const lead = storage.createLead({ email, status, metadata });
-    res.status(201).json(lead);
+    const agents = await storage.getAgents();
+    res.json(agents);
   } catch (error) {
-    console.error('Create lead error:', error);
-    res.status(500).json({ error: 'Failed to create lead' });
+    res.status(500).json({ success: false, error: "Failed to fetch agents" });
   }
 });
 
-// Activities endpoint
-app.get('/api/activities', (req, res) => {
-  const limit = parseInt(req.query.limit as string) || 20;
-  res.json(storage.getActivities(limit));
-});
-
-// Chat endpoint
-app.post('/api/chat', (req, res) => {
+// Chat endpoint with concise Cathy responses
+app.post("/api/chat", async (req: Request, res: Response) => {
   try {
     const { message } = req.body;
-    storage.createActivity('chat_message', `Customer message received: ${message?.substring(0, 50)}...`, 'RealtimeChatAgent');
-    
-    const response = "Hi! I'm Cathy from Complete Car Loans. How can I help with your auto financing today?";
+
+    let response =
+      "Hi! I'm Cathy from Complete Car Loans. How can I help with your auto financing today?";
+
+    if (process.env.OPENAI_API_KEY) {
+      try {
+        const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "gpt-4",
+            messages: [
+              {
+                role: "system",
+                content:
+                  "You are Cathy from Complete Car Loans. Keep responses under 50 words. Be warm but concise. Focus on: 1) Understanding their auto financing needs 2) Getting their phone number for soft credit check 3) Reassuring about credit acceptance. Avoid lengthy explanations.",
+              },
+              { role: "user", content: message },
+            ],
+            max_tokens: 150,
+            temperature: 0.7,
+          }),
+        });
+
+        if (openaiResponse.ok) {
+          const data = await openaiResponse.json();
+          response = data.choices[0]?.message?.content || response;
+        }
+      } catch (openaiError) {
+        console.error("OpenAI API error:", openaiError);
+      }
+    }
+
+    await storageService.createActivity(
+      "chat_message",
+      `Chat interaction - User: "${message.substring(0, 30)}..." Response provided by Cathy`,
+      "chat-agent",
+      { messageLength: message.length, responseLength: response.length }
+    );
+
     res.json({ response });
   } catch (error) {
-    console.error('Chat error:', error);
-    res.status(500).json({ error: 'Chat service unavailable' });
+    console.error("Chat error:", error);
+    res.status(500).json({ error: "Chat service unavailable" });
   }
 });
 
-// Visitor tracking
-app.post('/api/visitors', (req, res) => {
+// CSV upload endpoint
+app.post("/api/bulk-email/send", upload.single("csvFile"), async (req: Request, res: Response) => {
   try {
-    const visitorData = {
-      ipAddress: req.ip || req.connection.remoteAddress,
-      userAgent: req.get('User-Agent'),
-      metadata: req.body
-    };
-    
-    const visitor = storage.createVisitor(visitorData);
-    res.json(visitor);
+    if (!req.file) {
+      return res.status(400).json({ success: false, error: "No CSV file provided" });
+    }
+
+    const csvContent = req.file.buffer.toString("utf-8");
+    const lines = csvContent.split("\n").filter(line => line.trim());
+    const headers = lines[0].split(",").map(h => h.trim().toLowerCase());
+
+    let processed = 0;
+    const campaignId = `campaign_${Date.now()}`;
+
+    for (let i = 1; i < lines.length; i++) {
+      const values = lines[i].split(",");
+      if (values.length >= headers.length) {
+        const leadData: { [key: string]: string } = {};
+        headers.forEach((header, index) => {
+          leadData[header] = values[index]?.trim();
+        });
+
+        if (leadData.email) {
+          await storageService.createLead({
+            email: leadData.email,
+            phoneNumber: leadData.phone || leadData.phonenumber,
+            status: "new",
+            leadData,
+          });
+          processed++;
+        }
+      }
+    }
+
+    await storageService.createActivity(
+      "csv_upload",
+      `CSV upload completed - ${processed} leads processed`,
+      "data-ingestion",
+      { campaignId, processed, fileName: req.file.originalname }
+    );
+
+    res.json({
+      success: true,
+      data: { processed, campaignId },
+      message: `Successfully processed ${processed} leads`,
+    });
   } catch (error) {
-    console.error('Visitor tracking error:', error);
-    res.status(500).json({ error: 'Failed to track visitor' });
+    console.error("CSV upload error:", error);
+    res.status(500).json({ success: false, error: "Failed to process CSV file" });
   }
 });
 
-// ================================================
-// WEBSOCKET SETUP
-// ================================================
+// Campaign endpoints
+app.get("/api/bulk-email/campaigns", async (req: Request, res: Response) => {
+  try {
+    res.json({
+      success: true,
+      data: [
+        {
+          id: "demo_campaign_1",
+          name: "Welcome Series",
+          status: "active",
+          totalRecipients: 150,
+          emailsSent: 145,
+          openRate: 0.35,
+          clickRate: 0.12,
+          createdAt: new Date().toISOString(),
+        },
+      ],
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: "Failed to fetch campaigns" });
+  }
+});
 
-const wss = new WebSocketServer({ server, path: '/ws/chat' });
+app.get("/api/bulk-email/settings", async (req: Request, res: Response) => {
+  try {
+    res.json({
+      success: true,
+      data: {
+        timing: {
+          step1Delay: 24,
+          step2Delay: 72,
+          step3Delay: 168,
+        },
+        mailgun: {
+          domain: process.env.MAILGUN_DOMAIN || "sandbox.mailgun.org",
+          status: process.env.MAILGUN_API_KEY ? "connected" : "not_configured",
+        },
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, error: "Failed to fetch settings" });
+  }
+});
 
-wss.on('connection', (ws, req) => {
-  console.log(`[WebSocket] Connection from ${req.socket.remoteAddress}`);
-  storage.createActivity('websocket_connected', 'New WebSocket connection established', 'RealtimeChatAgent');
-  
-  ws.send(JSON.stringify({
-    type: 'system',
-    message: 'Connected to CCL Assistant',
-    timestamp: new Date().toISOString()
-  }));
+// Create HTTP server
+const server = createServer(app);
 
-  ws.on('message', (data) => {
+// Simple WebSocket implementation
+const wss = new WebSocketServer({ server, path: "/ws/chat" });
+
+wss.on("connection", (ws: WebSocket) => {
+  console.log("[WebSocket] New connection established");
+
+  ws.on("message", async (data: Buffer) => {
     try {
       const message = JSON.parse(data.toString());
-      storage.createActivity('websocket_message', `WebSocket message: ${message.type}`, 'RealtimeChatAgent');
-      
-      // Echo response for now
-      ws.send(JSON.stringify({
-        type: 'response',
-        message: 'Message received and processed',
-        timestamp: new Date().toISOString()
-      }));
+
+      if (message.type === "chat") {
+        const cathyResponses = [
+          "Hi! I'm Cathy from Complete Car Loans. How can I help with your auto financing today?",
+          "I understand financing can be stressful. Let me see what options we have for you.",
+          "We specialize in helping people with all credit situations. What's your main concern?",
+          "Would you like me to check your pre-approval status? It only takes a minute.",
+          "I'm here to make this process as smooth as possible. What questions do you have?",
+        ];
+
+        const response = cathyResponses[Math.floor(Math.random() * cathyResponses.length)];
+
+        await storageService.createActivity(
+          "chat_message",
+          `WebSocket chat - User: "${message.content.substring(0, 30)}..." Response provided by Cathy`,
+          "realtime-chat",
+          { messageLength: message.content.length, responseLength: response.length }
+        );
+
+        ws.send(
+          JSON.stringify({
+            type: "chat",
+            message: response,
+            timestamp: new Date().toISOString(),
+          })
+        );
+      }
     } catch (error) {
-      console.error('WebSocket message error:', error);
+      console.error("[WebSocket] Error processing message:", error);
+      ws.send(
+        JSON.stringify({
+          type: "error",
+          message: "Sorry, I encountered an error processing your message.",
+        })
+      );
     }
   });
 
-  ws.on('close', () => {
-    console.log('[WebSocket] Connection closed');
-  });
+  ws.send(
+    JSON.stringify({
+      type: "system",
+      message: "Connected to CCL Assistant",
+    })
+  );
 });
 
-// ================================================
-// CATCH-ALL & ERROR HANDLING
-// ================================================
-
-app.use('*', (req, res) => {
-  if (req.path.startsWith('/api')) {
-    res.status(404).json({ error: 'API endpoint not found' });
-  } else {
-    res.status(200).send(`
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <title>CCL Agent System</title>
-        <style>
-          body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; text-align: center; padding: 50px; background: #f8fafc; }
-          .container { max-width: 600px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-          .status { color: #10b981; font-size: 24px; margin: 20px 0; font-weight: 600; }
-          .info { color: #6b7280; margin: 10px 0; }
-          .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 20px; margin: 30px 0; }
-          .stat { background: #f3f4f6; padding: 15px; border-radius: 8px; }
-          .stat-value { font-size: 24px; font-weight: bold; color: #1f2937; }
-          .stat-label { font-size: 12px; color: #6b7280; text-transform: uppercase; }
-          .links { margin-top: 30px; }
-          .links a { color: #3b82f6; text-decoration: none; margin: 0 15px; }
-          .links a:hover { text-decoration: underline; }
-        </style>
-      </head>
-      <body>
-        <div class="container">
-          <h1>🚀 CCL Agent System</h1>
-          <div class="status">✅ Server Running Successfully</div>
-          <div class="stats">
-            <div class="stat"><div class="stat-value">${storage.getStats().leads}</div><div class="stat-label">Leads</div></div>
-            <div class="stat"><div class="stat-value">${storage.getStats().activities}</div><div class="stat-label">Activities</div></div>
-            <div class="stat"><div class="stat-value">${storage.getStats().agents}</div><div class="stat-label">Agents</div></div>
-            <div class="stat"><div class="stat-value">${Math.round(process.uptime())}s</div><div class="stat-label">Uptime</div></div>
-          </div>
-          <div class="info">Environment: ${process.env.NODE_ENV}</div>
-          <div class="info">Port: ${PORT}</div>
-          <div class="info">Started: ${new Date().toISOString()}</div>
-          <div class="links">
-            <a href="/health">Health Check</a>
-            <a href="/api/system/status">System Status</a>
-            <a href="/api/agents">Agents</a>
-            <a href="/api/activities">Activities</a>
-          </div>
-        </div>
-      </body>
-      </html>
-    `);
-  }
-});
-
-// Global error handler
-app.use((err, req, res, next) => {
-  console.error('Server error:', err);
-  storage.createActivity('server_error', `Error: ${err.message}`, 'System');
-  res.status(500).json({
-    error: 'Internal server error',
-    timestamp: new Date().toISOString()
-  });
-});
-
-// ================================================
-// SERVER STARTUP & LIFECYCLE
-// ================================================
-
-// Start server - CRITICAL for Render
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`✅ CCL Server listening on 0.0.0.0:${PORT}`);
-  console.log(`🔍 Health check: http://0.0.0.0:${PORT}/health`);
-  console.log(`📊 System status: http://0.0.0.0:${PORT}/api/system/status`);
-  storage.createActivity('server_started', `Server listening on port ${PORT}`, 'System');
-});
-
-// Keep-alive for monitoring
-if (IS_PRODUCTION) {
-  setInterval(() => {
-    console.log(`🔄 Server alive - uptime: ${Math.round(process.uptime())}s, memory: ${Math.round(process.memoryUsage().heapUsed / 1024 / 1024)}MB`);
-  }, 30000);
+// Setup Vite in development
+if (process.env.NODE_ENV !== "production") {
+  setupVite(app, server);
+} else {
+  serveStatic(app);
 }
 
+const PORT = parseInt(process.env.PORT || "5000", 10);
+
+server.listen(PORT, "0.0.0.0", () => {
+  console.log(`CCL Agent System running on port ${PORT}`);
+  console.log(`Environment: ${process.env.NODE_ENV}`);
+  console.log(`Health check: http://0.0.0.0:${PORT}/health`);
+  console.log(`WebSocket available at ws://localhost:${PORT}/ws/chat`);
+});
+
 // Graceful shutdown
-const shutdown = () => {
-  console.log('🛑 Graceful shutdown initiated...');
-  storage.createActivity('server_shutdown', 'Server shutting down gracefully', 'System');
+process.on("SIGTERM", () => {
+  console.log("SIGTERM received, shutting down gracefully");
   server.close(() => {
-    console.log('✅ Server closed');
+    console.log("Server closed");
     process.exit(0);
   });
-};
+});
 
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
-
-// Export for testing
-export { app, server, storage };
+process.on("SIGINT", () => {
+  console.log("SIGINT received, shutting down gracefully");
+  server.close(() => {
+    console.log("Server closed");
+    process.exit(0);
+  });
+});

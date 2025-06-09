@@ -1,4 +1,4 @@
-import { RealtimeChatAgent } from './RealtimeChatAgent';
+import { RealtimeChatAgent } from "./RealtimeChatAgent";
 
 // Create and export the singleton instance
 export const realtimeChatAgent = new RealtimeChatAgent();

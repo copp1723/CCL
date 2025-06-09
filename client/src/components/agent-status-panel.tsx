@@ -1,11 +1,11 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowDown } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ArrowDown } from "lucide-react";
 
 interface AgentStatus {
   name: string;
-  status: 'active' | 'inactive' | 'error';
+  status: "active" | "inactive" | "error";
   lastActivity: string;
   processedToday: number;
   description: string;
@@ -20,42 +20,42 @@ interface AgentStatusPanelProps {
 
 function getStatusColor(status: string): string {
   switch (status) {
-    case 'active':
-      return 'bg-green-500';
-    case 'inactive':
-      return 'bg-gray-400';
-    case 'error':
-      return 'bg-red-500';
+    case "active":
+      return "bg-green-500";
+    case "inactive":
+      return "bg-gray-400";
+    case "error":
+      return "bg-red-500";
     default:
-      return 'bg-gray-400';
+      return "bg-gray-400";
   }
 }
 
-function getStatusBadgeVariant(status: string): 'default' | 'secondary' | 'destructive' {
+function getStatusBadgeVariant(status: string): "default" | "secondary" | "destructive" {
   switch (status) {
-    case 'active':
-      return 'default';
-    case 'inactive':
-      return 'secondary';
-    case 'error':
-      return 'destructive';
+    case "active":
+      return "default";
+    case "inactive":
+      return "secondary";
+    case "error":
+      return "destructive";
     default:
-      return 'secondary';
+      return "secondary";
   }
 }
 
 function getAgentIcon(iconName: string): React.ReactNode {
   const iconClass = "text-white text-lg";
   switch (iconName) {
-    case 'fas fa-search':
+    case "fas fa-search":
       return <i className={`fas fa-search ${iconClass}`} />;
-    case 'fas fa-envelope':
+    case "fas fa-envelope":
       return <i className={`fas fa-envelope ${iconClass}`} />;
-    case 'fas fa-comments':
+    case "fas fa-comments":
       return <i className={`fas fa-comments ${iconClass}`} />;
-    case 'fas fa-shield-alt':
+    case "fas fa-shield-alt":
       return <i className={`fas fa-shield-alt ${iconClass}`} />;
-    case 'fas fa-box':
+    case "fas fa-box":
       return <i className={`fas fa-box ${iconClass}`} />;
     default:
       return <i className={`fas fa-robot ${iconClass}`} />;
@@ -64,14 +64,14 @@ function getAgentIcon(iconName: string): React.ReactNode {
 
 function getAgentColorClass(color: string): string {
   switch (color) {
-    case 'accent':
-      return 'bg-green-500';
-    case 'primary':
-      return 'bg-blue-600';
-    case 'warning':
-      return 'bg-amber-500';
+    case "accent":
+      return "bg-green-500";
+    case "primary":
+      return "bg-blue-600";
+    case "warning":
+      return "bg-amber-500";
     default:
-      return 'bg-blue-600';
+      return "bg-blue-600";
   }
 }
 
@@ -139,12 +139,8 @@ export function AgentStatusPanel({ agentStatuses, isLoading }: AgentStatusPanelP
   return (
     <Card className="bg-white border border-gray-200">
       <CardHeader className="border-b border-gray-200">
-        <CardTitle className="text-lg font-semibold text-gray-900">
-          Agent Pipeline Status
-        </CardTitle>
-        <p className="text-sm text-gray-600 mt-1">
-          Real-time monitoring of your AI agent workflow
-        </p>
+        <CardTitle className="text-lg font-semibold text-gray-900">Agent Pipeline Status</CardTitle>
+        <p className="text-sm text-gray-600 mt-1">Real-time monitoring of your AI agent workflow</p>
       </CardHeader>
       <CardContent className="p-6">
         <div className="space-y-6">
@@ -152,7 +148,9 @@ export function AgentStatusPanel({ agentStatuses, isLoading }: AgentStatusPanelP
             <div key={agent.name}>
               <div className="flex items-center space-x-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                 <div className="flex-shrink-0">
-                  <div className={`w-12 h-12 ${getAgentColorClass(agent.color)} rounded-lg flex items-center justify-center`}>
+                  <div
+                    className={`w-12 h-12 ${getAgentColorClass(agent.color)} rounded-lg flex items-center justify-center`}
+                  >
                     {getAgentIcon(agent.icon)}
                   </div>
                 </div>
@@ -169,13 +167,15 @@ export function AgentStatusPanel({ agentStatuses, isLoading }: AgentStatusPanelP
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <div className={`w-2 h-2 ${getStatusColor(agent.status)} rounded-full ${
-                    agent.status === 'active' ? 'animate-pulse' : ''
-                  }`}></div>
+                  <div
+                    className={`w-2 h-2 ${getStatusColor(agent.status)} rounded-full ${
+                      agent.status === "active" ? "animate-pulse" : ""
+                    }`}
+                  ></div>
                   <span className="text-xs text-gray-500 capitalize">{agent.status}</span>
                 </div>
               </div>
-              
+
               {index < agentStatuses.length - 1 && (
                 <div className="flex items-center justify-center py-2">
                   <ArrowDown className="h-4 w-4 text-gray-400" />

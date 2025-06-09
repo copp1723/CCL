@@ -1,11 +1,18 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import DOMPurify from "dompurify";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
@@ -19,7 +26,7 @@ interface EmailTemplate {
   html: string;
   text: string;
   variables: string[];
-  category: 'welcome' | 'followup' | 'reminder' | 'approval' | 'custom';
+  category: "welcome" | "followup" | "reminder" | "approval" | "custom";
 }
 
 interface Campaign {
@@ -40,41 +47,42 @@ export default function EmailCampaigns() {
   const queryClient = useQueryClient();
   const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null);
   const [newTemplate, setNewTemplate] = useState({
-    name: '',
-    subject: '',
-    html: '',
-    text: '',
-    category: 'custom' as const,
-    variables: [] as string[]
+    name: "",
+    subject: "",
+    html: "",
+    text: "",
+    category: "custom" as const,
+    variables: [] as string[],
   });
   const [previewVariables, setPreviewVariables] = useState<Record<string, string>>({});
-  const [testEmail, setTestEmail] = useState('');
+  const [testEmail, setTestEmail] = useState("");
 
   // Fetch templates
   const { data: templatesData, isLoading: templatesLoading } = useQuery({
-    queryKey: ['/api/email-campaigns/templates'],
+    queryKey: ["/api/email-campaigns/templates"],
   });
 
   // Fetch campaigns
   const { data: campaignsData, isLoading: campaignsLoading } = useQuery({
-    queryKey: ['/api/email-campaigns/campaigns'],
+    queryKey: ["/api/email-campaigns/campaigns"],
   });
 
   // Create template mutation
   const createTemplateMutation = useMutation({
-    mutationFn: (templateData: any) => apiRequest('/api/email-campaigns/templates', {
-      method: 'POST',
-      data: templateData,
-    }),
+    mutationFn: (templateData: any) =>
+      apiRequest("/api/email-campaigns/templates", {
+        method: "POST",
+        data: templateData,
+      }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/email-campaigns/templates'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/email-campaigns/templates"] });
       setNewTemplate({
-        name: '',
-        subject: '',
-        html: '',
-        text: '',
-        category: 'custom',
-        variables: []
+        name: "",
+        subject: "",
+        html: "",
+        text: "",
+        category: "custom",
+        variables: [],
       });
       toast({
         title: "Template Created",
@@ -92,9 +100,9 @@ export default function EmailCampaigns() {
 
   // Test email mutation
   const testEmailMutation = useMutation({
-    mutationFn: ({ templateId, testEmail, variables }: any) => 
+    mutationFn: ({ templateId, testEmail, variables }: any) =>
       apiRequest(`/api/email-campaigns/templates/${templateId}/test-send`, {
-        method: 'POST',
+        method: "POST",
         data: { testEmail, variables },
       }),
     onSuccess: () => {
@@ -102,7 +110,7 @@ export default function EmailCampaigns() {
         title: "Test Email Sent",
         description: "Test email sent successfully",
       });
-      setTestEmail('');
+      setTestEmail("");
     },
     onError: (error: any) => {
       toast({
@@ -142,17 +150,17 @@ export default function EmailCampaigns() {
     testEmailMutation.mutate({
       templateId: template.id,
       testEmail,
-      variables: previewVariables
+      variables: previewVariables,
     });
   };
 
   const getCategoryColor = (category: string) => {
     const colors = {
-      welcome: 'bg-blue-100 text-blue-800',
-      followup: 'bg-yellow-100 text-yellow-800',
-      reminder: 'bg-red-100 text-red-800',
-      approval: 'bg-green-100 text-green-800',
-      custom: 'bg-gray-100 text-gray-800'
+      welcome: "bg-blue-100 text-blue-800",
+      followup: "bg-yellow-100 text-yellow-800",
+      reminder: "bg-red-100 text-red-800",
+      approval: "bg-green-100 text-green-800",
+      custom: "bg-gray-100 text-gray-800",
     };
     return colors[category as keyof typeof colors] || colors.custom;
   };
@@ -162,9 +170,7 @@ export default function EmailCampaigns() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Email Campaigns</h1>
-          <p className="text-muted-foreground">
-            Manage email templates and automated campaigns
-          </p>
+          <p className="text-muted-foreground">Manage email templates and automated campaigns</p>
         </div>
       </div>
 
@@ -184,7 +190,7 @@ export default function EmailCampaigns() {
                 </CardContent>
               </Card>
             ) : (
-              templates.map((template) => (
+              templates.map(template => (
                 <Card key={template.id}>
                   <CardHeader>
                     <div className="flex items-center justify-between">
@@ -214,7 +220,7 @@ export default function EmailCampaigns() {
                     <CardContent>
                       <div className="flex flex-wrap gap-1">
                         <span className="text-sm text-muted-foreground">Variables:</span>
-                        {template.variables.map((variable) => (
+                        {template.variables.map(variable => (
                           <Badge key={variable} variant="outline">
                             {variable}
                           </Badge>
@@ -237,7 +243,7 @@ export default function EmailCampaigns() {
                 </CardContent>
               </Card>
             ) : (
-              campaigns.map((campaign) => (
+              campaigns.map(campaign => (
                 <Card key={campaign.id}>
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -249,7 +255,9 @@ export default function EmailCampaigns() {
                   <CardContent>
                     <div className="space-y-2">
                       <div>
-                        <span className="text-sm font-medium">Templates ({campaign.templates.length}):</span>
+                        <span className="text-sm font-medium">
+                          Templates ({campaign.templates.length}):
+                        </span>
                         <div className="flex flex-wrap gap-1 mt-1">
                           {campaign.templates.map((template, index) => (
                             <Badge key={template.id} variant="outline">
@@ -263,13 +271,19 @@ export default function EmailCampaigns() {
                           <span className="text-sm font-medium">Trigger Conditions:</span>
                           <div className="text-sm text-muted-foreground mt-1">
                             {campaign.triggerConditions.leadStatus && (
-                              <p>Lead Status: {campaign.triggerConditions.leadStatus.join(', ')}</p>
+                              <p>Lead Status: {campaign.triggerConditions.leadStatus.join(", ")}</p>
                             )}
                             {campaign.triggerConditions.vehicleInterest && (
-                              <p>Vehicle Interest: {campaign.triggerConditions.vehicleInterest.join(', ')}</p>
+                              <p>
+                                Vehicle Interest:{" "}
+                                {campaign.triggerConditions.vehicleInterest.join(", ")}
+                              </p>
                             )}
                             {campaign.triggerConditions.daysSinceLastContact && (
-                              <p>Days Since Contact: {campaign.triggerConditions.daysSinceLastContact}</p>
+                              <p>
+                                Days Since Contact:{" "}
+                                {campaign.triggerConditions.daysSinceLastContact}
+                              </p>
                             )}
                           </div>
                         </div>
@@ -287,7 +301,8 @@ export default function EmailCampaigns() {
             <CardHeader>
               <CardTitle>Create New Email Template</CardTitle>
               <CardDescription>
-                Create a new email template for your campaigns. Use variables like firstName in double braces for personalization.
+                Create a new email template for your campaigns. Use variables like firstName in
+                double braces for personalization.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -297,7 +312,7 @@ export default function EmailCampaigns() {
                   <Input
                     id="template-name"
                     value={newTemplate.name}
-                    onChange={(e) => setNewTemplate({ ...newTemplate, name: e.target.value })}
+                    onChange={e => setNewTemplate({ ...newTemplate, name: e.target.value })}
                     placeholder="Welcome Email"
                   />
                 </div>
@@ -305,7 +320,9 @@ export default function EmailCampaigns() {
                   <Label htmlFor="template-category">Category</Label>
                   <Select
                     value={newTemplate.category}
-                    onValueChange={(value) => setNewTemplate({ ...newTemplate, category: value as any })}
+                    onValueChange={value =>
+                      setNewTemplate({ ...newTemplate, category: value as any })
+                    }
                   >
                     <SelectTrigger>
                       <SelectValue />
@@ -326,7 +343,7 @@ export default function EmailCampaigns() {
                 <Input
                   id="template-subject"
                   value={newTemplate.subject}
-                  onChange={(e) => setNewTemplate({ ...newTemplate, subject: e.target.value })}
+                  onChange={e => setNewTemplate({ ...newTemplate, subject: e.target.value })}
                   placeholder="{{firstName}}, your auto loan application update"
                 />
               </div>
@@ -336,7 +353,7 @@ export default function EmailCampaigns() {
                 <Textarea
                   id="template-html"
                   value={newTemplate.html}
-                  onChange={(e) => setNewTemplate({ ...newTemplate, html: e.target.value })}
+                  onChange={e => setNewTemplate({ ...newTemplate, html: e.target.value })}
                   placeholder="Enter HTML email content..."
                   className="min-h-[200px] font-mono"
                 />
@@ -347,19 +364,19 @@ export default function EmailCampaigns() {
                 <Textarea
                   id="template-text"
                   value={newTemplate.text}
-                  onChange={(e) => setNewTemplate({ ...newTemplate, text: e.target.value })}
+                  onChange={e => setNewTemplate({ ...newTemplate, text: e.target.value })}
                   placeholder="Enter plain text version..."
                   className="min-h-[100px]"
                 />
               </div>
 
-              <Button 
+              <Button
                 onClick={handleCreateTemplate}
                 disabled={createTemplateMutation.isPending}
                 className="w-full"
               >
                 <Plus className="h-4 w-4 mr-2" />
-                {createTemplateMutation.isPending ? 'Creating...' : 'Create Template'}
+                {createTemplateMutation.isPending ? "Creating..." : "Create Template"}
               </Button>
             </CardContent>
           </Card>
@@ -382,21 +399,23 @@ export default function EmailCampaigns() {
               <div>
                 <Label>Subject: {selectedTemplate.subject}</Label>
               </div>
-              
+
               {selectedTemplate.variables.length > 0 && (
                 <div className="space-y-2">
                   <Label>Test Variables:</Label>
                   <div className="grid grid-cols-2 gap-2">
-                    {selectedTemplate.variables.map((variable) => (
+                    {selectedTemplate.variables.map(variable => (
                       <div key={variable}>
                         <Label htmlFor={`var-${variable}`}>{variable}</Label>
                         <Input
                           id={`var-${variable}`}
-                          value={previewVariables[variable] || ''}
-                          onChange={(e) => setPreviewVariables({
-                            ...previewVariables,
-                            [variable]: e.target.value
-                          })}
+                          value={previewVariables[variable] || ""}
+                          onChange={e =>
+                            setPreviewVariables({
+                              ...previewVariables,
+                              [variable]: e.target.value,
+                            })
+                          }
                           placeholder={`Enter ${variable}...`}
                         />
                       </div>
@@ -410,29 +429,31 @@ export default function EmailCampaigns() {
                 <div className="flex gap-2">
                   <Input
                     value={testEmail}
-                    onChange={(e) => setTestEmail(e.target.value)}
+                    onChange={e => setTestEmail(e.target.value)}
                     placeholder="test@example.com"
                     type="email"
                   />
-                  <Button 
+                  <Button
                     onClick={() => handleTestEmail(selectedTemplate)}
                     disabled={testEmailMutation.isPending}
                   >
                     <Send className="h-4 w-4 mr-1" />
-                    {testEmailMutation.isPending ? 'Sending...' : 'Send Test'}
+                    {testEmailMutation.isPending ? "Sending..." : "Send Test"}
                   </Button>
                 </div>
               </div>
 
               <div className="border rounded p-4 bg-gray-50">
                 <Label>HTML Preview:</Label>
-                <div 
+                <div
                   className="mt-2 bg-white border rounded p-4"
-                  dangerouslySetInnerHTML={{ 
-                    __html: selectedTemplate.html.replace(
-                      /\{\{(\w+)\}\}/g, 
-                      (match, key) => previewVariables[key] || match
-                    )
+                  dangerouslySetInnerHTML={{
+                    __html: DOMPurify.sanitize(
+                      selectedTemplate.html.replace(
+                        /\{\{(\w+)\}\}/g,
+                        (match, key) => previewVariables[key] || match
+                      )
+                    ),
                   }}
                 />
               </div>

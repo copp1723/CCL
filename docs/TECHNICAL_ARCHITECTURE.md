@@ -2,11 +2,14 @@
 
 ## System Architecture Overview
 
-The Complete Car Loans AI Recovery System implements a microservice-inspired architecture with intelligent agent orchestration, real-time communication, and robust data processing capabilities.
+The Complete Car Loans AI Recovery System implements a microservice-inspired
+architecture with intelligent agent orchestration, real-time communication, and
+robust data processing capabilities.
 
 ## Core Architecture Components
 
 ### Frontend Layer (React + TypeScript)
+
 ```
 ┌─────────────────────────────────────────┐
 │             Client Layer                │
@@ -20,12 +23,14 @@ The Complete Car Loans AI Recovery System implements a microservice-inspired arc
 ```
 
 **Key Components:**
+
 - **Admin Dashboard**: Real-time monitoring with live metrics
 - **Chat Widget**: Expandable interface with proper formatting
 - **Data Ingestion Forms**: Multi-format upload handling
 - **Lead Management**: CRUD operations with filtering
 
 ### Backend Layer (Node.js + Express)
+
 ```
 ┌─────────────────────────────────────────┐
 │           Application Server            │
@@ -39,12 +44,14 @@ The Complete Car Loans AI Recovery System implements a microservice-inspired arc
 ```
 
 **API Architecture:**
+
 - RESTful endpoints with standardized responses
 - WebSocket integration for real-time features
 - Comprehensive error handling and validation
 - API key authentication with rate limiting
 
 ### Data Layer (PostgreSQL + Drizzle)
+
 ```
 ┌─────────────────────────────────────────┐
 │             Data Storage                │
@@ -59,6 +66,7 @@ The Complete Car Loans AI Recovery System implements a microservice-inspired arc
 ## Multi-Agent System Architecture
 
 ### Agent Orchestration
+
 ```
 ┌─────────────────┐    ┌─────────────────┐
 │ Visitor         │    │ Realtime        │
@@ -77,16 +85,19 @@ The Complete Car Loans AI Recovery System implements a microservice-inspired arc
 **Agent Responsibilities:**
 
 1. **VisitorIdentifierAgent**
+
    - Tracks website visitor behavior
    - Identifies potential leads
    - Triggers engagement workflows
 
-2. **RealtimeChatAgent** 
+2. **RealtimeChatAgent**
+
    - Manages chat widget interactions
    - Integrates with OpenAI for responses
    - Handles session management
 
 3. **EmailReengagementAgent**
+
    - Processes bulk email campaigns
    - Manages Mailgun integration
    - Tracks delivery and engagement
@@ -97,10 +108,11 @@ The Complete Car Loans AI Recovery System implements a microservice-inspired arc
    - Manages lead lifecycle states
 
 ### Inter-Agent Communication
+
 ```typescript
 interface AgentMessage {
   agentId: string;
-  type: 'lead_identified' | 'chat_session' | 'email_sent';
+  type: "lead_identified" | "chat_session" | "email_sent";
   payload: any;
   timestamp: Date;
 }
@@ -109,6 +121,7 @@ interface AgentMessage {
 ## OpenAI Integration Architecture
 
 ### Enhanced Conversational AI
+
 ```
 ┌─────────────────────────────────────────┐
 │            OpenAI Integration           │
@@ -122,6 +135,7 @@ interface AgentMessage {
 ```
 
 **Conversation Flow:**
+
 1. User message received via WebSocket/HTTP
 2. Enhanced system prompt applied
 3. OpenAI GPT-4 processing (1-3 seconds)
@@ -129,6 +143,7 @@ interface AgentMessage {
 5. Fallback to contextual responses if needed
 
 **System Prompt Architecture:**
+
 - Role-based personality (Cathy, finance expert)
 - Conversational style guidelines
 - Empathy-first approach
@@ -138,6 +153,7 @@ interface AgentMessage {
 ## Email Delivery Architecture
 
 ### Mailgun Integration
+
 ```
 ┌─────────────────────────────────────────┐
 │          Email Infrastructure           │
@@ -151,6 +167,7 @@ interface AgentMessage {
 ```
 
 **Email Processing Pipeline:**
+
 1. Campaign creation with lead data
 2. Template population and personalization
 3. Mailgun API submission
@@ -160,6 +177,7 @@ interface AgentMessage {
 ## Data Processing Architecture
 
 ### Lead Ingestion Pipeline
+
 ```
 ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
 │ Manual      │    │ Data        │    │ Lead        │
@@ -176,20 +194,22 @@ interface AgentMessage {
 ```
 
 **Validation Schema:**
+
 ```typescript
 interface LeadData {
-  email: string;           // Required, validated format
-  firstName?: string;      // Optional
-  lastName?: string;       // Optional
-  phoneNumber?: string;    // Optional, formatted
+  email: string; // Required, validated format
+  firstName?: string; // Optional
+  lastName?: string; // Optional
+  phoneNumber?: string; // Optional, formatted
   vehicleInterest?: string; // Optional
-  source: string;          // Required, tracked
+  source: string; // Required, tracked
 }
 ```
 
 ## Security Architecture
 
 ### Authentication & Authorization
+
 ```
 ┌─────────────────────────────────────────┐
 │            Security Layer               │
@@ -203,6 +223,7 @@ interface LeadData {
 ```
 
 **Security Implementation:**
+
 - API key rotation quarterly
 - Environment variable protection
 - SQL injection prevention
@@ -210,6 +231,7 @@ interface LeadData {
 - CORS configuration
 
 ### Data Protection
+
 - Encryption at rest (PostgreSQL)
 - Encryption in transit (HTTPS/WSS)
 - Sensitive data masking in logs
@@ -219,6 +241,7 @@ interface LeadData {
 ## Performance Architecture
 
 ### Optimization Strategies
+
 ```
 ┌─────────────────────────────────────────┐
 │         Performance Layer               │
@@ -232,6 +255,7 @@ interface LeadData {
 ```
 
 **Performance Metrics:**
+
 - Chat response time: 1-3 seconds
 - API response time: <500ms
 - Memory usage: ~90MB stable
@@ -241,6 +265,7 @@ interface LeadData {
 ## Real-time Communication
 
 ### WebSocket Architecture
+
 ```typescript
 interface ChatWebSocket extends WebSocket {
   sessionId?: string;
@@ -250,19 +275,20 @@ interface ChatWebSocket extends WebSocket {
 class ChatWebSocketServer {
   private wss: WebSocketServer;
   private clients: Map<string, ChatWebSocket>;
-  
+
   // Heartbeat monitoring
   private startHeartbeat(): void;
-  
+
   // Message routing
   private handleMessage(ws: ChatWebSocket, message: any): Promise<void>;
-  
+
   // Session management
   public sendToSession(sessionId: string, message: any): void;
 }
 ```
 
 **WebSocket Features:**
+
 - Automatic reconnection
 - HTTP fallback for reliability
 - Session-based message routing
@@ -272,6 +298,7 @@ class ChatWebSocketServer {
 ## Database Schema Architecture
 
 ### Core Tables
+
 ```sql
 -- User sessions for chat
 CREATE TABLE sessions (
@@ -313,6 +340,7 @@ CREATE TABLE system_agents (
 ## Deployment Architecture
 
 ### Environment Configuration
+
 ```
 ┌─────────────────────────────────────────┐
 │         Deployment Strategy             │
@@ -326,6 +354,7 @@ CREATE TABLE system_agents (
 ```
 
 **Build Process:**
+
 1. TypeScript compilation
 2. Frontend asset bundling with Vite
 3. Backend bundling with esbuild
@@ -335,9 +364,10 @@ CREATE TABLE system_agents (
 ## Monitoring & Observability
 
 ### System Monitoring
+
 ```typescript
 interface SystemHealth {
-  status: 'healthy' | 'degraded' | 'unhealthy';
+  status: "healthy" | "degraded" | "unhealthy";
   uptime: number;
   memoryUsage: NodeJS.MemoryUsage;
   agents: AgentStatus[];
@@ -347,6 +377,7 @@ interface SystemHealth {
 ```
 
 **Monitoring Components:**
+
 - Real-time health endpoints
 - Agent status tracking
 - Performance metrics collection
@@ -356,12 +387,14 @@ interface SystemHealth {
 ## Scalability Considerations
 
 ### Horizontal Scaling
+
 - Stateless application design
 - Database connection pooling
 - Load balancer compatibility
 - Session storage externalization
 
 ### Vertical Scaling
+
 - Memory optimization
 - CPU usage monitoring
 - Database query optimization
@@ -370,12 +403,15 @@ interface SystemHealth {
 ## Future Architecture Enhancements
 
 ### Planned Improvements
+
 1. **Microservice Decomposition**
+
    - Separate chat service
    - Dedicated email service
    - Agent orchestration service
 
 2. **Advanced Analytics**
+
    - Conversation quality metrics
    - Lead conversion tracking
    - A/B testing framework
@@ -385,4 +421,6 @@ interface SystemHealth {
    - Multi-factor authentication
    - Advanced threat detection
 
-This technical architecture provides a comprehensive foundation for the Complete Car Loans AI Recovery System, ensuring scalability, maintainability, and robust performance in production environments.
+This technical architecture provides a comprehensive foundation for the Complete
+Car Loans AI Recovery System, ensuring scalability, maintainability, and robust
+performance in production environments.

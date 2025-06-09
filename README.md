@@ -1,24 +1,27 @@
 # Complete Car Leads (CCL) - Integrated System
 
-> **Production-ready lead management platform with modern frontend and secure backend**
+> **Production-ready lead management platform with modern frontend and secure
+> backend**
 
 🎯 **Modern Stack**: React 18 + Vite 6 + TypeScript 5.6 + Secure Node.js API  
 🔒 **Enterprise Security**: Encrypted data, rate limiting, audit logging  
-⚡ **Performance**: LRU caching, optimized queries, real-time updates  
+⚡ **Performance**: LRU caching, optimized queries, real-time updates
 
 ---
 
 ## ✨ Features
 
 ### 🎨 **Frontend**
+
 - **React 18** with latest hooks and Suspense
 - **Vite 6** for lightning-fast development
-- **Radix UI + Shadcn** for accessible components  
+- **Radix UI + Shadcn** for accessible components
 - **TailwindCSS** for responsive styling
 - **React Query** for smart API state management
 - **Framer Motion** for smooth animations
 
 ### 🛡️ **Backend Security**
+
 - **Data Encryption**: AES-256-CBC for PII (emails, phones)
 - **API Rate Limiting**: 100 requests per 15 minutes per key
 - **Request Logging**: Privacy-safe audit trails
@@ -26,9 +29,10 @@
 - **PostgreSQL**: Encrypted connections with connection pooling
 
 ### 📊 **Features**
+
 - **Lead Management**: Create, update, track encrypted customer data
 - **Campaign Management**: Email automation and multi-step nurturing
-- **Real-time Chat**: AI-powered customer support widget  
+- **Real-time Chat**: AI-powered customer support widget
 - **Data Ingestion**: CSV upload with bulk processing
 - **Analytics Dashboard**: Performance metrics and conversion tracking
 - **Activity Tracking**: Comprehensive user interaction logs
@@ -38,6 +42,7 @@
 ## 🚀 Quick Start
 
 ### 1. **Environment Setup**
+
 ```bash
 # Copy environment template
 cp .env.example .env
@@ -49,6 +54,7 @@ cp .env.example .env
 ```
 
 ### 2. **Install & Run**
+
 ```bash
 # Install dependencies
 npm install
@@ -60,6 +66,7 @@ npm run dev
 ```
 
 ### 3. **Test Integration**
+
 ```bash
 # Run complete system test
 npm run test:integration
@@ -69,31 +76,35 @@ npm run test:integration
 
 ## 🔧 **Required Environment Variables**
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `DATABASE_URL` | ✅ | PostgreSQL connection string |
-| `ENCRYPTION_KEY` | ✅ | 32+ char key for data encryption |
-| `API_KEY` | ✅ | Secure API authentication key |
-| `OPENAI_API_KEY` | 🔶 | For AI chat features (optional) |
-| `MAILGUN_API_KEY` | 🔶 | For email campaigns (optional) |
+| Variable          | Required | Description                      |
+| ----------------- | -------- | -------------------------------- |
+| `DATABASE_URL`    | ✅       | PostgreSQL connection string     |
+| `ENCRYPTION_KEY`  | ✅       | 32+ char key for data encryption |
+| `API_KEY`         | ✅       | Secure API authentication key    |
+| `OPENAI_API_KEY`  | 🔶       | For AI chat features (optional)  |
+| `MAILGUN_API_KEY` | 🔶       | For email campaigns (optional)   |
 
 ---
 
 ## 📡 **API Endpoints**
 
 ### **Public**
+
 - `GET /health` - System health check
 - `POST /api/chat` - AI chat interface
 
 ### **Protected** (require API key)
+
 - `GET /api/leads` - List all leads
 - `POST /api/leads` - Create new lead
-- `GET /api/activities` - Recent activities  
+- `GET /api/activities` - Recent activities
 - `GET /api/system/stats` - System statistics
 - `POST /api/bulk-email/send` - CSV upload
 
 ### **Authentication**
+
 All protected endpoints require:
+
 ```
 Authorization: Bearer YOUR_API_KEY
 ```
@@ -122,6 +133,7 @@ Authorization: Bearer YOUR_API_KEY
 ## 🚀 **Deployment**
 
 ### **Render (Recommended)**
+
 ```bash
 # 1. Push to GitHub
 git push origin main
@@ -136,6 +148,7 @@ git push origin main
 **See [DEPLOY.md](DEPLOY.md) for complete deployment guide.**
 
 ### **Development (Local)**
+
 ```bash
 # Install dependencies
 npm install
@@ -146,6 +159,7 @@ npm run dev
 ```
 
 ### **Replit (Quick Demo)**
+
 - Upload CCL 3 folder to Replit
 - Set environment variables in Secrets
 - Click "Run" button
@@ -155,6 +169,7 @@ npm run dev
 ## 🔧 **Development**
 
 ### **Project Structure**
+
 ```
 CCL/
 ├── client/           # React frontend
@@ -170,6 +185,7 @@ CCL/
 ```
 
 ### **Development Commands**
+
 ```bash
 npm run dev          # Start dev server
 npm run build        # Production build

@@ -1,9 +1,9 @@
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-import { formatDistanceToNow } from 'date-fns';
-import { Download } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { formatDistanceToNow } from "date-fns";
+import { Download } from "lucide-react";
 
 interface Lead {
   id: number;
@@ -17,7 +17,7 @@ interface Lead {
       score?: number;
     };
     metadata: {
-      priority: 'high' | 'medium' | 'low';
+      priority: "high" | "medium" | "low";
     };
   };
   status: string;
@@ -31,11 +31,15 @@ interface LeadsTableProps {
 
 function getStatusBadge(status: string): React.ReactNode {
   switch (status) {
-    case 'submitted':
+    case "submitted":
       return <Badge className="bg-blue-600 text-white">Submitted</Badge>;
-    case 'pending':
-      return <Badge variant="secondary" className="bg-amber-500 text-white">Processing</Badge>;
-    case 'failed':
+    case "pending":
+      return (
+        <Badge variant="secondary" className="bg-amber-500 text-white">
+          Processing
+        </Badge>
+      );
+    case "failed":
       return <Badge variant="destructive">Failed</Badge>;
     default:
       return <Badge variant="outline">{status}</Badge>;
@@ -52,11 +56,11 @@ function getCreditStatusBadge(approved: boolean): React.ReactNode {
 
 function getPriorityBadge(priority: string): React.ReactNode {
   switch (priority) {
-    case 'high':
+    case "high":
       return <Badge variant="destructive">High</Badge>;
-    case 'medium':
+    case "medium":
       return <Badge className="bg-amber-500 text-white">Medium</Badge>;
-    case 'low':
+    case "low":
       return <Badge variant="secondary">Low</Badge>;
     default:
       return <Badge variant="outline">Unknown</Badge>;
@@ -88,7 +92,7 @@ function TableSkeleton() {
 export function LeadsTable({ leads, isLoading }: LeadsTableProps) {
   const handleExportLeads = () => {
     // In a real application, this would trigger a download
-    console.log('Exporting leads...');
+    console.log("Exporting leads...");
   };
 
   return (
@@ -99,10 +103,7 @@ export function LeadsTable({ leads, isLoading }: LeadsTableProps) {
             <CardTitle className="text-lg font-semibold text-gray-900">Recent Leads</CardTitle>
             <p className="text-sm text-gray-600 mt-1">Latest qualified leads from agent workflow</p>
           </div>
-          <Button 
-            onClick={handleExportLeads}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
-          >
+          <Button onClick={handleExportLeads} className="bg-blue-600 hover:bg-blue-700 text-white">
             <Download className="h-4 w-4 mr-2" />
             Export Leads
           </Button>
@@ -144,7 +145,7 @@ export function LeadsTable({ leads, isLoading }: LeadsTableProps) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {leads.map((lead) => (
+                {leads.map(lead => (
                   <tr key={lead.id} className="hover:bg-gray-50 transition-colors">
                     <td className="py-4 px-6 text-sm font-medium text-gray-900">
                       {lead.leadData.leadId}
@@ -168,9 +169,7 @@ export function LeadsTable({ leads, isLoading }: LeadsTableProps) {
                     <td className="py-4 px-6">
                       {getPriorityBadge(lead.leadData.metadata.priority)}
                     </td>
-                    <td className="py-4 px-6">
-                      {getStatusBadge(lead.status)}
-                    </td>
+                    <td className="py-4 px-6">{getStatusBadge(lead.status)}</td>
                     <td className="py-4 px-6 text-sm text-gray-500">
                       {formatDistanceToNow(new Date(lead.createdAt), { addSuffix: true })}
                     </td>

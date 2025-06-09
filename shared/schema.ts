@@ -1,4 +1,14 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, varchar, index } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  serial,
+  integer,
+  boolean,
+  timestamp,
+  jsonb,
+  varchar,
+  index,
+} from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -37,7 +47,9 @@ export const chatSessions = pgTable("chat_sessions", {
 
 export const emailCampaigns = pgTable("email_campaigns", {
   id: serial("id").primaryKey(),
-  visitorId: integer("visitor_id").references(() => visitors.id).notNull(),
+  visitorId: integer("visitor_id")
+    .references(() => visitors.id)
+    .notNull(),
   returnToken: text("return_token").notNull().unique(),
   emailSent: boolean("email_sent").default(false),
   emailOpened: boolean("email_opened").default(false),
@@ -45,8 +57,6 @@ export const emailCampaigns = pgTable("email_campaigns", {
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
-
-
 
 // Session storage table for authentication
 export const sessions = pgTable(
@@ -56,14 +66,16 @@ export const sessions = pgTable(
     sess: jsonb("sess").notNull(),
     expire: timestamp("expire").notNull(),
   },
-  (table) => [index("IDX_session_expire").on(table.expire)],
+  table => [index("IDX_session_expire").on(table.expire)]
 );
 
 // System leads table
 export const systemLeads = pgTable("system_leads", {
   id: text("id").primaryKey(),
   email: text("email").notNull(),
-  status: text("status").notNull().default("new"), // new, contacted, qualified, closed
+  status: text("status", { enum: ["new", "contacted", "qualified", "closed"] })
+    .notNull()
+    .default("new"),
   leadData: jsonb("lead_data").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -82,7 +94,9 @@ export const systemActivities = pgTable("system_activities", {
 export const systemAgents = pgTable("system_agents", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
-  status: text("status").notNull().default("active"), // active, inactive, error
+  status: text("status", { enum: ["active", "inactive", "error"] })
+    .notNull()
+    .default("active"),
   processedToday: integer("processed_today").default(0),
   description: text("description").notNull(),
   icon: text("icon").notNull(),
@@ -104,13 +118,19 @@ export const campaignSchedules = pgTable("campaign_schedules", {
 // Campaign attempts tracking
 export const campaignAttempts = pgTable("campaign_attempts", {
   id: text("id").primaryKey(),
-  scheduleId: text("schedule_id").references(() => campaignSchedules.id).notNull(),
-  leadId: text("lead_id").references(() => systemLeads.id).notNull(),
+  scheduleId: text("schedule_id")
+    .references(() => campaignSchedules.id)
+    .notNull(),
+  leadId: text("lead_id")
+    .references(() => systemLeads.id)
+    .notNull(),
   attemptNumber: integer("attempt_number").notNull(),
   templateId: text("template_id").notNull(),
   scheduledFor: timestamp("scheduled_for").notNull(),
   sentAt: timestamp("sent_at"),
-  status: text("status").notNull().default("scheduled"), // scheduled, sent, failed, skipped
+  status: text("status", { enum: ["scheduled", "sent", "failed", "skipped"] })
+    .notNull()
+    .default("scheduled"),
   messageId: text("message_id"),
   errorMessage: text("error_message"),
   variables: jsonb("variables"),
@@ -119,9 +139,13 @@ export const campaignAttempts = pgTable("campaign_attempts", {
 
 export const leads = pgTable("leads", {
   id: serial("id").primaryKey(),
-  visitorId: integer("visitor_id").references(() => visitors.id).notNull(),
+  visitorId: integer("visitor_id")
+    .references(() => visitors.id)
+    .notNull(),
   leadData: jsonb("lead_data").notNull(),
-  status: text("status").notNull().default("pending"), // pending, submitted, failed
+  status: text("status", { enum: ["pending", "submitted", "failed"] })
+    .notNull()
+    .default("pending"),
   dealerResponse: jsonb("dealer_response"),
   submittedAt: timestamp("submitted_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -134,102 +158,54 @@ export const agentActivity = pgTable("agent_activity", {
   details: text("details"),
   visitorId: integer("visitor_id").references(() => visitors.id),
   leadId: integer("lead_id").references(() => leads.id),
-  status: text("status").notNull(), // success, error, pending
+  status: text("status", { enum: ["success", "error", "pending"] }).notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-// Insert schemas for system tables
-export const insertSystemLeadSchema = createInsertSchema(systemLeads).omit({
-  createdAt: true,
-});
+// Insert schemas for system tables - using Drizzle types directly
+// Note: Zod schemas removed to avoid type inference issues
 
-export const insertSystemActivitySchema = createInsertSchema(systemActivities).omit({
-  timestamp: true,
-});
+// Insert schemas - using Drizzle types directly
+// Note: Zod schemas removed to avoid type inference issues
 
-export const insertSystemAgentSchema = createInsertSchema(systemAgents).omit({
-  lastActivity: true,
-});
+// Campaign schedule schemas - using Drizzle types directly
+// Note: Zod schemas removed to avoid type inference issues
 
-// Insert schemas
-export const insertVisitorSchema = createInsertSchema(visitors).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertChatSessionSchema = createInsertSchema(chatSessions).omit({
-  id: true,
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertEmailCampaignSchema = createInsertSchema(emailCampaigns).omit({
-  id: true,
-  createdAt: true,
-});
-
-
-
-export const insertLeadSchema = createInsertSchema(leads).omit({
-  id: true,
-  createdAt: true,
-});
-
-export const insertAgentActivitySchema = createInsertSchema(agentActivity).omit({
-  id: true,
-  createdAt: true,
-});
-
-// Campaign schedule schemas
-export const insertCampaignScheduleSchema = createInsertSchema(campaignSchedules).omit({
-  createdAt: true,
-  updatedAt: true,
-});
-
-export const insertCampaignAttemptSchema = createInsertSchema(campaignAttempts).omit({
-  createdAt: true,
-});
-
-// Types for system tables
-export type InsertSystemLead = z.infer<typeof insertSystemLeadSchema>;
+// Types for system tables - using Drizzle inference directly
+export type InsertSystemLead = typeof systemLeads.$inferInsert;
 export type SystemLead = typeof systemLeads.$inferSelect;
 
-export type InsertSystemActivity = z.infer<typeof insertSystemActivitySchema>;
+export type InsertSystemActivity = typeof systemActivities.$inferInsert;
 export type SystemActivity = typeof systemActivities.$inferSelect;
 
-export type InsertSystemAgent = z.infer<typeof insertSystemAgentSchema>;
+export type InsertSystemAgent = typeof systemAgents.$inferInsert;
 export type SystemAgent = typeof systemAgents.$inferSelect;
 
-// Campaign types
-export type InsertCampaignSchedule = z.infer<typeof insertCampaignScheduleSchema>;
+// Campaign types - using Drizzle inference directly
+export type InsertCampaignSchedule = typeof campaignSchedules.$inferInsert;
 export type CampaignSchedule = typeof campaignSchedules.$inferSelect;
 
-export type InsertCampaignAttempt = z.infer<typeof insertCampaignAttemptSchema>;
+export type InsertCampaignAttempt = typeof campaignAttempts.$inferInsert;
 export type CampaignAttempt = typeof campaignAttempts.$inferSelect;
 
-// Insert schema for users
-export const insertUserSchema = createInsertSchema(users).pick({
-  username: true,
-  password: true,
-});
+// Insert schema for users - using Drizzle types directly
+// Note: Zod schemas removed to avoid type inference issues
 
-// Types
-export type InsertUser = z.infer<typeof insertUserSchema>;
+// Types - using Drizzle inference directly
+export type InsertUser = typeof users.$inferInsert;
 export type User = typeof users.$inferSelect;
 
-export type InsertVisitor = z.infer<typeof insertVisitorSchema>;
+export type InsertVisitor = typeof visitors.$inferInsert;
 export type Visitor = typeof visitors.$inferSelect;
 
-export type InsertChatSession = z.infer<typeof insertChatSessionSchema>;
+export type InsertChatSession = typeof chatSessions.$inferInsert;
 export type ChatSession = typeof chatSessions.$inferSelect;
 
-export type InsertEmailCampaign = z.infer<typeof insertEmailCampaignSchema>;
+export type InsertEmailCampaign = typeof emailCampaigns.$inferInsert;
 export type EmailCampaign = typeof emailCampaigns.$inferSelect;
 
-
-
-export type InsertLead = z.infer<typeof insertLeadSchema>;
+export type InsertLead = typeof leads.$inferInsert;
 export type Lead = typeof leads.$inferSelect;
 
-export type InsertAgentActivity = z.infer<typeof insertAgentActivitySchema>;
+export type InsertAgentActivity = typeof agentActivity.$inferInsert;
 export type AgentActivity = typeof agentActivity.$inferSelect;

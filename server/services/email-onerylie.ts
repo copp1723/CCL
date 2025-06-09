@@ -1,6 +1,6 @@
-import Mailgun from 'mailgun.js';
-import formData from 'form-data';
-import config from '../config/environment';
+import Mailgun from "mailgun.js";
+import formData from "form-data";
+import config from "../config/environment";
 
 interface EmailParams {
   to: string;
@@ -23,19 +23,19 @@ class OnerylieEmailService {
 
   constructor() {
     const conf = config.get();
-    
+
     if (!conf.MAILGUN_API_KEY) {
-      throw new Error('MAILGUN_API_KEY is required for email functionality');
+      throw new Error("MAILGUN_API_KEY is required for email functionality");
     }
 
     const mailgun = new Mailgun(formData);
     this.mg = mailgun.client({
-      username: 'api',
-      key: conf.MAILGUN_API_KEY
+      username: "api",
+      key: conf.MAILGUN_API_KEY,
     });
-    
-    this.domain = 'mail.onerylie.com';
-    this.fromEmail = 'noreply@onerylie.com';
+
+    this.domain = "mail.onerylie.com";
+    this.fromEmail = "noreply@onerylie.com";
   }
 
   async sendEmail(params: EmailParams): Promise<EmailResponse> {
@@ -45,28 +45,28 @@ class OnerylieEmailService {
         to: params.to,
         subject: params.subject,
         text: params.text,
-        html: params.html
+        html: params.html,
       };
 
       const response = await this.mg.messages.create(this.domain, emailData);
-      
+
       return {
         success: true,
-        messageId: response.id
+        messageId: response.id,
       };
     } catch (error: any) {
-      console.error('Mailgun email error:', error);
-      
+      console.error("Mailgun email error:", error);
+
       return {
         success: false,
-        error: error.message || 'Failed to send email'
+        error: error.message || "Failed to send email",
       };
     }
   }
 
   async sendLeadFollowup(email: string, firstName: string): Promise<EmailResponse> {
     const subject = `${firstName}, your auto loan approval is waiting`;
-    
+
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2 style="color: #2563eb;">Hey ${firstName}!</h2>
@@ -135,13 +135,13 @@ Complete Car Loans
       to: email,
       subject,
       html,
-      text
+      text,
     });
   }
 
   async sendWelcomeEmail(email: string, firstName: string): Promise<EmailResponse> {
     const subject = `${firstName}, your auto loan application is being processed`;
-    
+
     const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <div style="background: #2563eb; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0;">
@@ -223,7 +223,7 @@ Complete Car Loans
       to: email,
       subject,
       html,
-      text
+      text,
     });
   }
 
@@ -231,16 +231,16 @@ Complete Car Loans
     try {
       // Test with a simple domain validation
       const response = await this.mg.domains.get(this.domain);
-      
+
       return {
         success: true,
-        domain: this.domain
+        domain: this.domain,
       };
     } catch (error: any) {
       return {
         success: false,
         domain: this.domain,
-        error: error.message
+        error: error.message,
       };
     }
   }

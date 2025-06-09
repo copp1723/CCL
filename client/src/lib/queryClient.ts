@@ -16,21 +16,21 @@ export async function apiRequest<T = any>(
   }
 ): Promise<T> {
   const { method = "GET", data } = options || {};
-  
+
   const headers: Record<string, string> = {};
-  
+
   // Only add API key for protected endpoints
-  if (url.includes('/api/system/')) {
+  if (url.includes("/api/system/")) {
     const apiKey = import.meta.env.VITE_CCL_API_KEY;
     if (apiKey) {
-      headers['x-api-key'] = apiKey;
+      headers["x-api-key"] = apiKey;
     }
   }
-  
+
   if (data) {
-    headers['Content-Type'] = 'application/json';
+    headers["Content-Type"] = "application/json";
   }
-  
+
   const res = await fetch(url, {
     method,
     headers,
@@ -43,22 +43,20 @@ export async function apiRequest<T = any>(
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
-export const getQueryFn: <T>(options: {
-  on401: UnauthorizedBehavior;
-}) => QueryFunction<T> =
+export const getQueryFn: <T>(options: { on401: UnauthorizedBehavior }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     const headers: Record<string, string> = {};
     const url = queryKey[0] as string;
-    
+
     // Only add API key for protected endpoints
-    if (url.includes('/api/system/')) {
+    if (url.includes("/api/system/")) {
       const apiKey = import.meta.env.VITE_CCL_API_KEY;
       if (apiKey) {
-        headers['x-api-key'] = apiKey;
+        headers["x-api-key"] = apiKey;
       }
     }
-    
+
     const res = await fetch(url, {
       headers,
       credentials: "include",

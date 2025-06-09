@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export function DataProcessing() {
@@ -7,9 +6,7 @@ export function DataProcessing() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Data Processing</h1>
-          <p className="text-muted-foreground">
-            Monitor and manage data processing operations
-          </p>
+          <p className="text-muted-foreground">Monitor and manage data processing operations</p>
         </div>
       </div>
 

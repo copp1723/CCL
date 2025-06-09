@@ -1,9 +1,9 @@
-import { db } from '../db';
-import { campaignSchedules, campaignAttempts, systemLeads } from '@shared/schema';
-import { eq, and, lte, gte } from 'drizzle-orm';
-import emailService from './email-onerylie';
-import { emailTemplateManager } from './email-campaign-templates';
-import { storage } from '../storage';
+import { db } from "../db";
+import { campaignSchedules, campaignAttempts, systemLeads } from "@shared/schema";
+import { eq, and, lte, gte } from "drizzle-orm";
+import emailService from "./email-onerylie";
+import { emailTemplateManager } from "./email-campaign-templates";
+import { storage } from "../storage";
 
 export interface AttemptConfig {
   attemptNumber: number;
@@ -37,23 +37,23 @@ export class MultiAttemptScheduler {
    */
   async createSchedule(config: CampaignScheduleConfig): Promise<string> {
     const scheduleId = `schedule_${Date.now()}`;
-    
+
     await db.insert(campaignSchedules).values({
       id: scheduleId,
       name: config.name,
-      description: config.description || '',
+      description: config.description || "",
       isActive: config.isActive ?? true,
       attempts: config.attempts,
     });
 
     await storage.createActivity(
-      'schedule_created',
+      "schedule_created",
       `Multi-attempt schedule "${config.name}" created with ${config.attempts.length} attempts`,
-      'EmailReengagementAgent',
-      { 
-        scheduleId, 
+      "EmailReengagementAgent",
+      {
+        scheduleId,
         attemptCount: config.attempts.length,
-        totalDelayDays: Math.max(...config.attempts.map(a => a.delayDays))
+        totalDelayDays: Math.max(...config.attempts.map(a => a.delayDays)),
       }
     );
 
@@ -63,7 +63,11 @@ export class MultiAttemptScheduler {
   /**
    * Enroll a lead in a multi-attempt campaign
    */
-  async enrollLead(scheduleId: string, leadId: string, variables: Record<string, any> = {}): Promise<void> {
+  async enrollLead(
+    scheduleId: string,
+    leadId: string,
+    variables: Record<string, any> = {}
+  ): Promise<void> {
     const schedule = await db
       .select()
       .from(campaignSchedules)
@@ -71,7 +75,7 @@ export class MultiAttemptScheduler {
       .limit(1);
 
     if (!schedule[0] || !schedule[0].isActive) {
-      throw new Error('Campaign schedule not found or inactive');
+      throw new Error("Campaign schedule not found or inactive");
     }
 
     const attempts = schedule[0].attempts as AttemptConfig[];
@@ -92,20 +96,24 @@ export class MultiAttemptScheduler {
         attemptNumber: attempt.attemptNumber,
         templateId: attempt.templateId,
         scheduledFor,
-        status: 'scheduled',
+        status: "scheduled",
         variables,
       });
     }
 
     await storage.createActivity(
-      'lead_enrolled',
+      "lead_enrolled",
       `Lead ${leadId} enrolled in multi-attempt schedule "${schedule[0].name}"`,
-      'EmailReengagementAgent',
-      { 
-        scheduleId, 
-        leadId, 
+      "EmailReengagementAgent",
+      {
+        scheduleId,
+        leadId,
         attemptCount: attempts.length,
-        firstAttemptTime: attempts[0] ? new Date(now.getTime() + attempts[0].delayHours * 3600000 + attempts[0].delayDays * 86400000).toISOString() : null
+        firstAttemptTime: attempts[0]
+          ? new Date(
+              now.getTime() + attempts[0].delayHours * 3600000 + attempts[0].delayDays * 86400000
+            ).toISOString()
+          : null,
       }
     );
   }
@@ -119,16 +127,13 @@ export class MultiAttemptScheduler {
 
     try {
       const now = new Date();
-      
+
       // Get all scheduled attempts that are due
       const dueAttempts = await db
         .select()
         .from(campaignAttempts)
         .where(
-          and(
-            eq(campaignAttempts.status, 'scheduled'),
-            lte(campaignAttempts.scheduledFor, now)
-          )
+          and(eq(campaignAttempts.status, "scheduled"), lte(campaignAttempts.scheduledFor, now))
         )
         .limit(50); // Process in batches
 
@@ -137,18 +142,17 @@ export class MultiAttemptScheduler {
           await this.processAttempt(attempt);
         } catch (error) {
           console.error(`Failed to process attempt ${attempt.id}:`, error);
-          
+
           // Mark attempt as failed
           await db
             .update(campaignAttempts)
             .set({
-              status: 'failed',
-              errorMessage: error instanceof Error ? error.message : 'Unknown error',
+              status: "failed",
+              errorMessage: error instanceof Error ? error.message : "Unknown error",
             })
             .where(eq(campaignAttempts.id, attempt.id));
         }
       }
-
     } finally {
       this.isRunning = false;
     }
@@ -181,7 +185,7 @@ export class MultiAttemptScheduler {
     if (shouldSkip) {
       await db
         .update(campaignAttempts)
-        .set({ status: 'skipped' })
+        .set({ status: "skipped" })
         .where(eq(campaignAttempts.id, attempt.id));
       return;
     }
@@ -189,10 +193,10 @@ export class MultiAttemptScheduler {
     // Get template and render email
     const variables = {
       ...attempt.variables,
-      firstName: leadData.firstName || '',
-      lastName: leadData.lastName || '',
-      vehicleInterest: leadData.vehicleInterest || 'vehicle',
-      ...leadData
+      firstName: leadData.firstName || "",
+      lastName: leadData.lastName || "",
+      vehicleInterest: leadData.vehicleInterest || "vehicle",
+      ...leadData,
     };
 
     const rendered = emailTemplateManager.renderTemplate(attempt.templateId, variables);
@@ -205,14 +209,14 @@ export class MultiAttemptScheduler {
       to: email,
       subject: rendered.subject,
       html: rendered.html,
-      text: rendered.text
+      text: rendered.text,
     });
 
     // Update attempt status
     await db
       .update(campaignAttempts)
       .set({
-        status: emailResult.success ? 'sent' : 'failed',
+        status: emailResult.success ? "sent" : "failed",
         sentAt: emailResult.success ? new Date() : null,
         messageId: emailResult.messageId || null,
         errorMessage: emailResult.error || null,
@@ -221,9 +225,9 @@ export class MultiAttemptScheduler {
 
     // Log activity
     await storage.createActivity(
-      emailResult.success ? 'attempt_sent' : 'attempt_failed',
-      `Multi-attempt email ${emailResult.success ? 'sent' : 'failed'} to ${email} (Attempt ${attempt.attemptNumber})`,
-      'EmailReengagementAgent',
+      emailResult.success ? "attempt_sent" : "attempt_failed",
+      `Multi-attempt email ${emailResult.success ? "sent" : "failed"} to ${email} (Attempt ${attempt.attemptNumber})`,
+      "EmailReengagementAgent",
       {
         attemptId: attempt.id,
         scheduleId: attempt.scheduleId,
@@ -232,7 +236,7 @@ export class MultiAttemptScheduler {
         templateId: attempt.templateId,
         success: emailResult.success,
         messageId: emailResult.messageId,
-        error: emailResult.error
+        error: emailResult.error,
       }
     );
   }
@@ -261,10 +265,7 @@ export class MultiAttemptScheduler {
         .select()
         .from(campaignAttempts)
         .where(
-          and(
-            eq(campaignAttempts.leadId, attempt.leadId),
-            eq(campaignAttempts.status, 'sent')
-          )
+          and(eq(campaignAttempts.leadId, attempt.leadId), eq(campaignAttempts.status, "sent"))
         );
 
       if (sentCount.length >= attemptConfig.conditions.maxAttempts) {
@@ -289,7 +290,7 @@ export class MultiAttemptScheduler {
       .limit(1);
 
     if (!schedule[0]) {
-      throw new Error('Schedule not found');
+      throw new Error("Schedule not found");
     }
 
     // Get attempt statistics
@@ -300,10 +301,10 @@ export class MultiAttemptScheduler {
 
     const stats = {
       total: attempts.length,
-      scheduled: attempts.filter(a => a.status === 'scheduled').length,
-      sent: attempts.filter(a => a.status === 'sent').length,
-      failed: attempts.filter(a => a.status === 'failed').length,
-      skipped: attempts.filter(a => a.status === 'skipped').length,
+      scheduled: attempts.filter(a => a.status === "scheduled").length,
+      sent: attempts.filter(a => a.status === "sent").length,
+      failed: attempts.filter(a => a.status === "failed").length,
+      skipped: attempts.filter(a => a.status === "skipped").length,
     };
 
     return {
@@ -325,7 +326,7 @@ export class MultiAttemptScheduler {
       .from(campaignAttempts)
       .where(
         and(
-          eq(campaignAttempts.status, 'scheduled'),
+          eq(campaignAttempts.status, "scheduled"),
           gte(campaignAttempts.scheduledFor, now),
           lte(campaignAttempts.scheduledFor, until)
         )
@@ -337,11 +338,14 @@ export class MultiAttemptScheduler {
    */
   private startScheduler(): void {
     // Check for due attempts every 5 minutes
-    this.intervalId = setInterval(() => {
-      this.processScheduledAttempts().catch(console.error);
-    }, 5 * 60 * 1000);
+    this.intervalId = setInterval(
+      () => {
+        this.processScheduledAttempts().catch(console.error);
+      },
+      5 * 60 * 1000
+    );
 
-    console.log('Multi-attempt scheduler started');
+    console.log("Multi-attempt scheduler started");
   }
 
   /**
@@ -351,7 +355,7 @@ export class MultiAttemptScheduler {
     if (this.intervalId) {
       clearInterval(this.intervalId);
       this.intervalId = null;
-      console.log('Multi-attempt scheduler stopped');
+      console.log("Multi-attempt scheduler stopped");
     }
   }
 
@@ -359,10 +363,7 @@ export class MultiAttemptScheduler {
    * Get all active schedules
    */
   async getActiveSchedules(): Promise<any[]> {
-    return await db
-      .select()
-      .from(campaignSchedules)
-      .where(eq(campaignSchedules.isActive, true));
+    return await db.select().from(campaignSchedules).where(eq(campaignSchedules.isActive, true));
   }
 
   /**
@@ -371,16 +372,16 @@ export class MultiAttemptScheduler {
   async toggleSchedule(scheduleId: string, isActive: boolean): Promise<void> {
     await db
       .update(campaignSchedules)
-      .set({ 
+      .set({
         isActive,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       })
       .where(eq(campaignSchedules.id, scheduleId));
 
     await storage.createActivity(
-      'schedule_toggled',
-      `Multi-attempt schedule ${isActive ? 'activated' : 'paused'}`,
-      'EmailReengagementAgent',
+      "schedule_toggled",
+      `Multi-attempt schedule ${isActive ? "activated" : "paused"}`,
+      "EmailReengagementAgent",
       { scheduleId, isActive }
     );
   }

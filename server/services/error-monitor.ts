@@ -7,7 +7,7 @@ interface ErrorLog {
 }
 
 interface HealthStatus {
-  status: 'healthy' | 'degraded' | 'critical';
+  status: "healthy" | "degraded" | "critical";
   uptime: number;
   memoryUsage: {
     heapUsed: number;
@@ -32,9 +32,9 @@ class SystemMonitor {
   private readonly ERROR_RATE_WINDOW = 3600000; // 1 hour
 
   logError(error: Error, context?: string): void {
-    const key = `${error.message}:${context || 'unknown'}`;
+    const key = `${error.message}:${context || "unknown"}`;
     const existing = this.errors.get(key);
-    
+
     if (existing) {
       existing.count++;
       existing.timestamp = Date.now();
@@ -44,7 +44,7 @@ class SystemMonitor {
         stack: error.stack,
         timestamp: Date.now(),
         context,
-        count: 1
+        count: 1,
       });
     }
 
@@ -54,17 +54,17 @@ class SystemMonitor {
       this.errors.delete(oldestKey);
     }
 
-    console.error(`[SystemMonitor] Error in ${context || 'unknown'}:`, error.message);
+    console.error(`[SystemMonitor] Error in ${context || "unknown"}:`, error.message);
   }
 
   getHealthStatus(): HealthStatus {
     const uptime = (Date.now() - this.startTime) / 1000;
     const memoryUsage = process.memoryUsage();
     const recentErrors = this.getRecentErrors();
-    
-    let status: 'healthy' | 'degraded' | 'critical' = 'healthy';
-    if (recentErrors.length > 10) status = 'degraded';
-    if (recentErrors.length > 50) status = 'critical';
+
+    let status: "healthy" | "degraded" | "critical" = "healthy";
+    if (recentErrors.length > 10) status = "degraded";
+    if (recentErrors.length > 50) status = "critical";
 
     return {
       status,
@@ -72,11 +72,11 @@ class SystemMonitor {
       memoryUsage: {
         heapUsed: Math.round(memoryUsage.heapUsed / 1024 / 1024),
         heapTotal: Math.round(memoryUsage.heapTotal / 1024 / 1024),
-        external: Math.round(memoryUsage.external / 1024 / 1024)
+        external: Math.round(memoryUsage.external / 1024 / 1024),
       },
       errorRate: this.calculateErrorRate(),
       lastError: recentErrors[0]?.message,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 
@@ -102,7 +102,7 @@ class SystemMonitor {
     return {
       health,
       topErrors,
-      totalErrors: this.errors.size
+      totalErrors: this.errors.size,
     };
   }
 

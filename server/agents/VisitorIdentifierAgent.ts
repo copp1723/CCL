@@ -1,7 +1,7 @@
-import { Agent, tool } from '@openai/agents';
-import { storage } from '../storage';
-import { createHash } from 'crypto';
-import type { InsertVisitor, InsertAgentActivity } from '@shared/schema';
+import { Agent, tool } from "@openai/agents";
+import { storage } from "../storage";
+import { createHash } from "crypto";
+import type { InsertVisitor, InsertAgentActivity } from "@shared/schema";
 
 export interface AbandonmentEvent {
   sessionId: string;
@@ -17,7 +17,7 @@ export class VisitorIdentifierAgent {
 
   constructor() {
     this.agent = new Agent({
-      name: 'Visitor Identifier Agent',
+      name: "Visitor Identifier Agent",
       instructions: `
         You are responsible for detecting abandonment events and managing visitor data.
         Your primary tasks:
@@ -39,20 +39,20 @@ export class VisitorIdentifierAgent {
 
   private createDetectAbandonmentTool() {
     return tool({
-      name: 'detect_abandonment',
-      description: 'Detect and process abandonment events from visitors',
+      name: "detect_abandonment",
+      description: "Detect and process abandonment events from visitors",
       execute: async (params: { event: AbandonmentEvent }) => {
         try {
           const { event } = params;
-          
+
           // Validate event data
           if (!event.email || !event.sessionId || !event.step) {
-            throw new Error('Invalid abandonment event data');
+            throw new Error("Invalid abandonment event data");
           }
 
           // Hash email for PII protection
           const emailHash = this.hashEmail(event.email);
-          
+
           // Strip PII beyond email hash
           const sanitizedEvent = {
             sessionId: event.sessionId,
@@ -61,19 +61,21 @@ export class VisitorIdentifierAgent {
             abandonmentTime: event.timestamp,
           };
 
-          console.log(`[VisitorIdentifierAgent] Processing abandonment event for session: ${event.sessionId}`);
-          
+          console.log(
+            `[VisitorIdentifierAgent] Processing abandonment event for session: ${event.sessionId}`
+          );
+
           return {
             success: true,
             emailHash,
             sanitizedEvent,
-            message: 'Abandonment event detected and sanitized',
+            message: "Abandonment event detected and sanitized",
           };
         } catch (error) {
-          console.error('[VisitorIdentifierAgent] Error detecting abandonment:', error);
+          console.error("[VisitorIdentifierAgent] Error detecting abandonment:", error);
           return {
             success: false,
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: error instanceof Error ? error.message : "Unknown error",
           };
         }
       },
@@ -82,15 +84,15 @@ export class VisitorIdentifierAgent {
 
   private createStoreVisitorTool() {
     return tool({
-      name: 'store_visitor',
-      description: 'Store visitor data in the database with PII protection',
+      name: "store_visitor",
+      description: "Store visitor data in the database with PII protection",
       execute: async (params: { visitorData: Partial<InsertVisitor> }) => {
         try {
           const { visitorData } = params;
-          
+
           // Check if visitor already exists
           const existingVisitor = await storage.getVisitorByEmailHash(visitorData.emailHash!);
-          
+
           let visitor;
           if (existingVisitor) {
             // Update existing visitor
@@ -104,9 +106,9 @@ export class VisitorIdentifierAgent {
 
           // Log activity
           await storage.createAgentActivity({
-            agentType: 'visitor_identifier',
-            action: existingVisitor ? 'visitor_updated' : 'visitor_created',
-            description: `Visitor ${existingVisitor ? 'updated' : 'created'} from abandonment event`,
+            agentType: "visitor_identifier",
+            action: existingVisitor ? "visitor_updated" : "visitor_created",
+            description: `Visitor ${existingVisitor ? "updated" : "created"} from abandonment event`,
             targetId: visitor.id.toString(),
             metadata: { sessionId: visitorData.sessionId },
           });
@@ -114,13 +116,13 @@ export class VisitorIdentifierAgent {
           return {
             success: true,
             visitor,
-            message: `Visitor ${existingVisitor ? 'updated' : 'created'} successfully`,
+            message: `Visitor ${existingVisitor ? "updated" : "created"} successfully`,
           };
         } catch (error) {
-          console.error('[VisitorIdentifierAgent] Error storing visitor:', error);
+          console.error("[VisitorIdentifierAgent] Error storing visitor:", error);
           return {
             success: false,
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: error instanceof Error ? error.message : "Unknown error",
           };
         }
       },
@@ -129,43 +131,45 @@ export class VisitorIdentifierAgent {
 
   private createEmitLeadReadyTool() {
     return tool({
-      name: 'emit_lead_ready',
-      description: 'Emit lead_ready event when visitor is qualified for re-engagement',
+      name: "emit_lead_ready",
+      description: "Emit lead_ready event when visitor is qualified for re-engagement",
       execute: async (params: { visitorId: number; reason: string }) => {
         try {
           const { visitorId, reason } = params;
-          
+
           const visitor = await storage.getVisitor(visitorId);
           if (!visitor) {
-            throw new Error('Visitor not found');
+            throw new Error("Visitor not found");
           }
 
           // Log lead_ready event
           await storage.createAgentActivity({
-            agentType: 'visitor_identifier',
-            action: 'lead_ready',
+            agentType: "visitor_identifier",
+            action: "lead_ready",
             description: `Lead ready for re-engagement: ${reason}`,
             targetId: visitorId.toString(),
-            metadata: { 
+            metadata: {
               emailHash: visitor.emailHash,
               abandonmentStep: visitor.abandonmentStep,
               reason,
             },
           });
 
-          console.log(`[VisitorIdentifierAgent] Emitted lead_ready event for visitor: ${visitorId}`);
-          
+          console.log(
+            `[VisitorIdentifierAgent] Emitted lead_ready event for visitor: ${visitorId}`
+          );
+
           return {
             success: true,
             visitorId,
-            event: 'lead_ready',
-            message: 'Lead ready event emitted successfully',
+            event: "lead_ready",
+            message: "Lead ready event emitted successfully",
           };
         } catch (error) {
-          console.error('[VisitorIdentifierAgent] Error emitting lead_ready:', error);
+          console.error("[VisitorIdentifierAgent] Error emitting lead_ready:", error);
           return {
             success: false,
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: error instanceof Error ? error.message : "Unknown error",
           };
         }
       },
@@ -173,14 +177,16 @@ export class VisitorIdentifierAgent {
   }
 
   private hashEmail(email: string): string {
-    return createHash('sha256').update(email.toLowerCase().trim()).digest('hex');
+    return createHash("sha256").update(email.toLowerCase().trim()).digest("hex");
   }
 
-  async processAbandonmentEvent(event: AbandonmentEvent): Promise<{ success: boolean; visitorId?: number; error?: string }> {
+  async processAbandonmentEvent(
+    event: AbandonmentEvent
+  ): Promise<{ success: boolean; visitorId?: number; error?: string }> {
     try {
       // Hash email for PII protection
       const emailHash = this.hashEmail(event.email);
-      
+
       // Create visitor data with PII protection
       const visitorData: InsertVisitor = {
         emailHash,
@@ -191,7 +197,7 @@ export class VisitorIdentifierAgent {
 
       // Check if visitor exists
       const existingVisitor = await storage.getVisitorByEmailHash(emailHash);
-      
+
       let visitor;
       if (existingVisitor) {
         visitor = await storage.updateVisitor(existingVisitor.id, visitorData);
@@ -201,8 +207,8 @@ export class VisitorIdentifierAgent {
 
       // Log activity
       await storage.createAgentActivity({
-        agentType: 'visitor_identifier',
-        action: 'abandonment_detected',
+        agentType: "visitor_identifier",
+        action: "abandonment_detected",
         description: `Abandonment detected at step ${event.step}`,
         targetId: visitor.id.toString(),
         metadata: { sessionId: event.sessionId, step: event.step },
@@ -210,21 +216,23 @@ export class VisitorIdentifierAgent {
 
       // Emit lead_ready event for re-engagement
       await storage.createAgentActivity({
-        agentType: 'visitor_identifier',
-        action: 'lead_ready',
-        description: 'Lead ready for re-engagement after abandonment',
+        agentType: "visitor_identifier",
+        action: "lead_ready",
+        description: "Lead ready for re-engagement after abandonment",
         targetId: visitor.id.toString(),
         metadata: { emailHash, abandonmentStep: event.step },
       });
 
-      console.log(`[VisitorIdentifierAgent] Processed abandonment event for visitor: ${visitor.id}`);
-      
+      console.log(
+        `[VisitorIdentifierAgent] Processed abandonment event for visitor: ${visitor.id}`
+      );
+
       return { success: true, visitorId: visitor.id };
     } catch (error) {
-      console.error('[VisitorIdentifierAgent] Error processing abandonment event:', error);
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+      console.error("[VisitorIdentifierAgent] Error processing abandonment event:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }

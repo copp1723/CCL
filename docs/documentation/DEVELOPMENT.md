@@ -1,4 +1,3 @@
-
 # Development Guide
 
 ## Project Structure
@@ -26,11 +25,13 @@
 ## Development Workflow
 
 1. **Start Development Server**
+
    ```bash
    npm run dev
    ```
 
 2. **Code Quality Checks**
+
    ```bash
    npm run check      # TypeScript validation
    npm run lint       # ESLint checks
@@ -48,7 +49,7 @@
 The system includes several specialized AI agents:
 
 - **Visitor Identifier** - Tracks website visitors
-- **Realtime Chat** - Handles customer conversations  
+- **Realtime Chat** - Handles customer conversations
 - **Lead Packaging** - Processes and packages leads
 - **Email Reengagement** - Manages email campaigns
 
@@ -63,12 +64,14 @@ The system includes several specialized AI agents:
 ## Security
 
 All API endpoints require authentication via `x-api-key` header except:
+
 - `/health` - Public health check
 - Static assets
 
 ## Debugging
 
 Enable debug mode:
+
 ```bash
 DEBUG=* npm run dev
 ```

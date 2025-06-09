@@ -1,4 +1,3 @@
-
 # Scripts Directory
 
 This directory contains build, deployment, and utility scripts.

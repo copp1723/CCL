@@ -32,18 +32,18 @@ class DatabaseOptimizer {
       avgMs: 0,
       maxMs: 0,
       minMs: Infinity,
-      recentMs: []
+      recentMs: [],
     };
 
     existing.count++;
     existing.maxMs = Math.max(existing.maxMs, durationMs);
     existing.minMs = Math.min(existing.minMs, durationMs);
     existing.recentMs.push(durationMs);
-    
+
     if (existing.recentMs.length > this.MAX_RECENT_TIMES) {
       existing.recentMs.shift();
     }
-    
+
     // Calculate average from recent times for better accuracy
     existing.avgMs = Math.round(
       existing.recentMs.reduce((sum, time) => sum + time, 0) / existing.recentMs.length
@@ -80,26 +80,26 @@ class DatabaseOptimizer {
     this.cache.set(key, {
       data,
       timestamp: Date.now(),
-      ttl: ttlMs || this.CACHE_TTL
+      ttl: ttlMs || this.CACHE_TTL,
     });
   }
 
   clearExpiredCache(): void {
     const now = Date.now();
     const keysToDelete: string[] = [];
-    
+
     this.cache.forEach((entry, key) => {
       if (now - entry.timestamp > entry.ttl) {
         keysToDelete.push(key);
       }
     });
-    
+
     keysToDelete.forEach(key => this.cache.delete(key));
   }
 
   getPerformanceMetrics(): PerformanceMetrics {
     this.clearExpiredCache();
-    
+
     const queryPerformance: Record<string, QueryMetrics> = {};
     const operations = Array.from(this.queryMetrics.keys());
     operations.forEach(operation => {
@@ -113,8 +113,8 @@ class DatabaseOptimizer {
       queryPerformance,
       cache: {
         size: this.cache.size,
-        keys: Array.from(this.cache.keys())
-      }
+        keys: Array.from(this.cache.keys()),
+      },
     };
   }
 
@@ -126,13 +126,18 @@ class DatabaseOptimizer {
     this.cache.clear();
   }
 
-  async createActivityOptimized(type: string, description: string, agentType?: string, metadata?: any): Promise<any> {
-    return this.withMetrics('createActivity', async () => {
-      const { db } = await import('../db');
-      const { systemActivities } = await import('../../shared/schema');
-      
+  async createActivityOptimized(
+    type: string,
+    description: string,
+    agentType?: string,
+    metadata?: any
+  ): Promise<any> {
+    return this.withMetrics("createActivity", async () => {
+      const { db } = await import("../db");
+      const { systemActivities } = await import("../../shared/schema");
+
       const activityId = `activity_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      
+
       const [activity] = await db
         .insert(systemActivities)
         .values({
@@ -141,23 +146,23 @@ class DatabaseOptimizer {
           description,
           agentType,
           metadata,
-          timestamp: new Date()
+          timestamp: new Date(),
         })
         .returning();
-      
+
       return activity;
     });
   }
 
   async getStatsOptimized(): Promise<any> {
-    return this.withMetrics('getStats', async () => {
-      const { db } = await import('../db');
-      const { systemLeads, systemActivities, systemAgents } = await import('../../shared/schema');
-      
+    return this.withMetrics("getStats", async () => {
+      const { db } = await import("../db");
+      const { systemLeads, systemActivities, systemAgents } = await import("../../shared/schema");
+
       const [leads, activities, agents] = await Promise.all([
         db.select().from(systemLeads),
         db.select().from(systemActivities),
-        db.select().from(systemAgents)
+        db.select().from(systemAgents),
       ]);
 
       return {
@@ -166,7 +171,7 @@ class DatabaseOptimizer {
         agents: agents.length,
         uptime: Math.round(process.uptime()),
         memory: process.memoryUsage(),
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
     });
   }

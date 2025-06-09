@@ -4,16 +4,20 @@
  * Includes performance optimization, caching, and error handling
  */
 
-import { randomUUID, randomBytes, createCipheriv, createDecipheriv, scrypt } from 'crypto';
-import { promisify } from 'util';
-import { Pool } from 'pg';
-import { LRUCache } from 'lru-cache';
+import { randomUUID, randomBytes, createCipheriv, createDecipheriv, scrypt } from "crypto";
+import { promisify } from "util";
+import { Pool } from "pg";
+import LRUCache from "lru-cache";
 
 const scryptAsync = promisify(scrypt);
 
 // --- Fast fail for missing/weak ENCRYPTION_KEY ---
-if (!process.env.ENCRYPTION_KEY || process.env.ENCRYPTION_KEY.length < 32) {
-  throw new Error('ENCRYPTION_KEY is missing or too weak! Set a strong key (32+ chars) in your environment.');
+function validateEncryptionKey() {
+  if (!process.env.ENCRYPTION_KEY || process.env.ENCRYPTION_KEY.length < 32) {
+    throw new Error(
+      "ENCRYPTION_KEY is missing or too weak! Set a strong key (32+ chars) in your environment."
+    );
+  }
 }
 
 // Database connection pool
@@ -29,7 +33,7 @@ const pool = new Pool({
 class StorageService {
   private cache = new LRUCache<string, any>({
     max: 1000,
-    ttl: 60_000 // 1 minute TTL
+    ttl: 60_000, // 1 minute TTL
   });
   private pendingInvalidations = new Set<string>();
   private primingLocks = new Set<string>();
@@ -42,6 +46,9 @@ class StorageService {
   private activityCounter: number = 0;
 
   constructor() {
+    // Validate encryption key
+    validateEncryptionKey();
+
     // Initialize batch invalidation
     setInterval(() => {
       this.pendingInvalidations.forEach(pattern => this.clearCache(pattern));
@@ -61,16 +68,16 @@ class StorageService {
 
     try {
       const iv = randomBytes(16);
-      const key = (await scryptAsync(this.encryptionKey, 'salt', 32)) as Buffer;
-      const cipher = createCipheriv('aes-256-cbc', key, iv);
+      const key = (await scryptAsync(this.encryptionKey, "salt", 32)) as Buffer;
+      const cipher = createCipheriv("aes-256-cbc", key, iv);
 
-      let encrypted = cipher.update(text, 'utf8', 'hex');
-      encrypted += cipher.final('hex');
+      let encrypted = cipher.update(text, "utf8", "hex");
+      encrypted += cipher.final("hex");
 
-      return iv.toString('hex') + ':' + encrypted;
+      return iv.toString("hex") + ":" + encrypted;
     } catch (error) {
-      console.error('Encryption error:', error);
-      throw new Error('Failed to encrypt data');
+      console.error("Encryption error:", error);
+      throw new Error("Failed to encrypt data");
     }
   }
 
@@ -78,31 +85,31 @@ class StorageService {
     if (!encryptedText) return encryptedText;
 
     try {
-      const [ivHex, encrypted] = encryptedText.split(':');
+      const [ivHex, encrypted] = encryptedText.split(":");
       if (!ivHex || !encrypted) {
-        throw new Error('Invalid encrypted data format');
+        throw new Error("Invalid encrypted data format");
       }
 
-      const iv = Buffer.from(ivHex, 'hex');
-      const key = (await scryptAsync(this.encryptionKey, 'salt', 32)) as Buffer;
-      const decipher = createDecipheriv('aes-256-cbc', key, iv);
+      const iv = Buffer.from(ivHex, "hex");
+      const key = (await scryptAsync(this.encryptionKey, "salt", 32)) as Buffer;
+      const decipher = createDecipheriv("aes-256-cbc", key, iv);
 
-      let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-      decrypted += decipher.final('utf8');
+      let decrypted = decipher.update(encrypted, "hex", "utf8");
+      decrypted += decipher.final("utf8");
 
       return decrypted;
     } catch (error) {
-      console.error('Decryption error:', error);
-      throw new Error('Failed to decrypt data');
+      console.error("Decryption error:", error);
+      throw new Error("Failed to decrypt data");
     }
   }
 
   private validateLeadData(leadData: any): void {
     if (!leadData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(leadData.email)) {
-      throw new Error('Invalid email format');
+      throw new Error("Invalid email format");
     }
     if (leadData.phoneNumber && !/^\+?[\d\s\-\(\)]+$/.test(leadData.phoneNumber)) {
-      throw new Error('Invalid phone number format');
+      throw new Error("Invalid phone number format");
     }
   }
 
@@ -115,7 +122,7 @@ class StorageService {
         await new Promise(resolve => setTimeout(resolve, Math.pow(2, i) * 1000));
       }
     }
-    throw new Error('Max retry attempts exceeded');
+    throw new Error("Max retry attempts exceeded");
   }
 
   // ============================================================================
@@ -125,7 +132,7 @@ class StorageService {
   async createLead(leadData: any): Promise<any> {
     this.validateLeadData(leadData);
 
-    const leadId = randomBytes(16).toString('hex');
+    const leadId = randomBytes(16).toString("hex");
     const encryptedEmail = await this.encrypt(leadData.email);
     const encryptedPhone = leadData.phoneNumber ? await this.encrypt(leadData.phoneNumber) : null;
 
@@ -140,24 +147,24 @@ class StorageService {
         leadId,
         encryptedEmail,
         encryptedPhone,
-        leadData.status || 'new',
-        JSON.stringify(leadData)
+        leadData.status || "new",
+        JSON.stringify(leadData),
       ];
 
       const result = await pool.query(query, values);
       const newLead = {
         ...result.rows[0],
         email: leadData.email, // Return decrypted for response
-        phoneNumber: leadData.phoneNumber
+        phoneNumber: leadData.phoneNumber,
       };
 
-      this.invalidateCache('leads:*');
+      this.invalidateCache("leads:*");
       return newLead;
     });
   }
 
   async getLeads(limit?: number): Promise<any[]> {
-    const cacheKey = `leads:${limit || 'all'}`;
+    const cacheKey = `leads:${limit || "all"}`;
 
     // Check cache first
     if (this.cache.has(cacheKey)) {
@@ -176,18 +183,20 @@ class StorageService {
     try {
       return await this.withRetry(async () => {
         const query = limit
-          ? 'SELECT * FROM leads ORDER BY created_at DESC LIMIT $1'
-          : 'SELECT * FROM leads ORDER BY created_at DESC';
+          ? "SELECT * FROM leads ORDER BY created_at DESC LIMIT $1"
+          : "SELECT * FROM leads ORDER BY created_at DESC";
 
         const values = limit ? [limit] : [];
         const result = await pool.query(query, values);
 
-        const leads = await Promise.all(result.rows.map(async row => ({
-          ...row,
-          email: await this.decrypt(row.email),
-          phoneNumber: row.phone_number ? await this.decrypt(row.phone_number) : null,
-          leadData: typeof row.lead_data === 'string' ? JSON.parse(row.lead_data) : row.lead_data
-        })));
+        const leads = await Promise.all(
+          result.rows.map(async row => ({
+            ...row,
+            email: await this.decrypt(row.email),
+            phoneNumber: row.phone_number ? await this.decrypt(row.phone_number) : null,
+            leadData: typeof row.lead_data === "string" ? JSON.parse(row.lead_data) : row.lead_data,
+          }))
+        );
 
         this.cache.set(cacheKey, leads);
         return leads;
@@ -203,7 +212,7 @@ class StorageService {
     if (cached) return cached;
 
     return this.withRetry(async () => {
-      const query = 'SELECT * FROM leads WHERE id = $1';
+      const query = "SELECT * FROM leads WHERE id = $1";
       const result = await pool.query(query, [id]);
 
       if (result.rows.length === 0) return null;
@@ -211,8 +220,13 @@ class StorageService {
       const lead = {
         ...result.rows[0],
         email: await this.decrypt(result.rows[0].email),
-        phoneNumber: result.rows[0].phone_number ? await this.decrypt(result.rows[0].phone_number) : null,
-        leadData: typeof result.rows[0].lead_data === 'string' ? JSON.parse(result.rows[0].lead_data) : result.rows[0].lead_data
+        phoneNumber: result.rows[0].phone_number
+          ? await this.decrypt(result.rows[0].phone_number)
+          : null,
+        leadData:
+          typeof result.rows[0].lead_data === "string"
+            ? JSON.parse(result.rows[0].lead_data)
+            : result.rows[0].lead_data,
       };
 
       this.cache.set(cacheKey, lead);
@@ -220,18 +234,23 @@ class StorageService {
     });
   }
 
-  async updateLead(id: string, updates: any): Promise<boolean> {
+  async updateLead(
+    id: string,
+    updates: Partial<{ email: string; status: string; leadData: any; phoneNumber: string }>
+  ): Promise<boolean> {
     if (updates.email) {
       this.validateLeadData(updates);
       updates.email = await this.encrypt(updates.email);
     }
     if (updates.phoneNumber) {
-      updates.phone_number = await this.encrypt(updates.phoneNumber);
+      (updates as any).phone_number = await this.encrypt(updates.phoneNumber);
       delete updates.phoneNumber;
     }
 
     return this.withRetry(async () => {
-      const setClause = Object.keys(updates).map((key, index) => `${key} = $${index + 2}`).join(', ');
+      const setClause = Object.keys(updates)
+        .map((key, index) => `${key} = $${index + 2}`)
+        .join(", ");
       const query = `UPDATE leads SET ${setClause}, updated_at = NOW() WHERE id = $1 RETURNING id`;
       const values = [id, ...Object.values(updates)];
 
@@ -240,7 +259,7 @@ class StorageService {
 
       if (success) {
         this.invalidateCache(`lead:${id}`);
-        this.invalidateCache('leads:*');
+        this.invalidateCache("leads:*");
       }
 
       return success;
@@ -249,13 +268,13 @@ class StorageService {
 
   async deleteLead(id: string): Promise<boolean> {
     return this.withRetry(async () => {
-      const query = 'DELETE FROM leads WHERE id = $1 RETURNING id';
+      const query = "DELETE FROM leads WHERE id = $1 RETURNING id";
       const result = await pool.query(query, [id]);
       const success = (result.rowCount ?? 0) > 0;
 
       if (success) {
         this.invalidateCache(`lead:${id}`);
-        this.invalidateCache('leads:*');
+        this.invalidateCache("leads:*");
       }
 
       return success;
@@ -272,7 +291,7 @@ class StorageService {
     agentType?: string,
     metadata?: any
   ): Promise<any> {
-    const activityId = randomBytes(16).toString('hex');
+    const activityId = randomBytes(16).toString("hex");
 
     return this.withRetry(async () => {
       const query = `
@@ -286,7 +305,7 @@ class StorageService {
         type,
         description,
         agentType,
-        metadata ? JSON.stringify(metadata) : null
+        metadata ? JSON.stringify(metadata) : null,
       ];
 
       const result = await pool.query(query, values);
@@ -294,10 +313,10 @@ class StorageService {
         ...result.rows[0],
         timestamp: result.rows[0].created_at.toISOString(),
         agentType: result.rows[0].agent_type,
-        metadata: result.rows[0].metadata ? JSON.parse(result.rows[0].metadata) : null
+        metadata: result.rows[0].metadata ? JSON.parse(result.rows[0].metadata) : null,
       };
 
-      this.invalidateCache('activities:*');
+      this.invalidateCache("activities:*");
       return activity;
     });
   }
@@ -308,14 +327,14 @@ class StorageService {
     if (cached) return cached;
 
     return this.withRetry(async () => {
-      const query = 'SELECT * FROM activities ORDER BY created_at DESC LIMIT $1';
+      const query = "SELECT * FROM activities ORDER BY created_at DESC LIMIT $1";
       const result = await pool.query(query, [limit]);
 
       const activities = result.rows.map(row => ({
         ...row,
         timestamp: row.created_at.toISOString(),
         agentType: row.agent_type,
-        metadata: row.metadata ? JSON.parse(row.metadata) : null
+        metadata: row.metadata ? JSON.parse(row.metadata) : null,
       }));
 
       this.cache.set(cacheKey, activities);
@@ -329,14 +348,15 @@ class StorageService {
     if (cached) return cached;
 
     return this.withRetry(async () => {
-      const query = 'SELECT * FROM activities WHERE agent_type = $1 ORDER BY created_at DESC LIMIT $2';
+      const query =
+        "SELECT * FROM activities WHERE agent_type = $1 ORDER BY created_at DESC LIMIT $2";
       const result = await pool.query(query, [agentType, limit]);
 
       const activities = result.rows.map(row => ({
         ...row,
         timestamp: row.created_at.toISOString(),
         agentType: row.agent_type,
-        metadata: row.metadata ? JSON.parse(row.metadata) : null
+        metadata: row.metadata ? JSON.parse(row.metadata) : null,
       }));
 
       this.cache.set(cacheKey, activities);
@@ -365,11 +385,11 @@ class StorageService {
         data.email || null,
         data.ipAddress || null,
         data.userAgent || null,
-        data.metadata ? JSON.stringify(data.metadata) : null
+        data.metadata ? JSON.stringify(data.metadata) : null,
       ];
 
       await pool.query(query, values);
-      this.invalidateCache('visitors:*');
+      this.invalidateCache("visitors:*");
       return { id: visitorId };
     });
   }
@@ -377,12 +397,17 @@ class StorageService {
   async updateVisitor(id: string, updates: any): Promise<void> {
     return this.withRetry(async () => {
       const setClause = Object.keys(updates)
-        .filter(key => key !== 'metadata')
+        .filter(key => key !== "metadata")
         .map((key, index) => `${key} = $${index + 2}`)
-        .join(', ');
+        .join(", ");
 
       let query = `UPDATE visitors SET ${setClause}`;
-      let values = [id, ...Object.keys(updates).filter(key => key !== 'metadata').map(key => updates[key])];
+      let values = [
+        id,
+        ...Object.keys(updates)
+          .filter(key => key !== "metadata")
+          .map(key => updates[key]),
+      ];
 
       if (updates.metadata) {
         query += `, metadata = $${values.length + 1}`;
@@ -402,14 +427,14 @@ class StorageService {
     if (cached) return cached;
 
     return this.withRetry(async () => {
-      const query = 'SELECT * FROM visitors WHERE id = $1';
+      const query = "SELECT * FROM visitors WHERE id = $1";
       const result = await pool.query(query, [id]);
 
       if (result.rows.length === 0) return null;
 
       const visitor = {
         ...result.rows[0],
-        metadata: result.rows[0].metadata ? JSON.parse(result.rows[0].metadata) : null
+        metadata: result.rows[0].metadata ? JSON.parse(result.rows[0].metadata) : null,
       };
 
       this.cache.set(cacheKey, visitor);
@@ -419,13 +444,13 @@ class StorageService {
 
   async handleEmailReply(sender: string, subject: string, body: string): Promise<any> {
     // Find lead by email
-    const leadQuery = 'SELECT * FROM leads WHERE email = $1';
+    const leadQuery = "SELECT * FROM leads WHERE email = $1";
     const leadResult = await pool.query(leadQuery, [sender]);
     const lead = leadResult.rows[0];
 
     if (!lead) {
       console.warn(`Received email from non-lead sender: ${sender}`);
-      return { success: false, message: 'Sender is not a lead.' };
+      return { success: false, message: "Sender is not a lead." };
     }
 
     // Find the campaign this lead is in and update their status
@@ -440,33 +465,33 @@ class StorageService {
 
     if (!campaign) {
       console.log(`Lead ${lead.id} replied but was not in an active campaign.`);
-      return { success: true, message: 'Lead not in an active campaign.' };
+      return { success: true, message: "Lead not in an active campaign." };
     }
 
     // Get the campaign's goal prompt
-    const campaignQuery = 'SELECT goal_prompt FROM campaigns WHERE id = $1';
+    const campaignQuery = "SELECT goal_prompt FROM campaigns WHERE id = $1";
     const campaignResult = await pool.query(campaignQuery, [campaign.campaign_id]);
     const goalPrompt = campaignResult.rows[0]?.goal_prompt;
 
     if (!goalPrompt) {
       console.error(`Campaign ${campaign.campaign_id} has no goal prompt.`);
-      return { success: false, message: 'Campaign has no goal prompt.' };
+      return { success: false, message: "Campaign has no goal prompt." };
     }
 
     // Here, you would trigger the AI with the goal_prompt, subject, and body.
     // For now, we'll log it and simulate the action.
-    console.log('--- AI TAKEOVER TRIGGERED ---');
+    console.log("--- AI TAKEOVER TRIGGERED ---");
     console.log(`Lead ID: ${lead.id}`);
     console.log(`Campaign ID: ${campaign.campaign_id}`);
     console.log(`Goal: ${goalPrompt}`);
     console.log(`Subject: ${subject}`);
     console.log(`Body: ${body}`);
-    console.log('-----------------------------');
-    
+    console.log("-----------------------------");
+
     // In a real implementation, you would use a service to send the AI-generated email.
     // e.g., await emailService.send(sender, 'Re: ' + subject, ai_response);
 
-    return { success: true, message: 'AI takeover initiated.' };
+    return { success: true, message: "AI takeover initiated." };
   }
 
   // ============================================================================
@@ -474,7 +499,8 @@ class StorageService {
   // ============================================================================
 
   async getAllLeads(): Promise<any[]> {
-    const query = 'SELECT id, email, phone_number, status, lead_data FROM leads ORDER BY created_at DESC;';
+    const query =
+      "SELECT id, email, phone_number, status, lead_data FROM leads ORDER BY created_at DESC;";
     const result = await pool.query(query);
     return result.rows;
   }
@@ -490,7 +516,10 @@ class StorageService {
     return res.rows;
   }
 
-  async updateCampaign(campaignId: string, updates: { name?: string, goal_prompt?: string, status?: string }): Promise<any> {
+  async updateCampaign(
+    campaignId: string,
+    updates: { name?: string; goal_prompt?: string; status?: string }
+  ): Promise<any> {
     const keys = Object.keys(updates);
     if (keys.length === 0) return null;
     const setClause = keys.map((k, i) => `${k} = ${i + 2}`).join(", ");
@@ -501,15 +530,15 @@ class StorageService {
   }
 
   async deleteCampaign(campaignId: string): Promise<void> {
-    await pool.query('DELETE FROM campaigns WHERE id = $1', [campaignId]);
+    await pool.query("DELETE FROM campaigns WHERE id = $1", [campaignId]);
   }
 
   async cloneCampaign(campaignId: string): Promise<any> {
     // Fetch original campaign
     const orig = await this.getCampaignById(campaignId);
-    if (!orig) throw new Error('Original campaign not found');
+    if (!orig) throw new Error("Original campaign not found");
     // Clone campaign row
-    const cloneName = orig.name + ' (Clone)';
+    const cloneName = orig.name + " (Clone)";
     const newCampaign = await this.createCampaign(cloneName, orig.goal_prompt);
     // Clone all templates
     const templates = await this.getEmailTemplatesForCampaign(orig.id);
@@ -520,19 +549,20 @@ class StorageService {
   }
 
   async getCampaignById(campaignId: string): Promise<any> {
-    const query = 'SELECT * FROM campaigns WHERE id = $1;';
+    const query = "SELECT * FROM campaigns WHERE id = $1;";
     const result = await pool.query(query, [campaignId]);
     return result.rows[0];
   }
 
   async getEmailTemplatesForCampaign(campaignId: string): Promise<any[]> {
-    const query = 'SELECT * FROM email_templates WHERE campaign_id = $1 ORDER BY sequence_order ASC;';
+    const query =
+      "SELECT * FROM email_templates WHERE campaign_id = $1 ORDER BY sequence_order ASC;";
     const result = await pool.query(query, [campaignId]);
     return result.rows;
   }
 
   async getCampaigns(): Promise<any[]> {
-    const query = 'SELECT * FROM campaigns ORDER BY created_at DESC;';
+    const query = "SELECT * FROM campaigns ORDER BY created_at DESC;";
     const result = await pool.query(query);
     return result.rows;
   }
@@ -547,14 +577,23 @@ class StorageService {
     return result.rows[0];
   }
 
-  async addEmailTemplate(campaignId: string, template: { subject: string, body: string, sequence_order: number, delay_hours: number }): Promise<any> {
+  async addEmailTemplate(
+    campaignId: string,
+    template: { subject: string; body: string; sequence_order: number; delay_hours: number }
+  ): Promise<any> {
     const { subject, body, sequence_order, delay_hours } = template;
     const query = `
       INSERT INTO email_templates (campaign_id, subject, body, sequence_order, delay_hours)
       VALUES ($1, $2, $3, $4, $5)
       RETURNING *;
     `;
-    const result = await pool.query(query, [campaignId, subject, body, sequence_order, delay_hours]);
+    const result = await pool.query(query, [
+      campaignId,
+      subject,
+      body,
+      sequence_order,
+      delay_hours,
+    ]);
     return result.rows[0];
   }
 
@@ -562,10 +601,11 @@ class StorageService {
     const enrollments = [];
     for (const leadId of leadIds) {
       // Get the first email template to schedule the first touch
-      const firstTemplateQuery = 'SELECT delay_hours FROM email_templates WHERE campaign_id = $1 ORDER BY sequence_order ASC LIMIT 1';
+      const firstTemplateQuery =
+        "SELECT delay_hours FROM email_templates WHERE campaign_id = $1 ORDER BY sequence_order ASC LIMIT 1";
       const templateResult = await pool.query(firstTemplateQuery, [campaignId]);
       const delayHours = templateResult.rows[0]?.delay_hours || 24;
-      
+
       const nextTouchAt = new Date();
       nextTouchAt.setHours(nextTouchAt.getHours() + delayHours);
 
@@ -588,15 +628,15 @@ class StorageService {
   // ============================================================================
 
   async getStats(): Promise<any> {
-    const cacheKey = 'system:stats';
+    const cacheKey = "system:stats";
     const cached = this.cache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < 10000) return cached;
 
     return this.withRetry(async () => {
       const [leadsResult, activitiesResult, visitorsResult] = await Promise.all([
-        pool.query('SELECT COUNT(*) FROM leads'),
-        pool.query('SELECT COUNT(*) FROM activities'),
-        pool.query('SELECT COUNT(*) FROM visitors')
+        pool.query("SELECT COUNT(*) FROM leads"),
+        pool.query("SELECT COUNT(*) FROM activities"),
+        pool.query("SELECT COUNT(*) FROM visitors"),
       ]);
 
       const stats = {
@@ -606,7 +646,7 @@ class StorageService {
         visitors: parseInt(visitorsResult.rows[0].count),
         uptime: Math.round(process.uptime()),
         memory: process.memoryUsage(),
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
 
       this.cache.set(cacheKey, stats);
@@ -621,36 +661,36 @@ class StorageService {
   async healthCheck(): Promise<{ healthy: boolean; details: any }> {
     try {
       // Test database connectivity
-      await pool.query('SELECT 1');
+      await pool.query("SELECT 1");
       const stats = await this.getStats();
 
       return {
         healthy: true,
         details: {
-          storage: 'postgresql',
-          database: 'connected',
+          storage: "postgresql",
+          database: "connected",
           stats,
           cache: {
             size: this.cache.size,
             maxSize: 1000,
-            ttl: '60s'
-          }
-        }
+            ttl: "60s",
+          },
+        },
       };
     } catch (error) {
       return {
         healthy: false,
         details: {
-          error: error instanceof Error ? error.message : 'Unknown error',
-          storage: 'postgresql',
-          database: 'disconnected'
-        }
+          error: error instanceof Error ? error.message : "Unknown error",
+          storage: "postgresql",
+          database: "disconnected",
+        },
       };
     }
   }
 
   private invalidateCache(pattern: string): void {
-    if (pattern.includes('*')) {
+    if (pattern.includes("*")) {
       // Batch invalidation for patterns
       this.pendingInvalidations.add(pattern);
     } else {
@@ -665,8 +705,8 @@ class StorageService {
       return;
     }
 
-    const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const regexPattern = '^' + pattern.split('*').map(escapeRegExp).join('.*') + '$';
+    const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regexPattern = "^" + pattern.split("*").map(escapeRegExp).join(".*") + "$";
     const regex = new RegExp(regexPattern);
 
     for (const key of Array.from(this.cache.keys())) {
@@ -726,15 +766,73 @@ class StorageService {
     return {
       cache: {
         size: this.cache.size,
-        hitRate: '95%' // Mock data
+        hitRate: "95%", // Mock data
       },
       queryPerformance: {
-        avgResponseTime: '15ms',
-        slowQueries: 0
-      }
+        avgResponseTime: "15ms",
+        slowQueries: 0,
+      },
     };
   }
 }
 
-// Export singleton instance
-export const storageService = new StorageService();
+// Export lazy singleton instance
+let _storageService: StorageService | null = null;
+
+export const storageService = {
+  get instance() {
+    if (!_storageService) {
+      _storageService = new StorageService();
+    }
+    return _storageService;
+  },
+  // Proxy all methods to the instance
+  async initializeDatabase() {
+    return this.instance.initializeDatabase();
+  },
+  async healthCheck() {
+    return this.instance.healthCheck();
+  },
+  async createLead(leadData: any) {
+    return this.instance.createLead(leadData);
+  },
+  async getLeads(limit?: number) {
+    return this.instance.getLeads(limit);
+  },
+  async getLeadById(id: string) {
+    return this.instance.getLeadById(id);
+  },
+  async updateLead(
+    id: string,
+    updates: Partial<{ email: string; status: string; leadData: any; phoneNumber: string }>
+  ) {
+    return this.instance.updateLead(id, updates);
+  },
+  async deleteLead(id: string) {
+    return this.instance.deleteLead(id);
+  },
+  async createActivity(type: string, description: string, agentType?: string, metadata?: any) {
+    return this.instance.createActivity(type, description, agentType, metadata);
+  },
+  async getActivities(limit?: number) {
+    return this.instance.getActivities(limit);
+  },
+  async getActivitiesByAgent(agentType: string, limit?: number) {
+    return this.instance.getActivitiesByAgent(agentType, limit);
+  },
+  async createVisitor(data: any) {
+    return this.instance.createVisitor(data);
+  },
+  async updateVisitor(id: string, updates: any) {
+    return this.instance.updateVisitor(id, updates);
+  },
+  async getVisitorById(id: string) {
+    return this.instance.getVisitorById(id);
+  },
+  async getStats() {
+    return this.instance.getStats();
+  },
+  getPerformanceMetrics() {
+    return this.instance.getPerformanceMetrics();
+  },
+};

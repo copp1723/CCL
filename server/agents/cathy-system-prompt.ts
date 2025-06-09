@@ -102,28 +102,35 @@ export const CATHY_PERSONA_CONFIG = {
   tone: "empathetic, professional, encouraging",
   responseStyle: "conversational, personalized, never robotic",
   communicationChannels: ["web_chat", "email", "sms"],
-  complianceLevel: "strict"
+  complianceLevel: "strict",
 };
 
 export const INTERACTION_TEMPLATES = {
   firstContact: {
-    greeting: "Hi {name}! I'm Cathy from Complete Car Loans. I see you were looking into auto financing options - I'm here to help make that process as smooth as possible for you.",
-    followUp: "What's most important to you in finding the right car and financing? I want to make sure we focus on what matters to you."
+    greeting:
+      "Hi {name}! I'm Cathy from Complete Car Loans. I see you were looking into auto financing options - I'm here to help make that process as smooth as possible for you.",
+    followUp:
+      "What's most important to you in finding the right car and financing? I want to make sure we focus on what matters to you.",
   },
-  
+
   reEngagement: {
-    greeting: "Hi {name}, it's Cathy from Complete Car Loans again. It's been a bit since we last talked about your auto financing.",
-    supportive: "I know these decisions can take time, and that's completely normal. I'm here whenever you're ready to move forward."
+    greeting:
+      "Hi {name}, it's Cathy from Complete Car Loans again. It's been a bit since we last talked about your auto financing.",
+    supportive:
+      "I know these decisions can take time, and that's completely normal. I'm here whenever you're ready to move forward.",
   },
-  
+
   creditConcerns: {
-    reassurance: "I want you to know that we work with all credit situations here at CCL. Many of our customers start out worried about their credit, but we're here to help you succeed.",
-    process: "We'll start with a soft credit check that won't impact your credit score at all - just to see what options we can find for you."
+    reassurance:
+      "I want you to know that we work with all credit situations here at CCL. Many of our customers start out worried about their credit, but we're here to help you succeed.",
+    process:
+      "We'll start with a soft credit check that won't impact your credit score at all - just to see what options we can find for you.",
   },
-  
+
   applicationSupport: {
     progress: "You're doing great! We're getting your financing options ready.",
     nextStep: "The next step is {action}. I'll walk you through it if you'd like.",
-    completion: "Congratulations on completing your application! We'll be in touch with your pre-approval details soon."
-  }
+    completion:
+      "Congratulations on completing your application! We'll be in touch with your pre-approval details soon.",
+  },
 };

@@ -1,11 +1,14 @@
 # Production Deployment Guide
 
 ## Overview
-Complete Car Loans agent system is now production-ready with comprehensive monitoring, security, and environment management features.
+
+Complete Car Loans agent system is now production-ready with comprehensive
+monitoring, security, and environment management features.
 
 ## Pre-Deployment Checklist
 
 ### 1. Environment Configuration
+
 - [ ] Set NODE_ENV=production
 - [ ] Configure DATABASE_URL for production database
 - [ ] Generate secure API keys (INTERNAL_API_KEY, JWT_SECRET, SESSION_SECRET)
@@ -15,6 +18,7 @@ Complete Car Loans agent system is now production-ready with comprehensive monit
 - [ ] Set TRUST_PROXY=true for production deployments
 
 ### 2. Security Requirements
+
 - [ ] Change default INTERNAL_API_KEY from ccl-internal-2025
 - [ ] Use strong 256-bit secrets for JWT and session management
 - [ ] Configure rate limiting appropriate for expected traffic
@@ -22,6 +26,7 @@ Complete Car Loans agent system is now production-ready with comprehensive monit
 - [ ] Configure security headers and CORS policies
 
 ### 3. Database Preparation
+
 - [ ] Provision production PostgreSQL database
 - [ ] Run database migrations: `npm run db:push`
 - [ ] Configure connection pooling (recommended: 20 connections)
@@ -29,6 +34,7 @@ Complete Car Loans agent system is now production-ready with comprehensive monit
 - [ ] Configure read replicas if needed
 
 ### 4. Monitoring Setup
+
 - [ ] Configure external monitoring service (recommended: DataDog, New Relic)
 - [ ] Set up log aggregation
 - [ ] Configure alerting for health check failures
@@ -38,6 +44,7 @@ Complete Car Loans agent system is now production-ready with comprehensive monit
 ## Environment Variables
 
 ### Required for Production
+
 ```bash
 NODE_ENV=production
 DATABASE_URL=postgresql://user:password@host:port/database
@@ -52,6 +59,7 @@ TRUST_PROXY=true
 ```
 
 ### Optional Configuration
+
 ```bash
 PORT=5000
 DB_POOL_SIZE=20
@@ -64,17 +72,20 @@ METRICS_ENABLED=true
 ## Deployment Process
 
 ### 1. Build Application
+
 ```bash
 npm ci --production
 npm run build
 ```
 
 ### 2. Database Migration
+
 ```bash
 npm run db:push
 ```
 
 ### 3. Start Production Server
+
 ```bash
 NODE_ENV=production npm start
 ```
@@ -82,17 +93,20 @@ NODE_ENV=production npm start
 ## Health Check Endpoints
 
 ### Primary Health Check
+
 - **URL**: `/health` or `/api/monitoring/health`
 - **Method**: GET
 - **Response**: Comprehensive system health status
 - **Use**: Load balancer health checks
 
 ### Kubernetes Probes
+
 - **Readiness**: `/ready` or `/api/monitoring/ready`
 - **Liveness**: `/live` or `/api/monitoring/live`
 - **Response**: Service readiness for traffic routing
 
 ### Production Readiness
+
 - **URL**: `/api/monitoring/production-readiness`
 - **Method**: GET
 - **Response**: Validation of production configuration
@@ -100,16 +114,19 @@ NODE_ENV=production npm start
 ## Monitoring Endpoints
 
 ### System Metrics
+
 - **URL**: `/api/monitoring/metrics`
 - **Authentication**: Required
 - **Response**: Application and system metrics
 
 ### Performance Metrics
+
 - **URL**: `/api/monitoring/performance`
 - **Authentication**: Required
 - **Response**: Request performance and error rates
 
 ### Prometheus Export
+
 - **URL**: `/api/monitoring/metrics/prometheus`
 - **Authentication**: Required
 - **Response**: Metrics in Prometheus format
@@ -117,6 +134,7 @@ NODE_ENV=production npm start
 ## Security Features
 
 ### Implemented Security Measures
+
 - Rate limiting (100 requests/minute by default)
 - Input sanitization and validation
 - Security headers (HSTS, CSP, XSS protection)
@@ -125,6 +143,7 @@ NODE_ENV=production npm start
 - API key authentication for all endpoints
 
 ### Security Headers
+
 - X-Content-Type-Options: nosniff
 - X-Frame-Options: DENY
 - X-XSS-Protection: 1; mode=block
@@ -134,12 +153,14 @@ NODE_ENV=production npm start
 ## Performance Optimization
 
 ### Database Configuration
+
 - Connection pooling: 20 connections (adjustable)
 - Idle timeout: 30 seconds
 - Connection timeout: 60 seconds
 - Query optimization enabled
 
 ### Application Configuration
+
 - Request body size limit: 10MB
 - JSON payload validation
 - Response compression (if enabled by reverse proxy)
@@ -148,6 +169,7 @@ NODE_ENV=production npm start
 ## Load Balancer Configuration
 
 ### Recommended Settings
+
 ```nginx
 upstream ccl_backend {
     server app1:5000 max_fails=3 fail_timeout=30s;
@@ -157,11 +179,11 @@ upstream ccl_backend {
 server {
     listen 443 ssl http2;
     server_name your-domain.com;
-    
+
     # SSL configuration
     ssl_certificate /path/to/cert.pem;
     ssl_certificate_key /path/to/key.pem;
-    
+
     # Health check
     location /health {
         proxy_pass http://ccl_backend;
@@ -170,7 +192,7 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
-    
+
     # API routes
     location /api/ {
         proxy_pass http://ccl_backend;
@@ -188,6 +210,7 @@ server {
 ## Backup and Recovery
 
 ### Database Backup
+
 ```bash
 # Daily automated backup
 pg_dump $DATABASE_URL > backup_$(date +%Y%m%d).sql
@@ -197,6 +220,7 @@ pg_dump $DATABASE_URL > backup_$(date +%Y%m%d).sql
 ```
 
 ### Application Data
+
 - Email campaign logs
 - Agent activity history
 - Lead processing records
@@ -207,21 +231,25 @@ pg_dump $DATABASE_URL > backup_$(date +%Y%m%d).sql
 ### Common Issues
 
 #### High Memory Usage
+
 - Monitor `/api/monitoring/metrics` for memory consumption
 - Check for memory leaks in long-running processes
 - Restart application if memory usage exceeds 80%
 
 #### Database Connection Issues
+
 - Verify DATABASE_URL configuration
 - Check connection pool settings
 - Monitor active connections vs pool size
 
 #### Email Delivery Failures
+
 - Verify Mailgun credentials
 - Check domain DNS configuration
 - Monitor bounce rates and delivery status
 
 #### Authentication Failures
+
 - Verify API key configuration
 - Check request headers format
 - Review rate limiting settings
@@ -229,6 +257,7 @@ pg_dump $DATABASE_URL > backup_$(date +%Y%m%d).sql
 ### Emergency Procedures
 
 #### Service Restart
+
 ```bash
 # Graceful restart
 kill -TERM $(pgrep -f "npm start")
@@ -240,6 +269,7 @@ NODE_ENV=production npm start
 ```
 
 #### Database Recovery
+
 ```bash
 # Restore from backup
 psql $DATABASE_URL < backup_20250605.sql
@@ -251,12 +281,14 @@ npm run db:push
 ## Scaling Considerations
 
 ### Horizontal Scaling
+
 - Deploy multiple application instances
 - Use external session store (Redis)
 - Implement sticky sessions if needed
 - Scale database with read replicas
 
 ### Vertical Scaling
+
 - Monitor CPU and memory usage
 - Adjust NODE_OPTIONS for heap size
 - Optimize database queries
@@ -265,6 +297,7 @@ npm run db:push
 ## Maintenance
 
 ### Regular Tasks
+
 - [ ] Weekly security updates
 - [ ] Monthly dependency updates
 - [ ] Quarterly performance reviews
@@ -273,6 +306,7 @@ npm run db:push
 - [ ] SSL certificate renewal
 
 ### Monitoring Alerts
+
 - System health check failures
 - High error rates (>5%)
 - Slow response times (>2 seconds)
@@ -283,15 +317,18 @@ npm run db:push
 ## Support and Documentation
 
 ### API Documentation
+
 - Health checks: Available at monitoring endpoints
 - Authentication: API key required for all non-health endpoints
 - Rate limiting: 100 requests per minute per IP
 - Error codes: Standardized JSON error responses
 
 ### System Status
+
 - Health: `/api/monitoring/health`
 - Configuration: `/api/monitoring/config`
 - Performance: `/api/monitoring/performance`
 - Production readiness: `/api/monitoring/production-readiness`
 
-Production deployment is ready with comprehensive monitoring, security, and operational features.
+Production deployment is ready with comprehensive monitoring, security, and
+operational features.

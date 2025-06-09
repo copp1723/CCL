@@ -1,7 +1,7 @@
-import { Agent, tool } from '@openai/agents';
-import { storage } from '../storage';
-import { WebhookService } from '../services/WebhookService';
-import type { InsertLead, Visitor, CreditCheckResult } from '@shared/schema';
+import { Agent, tool } from "@openai/agents";
+import { storage } from "../storage";
+import { WebhookService } from "../services/WebhookService";
+import type { InsertLead, Visitor, CreditCheckResult } from "@shared/schema";
 
 export interface LeadPackage {
   leadId: string;
@@ -36,9 +36,9 @@ export class LeadPackagingAgent {
 
   constructor() {
     this.webhookService = new WebhookService();
-    
+
     this.agent = new Agent({
-      name: 'Lead Packaging Agent',
+      name: "Lead Packaging Agent",
       instructions: `
         You are responsible for assembling and submitting qualified leads to dealer CRM systems.
         Your primary tasks:
@@ -62,19 +62,19 @@ export class LeadPackagingAgent {
 
   private createAssembleLeadTool() {
     return tool({
-      name: 'assemble_lead',
-      description: 'Assemble complete lead package with visitor, engagement, and credit data',
-      execute: async (params: { 
-        visitorId: number; 
-        source: string; 
+      name: "assemble_lead",
+      description: "Assemble complete lead package with visitor, engagement, and credit data",
+      execute: async (params: {
+        visitorId: number;
+        source: string;
         creditResult?: CreditCheckResult;
       }) => {
         try {
           const { visitorId, source, creditResult } = params;
-          
+
           const visitor = await storage.getVisitor(visitorId);
           if (!visitor) {
-            throw new Error('Visitor not found');
+            throw new Error("Visitor not found");
           }
 
           // Get engagement data
@@ -100,28 +100,28 @@ export class LeadPackagingAgent {
               returnTokenUsed: !!visitor.returnToken,
             },
             creditCheck: creditResult || {
-              approved: visitor.creditCheckStatus === 'approved',
+              approved: visitor.creditCheckStatus === "approved",
             },
             metadata: {
               createdAt: new Date(),
-              processedBy: 'LeadPackagingAgent',
-              version: '1.0.0',
+              processedBy: "LeadPackagingAgent",
+              version: "1.0.0",
             },
           };
 
           console.log(`[LeadPackagingAgent] Assembled lead package: ${leadId}`);
-          
+
           return {
             success: true,
             leadPackage,
             leadId,
-            message: 'Lead package assembled successfully',
+            message: "Lead package assembled successfully",
           };
         } catch (error) {
-          console.error('[LeadPackagingAgent] Error assembling lead:', error);
+          console.error("[LeadPackagingAgent] Error assembling lead:", error);
           return {
             success: false,
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: error instanceof Error ? error.message : "Unknown error",
           };
         }
       },
@@ -130,21 +130,21 @@ export class LeadPackagingAgent {
 
   private createSubmitToDealerCrmTool() {
     return tool({
-      name: 'submit_to_dealer_crm',
-      description: 'Submit lead package to dealer CRM via webhook',
+      name: "submit_to_dealer_crm",
+      description: "Submit lead package to dealer CRM via webhook",
       execute: async (params: { leadPackage: LeadPackage; visitorId: number }) => {
         try {
           const { leadPackage, visitorId } = params;
-          
+
           // Create lead record
           const leadData: InsertLead = {
             visitorId,
             leadId: leadPackage.leadId,
             contactEmail: leadPackage.visitor.emailHash, // In production, this would be the actual email
             contactPhone: leadPackage.visitor.phoneNumber || null,
-            creditStatus: leadPackage.creditCheck.approved ? 'approved' : 'declined',
+            creditStatus: leadPackage.creditCheck.approved ? "approved" : "declined",
             source: leadPackage.engagement.source,
-            status: 'processing',
+            status: "processing",
             dealerCrmSubmitted: false,
             leadData: leadPackage as any,
           };
@@ -157,14 +157,14 @@ export class LeadPackagingAgent {
           if (webhookResult.success) {
             // Update lead status
             await storage.updateLead(lead.id, {
-              status: 'submitted',
+              status: "submitted",
               dealerCrmSubmitted: true,
             });
 
             // Log success activity
             await storage.createAgentActivity({
-              agentType: 'lead_packaging',
-              action: 'lead_submitted',
+              agentType: "lead_packaging",
+              action: "lead_submitted",
               description: `Lead successfully submitted to dealer CRM`,
               targetId: leadPackage.leadId,
               metadata: {
@@ -175,21 +175,21 @@ export class LeadPackagingAgent {
             });
 
             console.log(`[LeadPackagingAgent] Successfully submitted lead: ${leadPackage.leadId}`);
-            
+
             return {
               success: true,
               leadId: lead.id,
               webhookResult,
-              message: 'Lead submitted to dealer CRM successfully',
+              message: "Lead submitted to dealer CRM successfully",
             };
           } else {
             throw new Error(`Webhook submission failed: ${webhookResult.error}`);
           }
         } catch (error) {
-          console.error('[LeadPackagingAgent] Error submitting to dealer CRM:', error);
+          console.error("[LeadPackagingAgent] Error submitting to dealer CRM:", error);
           return {
             success: false,
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: error instanceof Error ? error.message : "Unknown error",
           };
         }
       },
@@ -198,30 +198,26 @@ export class LeadPackagingAgent {
 
   private createHandleSubmissionFailureTool() {
     return tool({
-      name: 'handle_submission_failure',
-      description: 'Handle webhook submission failures with retry logic and DLQ',
-      execute: async (params: { 
-        leadId: number; 
-        error: string; 
-        attemptCount: number;
-      }) => {
+      name: "handle_submission_failure",
+      description: "Handle webhook submission failures with retry logic and DLQ",
+      execute: async (params: { leadId: number; error: string; attemptCount: number }) => {
         try {
           const { leadId, error, attemptCount } = params;
-          
+
           const lead = await storage.getLead(leadId);
           if (!lead) {
-            throw new Error('Lead not found');
+            throw new Error("Lead not found");
           }
 
           // Update lead status to failed
           await storage.updateLead(leadId, {
-            status: 'failed',
+            status: "failed",
           });
 
           // Log failure activity
           await storage.createAgentActivity({
-            agentType: 'lead_packaging',
-            action: 'submission_failed',
+            agentType: "lead_packaging",
+            action: "submission_failed",
             description: `Lead submission failed after ${attemptCount} attempts: ${error}`,
             targetId: lead.leadId,
             metadata: {
@@ -233,25 +229,31 @@ export class LeadPackagingAgent {
           });
 
           // In production, this would send to SQS DLQ
-          console.log(`[LeadPackagingAgent] Lead submission failed, would send to DLQ: ${lead.leadId}`);
-          
+          console.log(
+            `[LeadPackagingAgent] Lead submission failed, would send to DLQ: ${lead.leadId}`
+          );
+
           return {
             success: true,
             sentToDlq: true,
-            message: 'Failure handled, lead sent to DLQ for manual processing',
+            message: "Failure handled, lead sent to DLQ for manual processing",
           };
         } catch (error) {
-          console.error('[LeadPackagingAgent] Error handling submission failure:', error);
+          console.error("[LeadPackagingAgent] Error handling submission failure:", error);
           return {
             success: false,
-            error: error instanceof Error ? error.message : 'Unknown error',
+            error: error instanceof Error ? error.message : "Unknown error",
           };
         }
       },
     });
   }
 
-  async packageAndSubmitLead(visitorId: number, source: string, creditResult?: CreditCheckResult): Promise<{
+  async packageAndSubmitLead(
+    visitorId: number,
+    source: string,
+    creditResult?: CreditCheckResult
+  ): Promise<{
     success: boolean;
     leadId?: number;
     leadPackageId?: string;
@@ -260,7 +262,7 @@ export class LeadPackagingAgent {
     try {
       const visitor = await storage.getVisitor(visitorId);
       if (!visitor) {
-        throw new Error('Visitor not found');
+        throw new Error("Visitor not found");
       }
 
       // Get engagement data
@@ -286,12 +288,12 @@ export class LeadPackagingAgent {
           returnTokenUsed: !!visitor.returnToken,
         },
         creditCheck: creditResult || {
-          approved: visitor.creditCheckStatus === 'approved',
+          approved: visitor.creditCheckStatus === "approved",
         },
         metadata: {
           createdAt: new Date(),
-          processedBy: 'LeadPackagingAgent',
-          version: '1.0.0',
+          processedBy: "LeadPackagingAgent",
+          version: "1.0.0",
         },
       };
 
@@ -301,9 +303,9 @@ export class LeadPackagingAgent {
         leadId: leadPackageId,
         contactEmail: visitor.emailHash, // In production, this would be actual email
         contactPhone: visitor.phoneNumber || null,
-        creditStatus: leadPackage.creditCheck.approved ? 'approved' : 'declined',
+        creditStatus: leadPackage.creditCheck.approved ? "approved" : "declined",
         source,
-        status: 'processing',
+        status: "processing",
         dealerCrmSubmitted: false,
         leadData: leadPackage as any,
       };
@@ -316,15 +318,15 @@ export class LeadPackagingAgent {
       if (webhookResult.success) {
         // Update lead status
         await storage.updateLead(lead.id, {
-          status: 'submitted',
+          status: "submitted",
           dealerCrmSubmitted: true,
         });
 
         // Log success
         await storage.createAgentActivity({
-          agentType: 'lead_packaging',
-          action: 'lead_submitted',
-          description: 'Lead successfully submitted to dealer CRM',
+          agentType: "lead_packaging",
+          action: "lead_submitted",
+          description: "Lead successfully submitted to dealer CRM",
           targetId: leadPackageId,
           metadata: {
             leadId: lead.id,
@@ -333,8 +335,10 @@ export class LeadPackagingAgent {
           },
         });
 
-        console.log(`[LeadPackagingAgent] Successfully packaged and submitted lead: ${leadPackageId}`);
-        
+        console.log(
+          `[LeadPackagingAgent] Successfully packaged and submitted lead: ${leadPackageId}`
+        );
+
         return {
           success: true,
           leadId: lead.id,
@@ -343,12 +347,12 @@ export class LeadPackagingAgent {
       } else {
         // Handle failure
         await storage.updateLead(lead.id, {
-          status: 'failed',
+          status: "failed",
         });
 
         await storage.createAgentActivity({
-          agentType: 'lead_packaging',
-          action: 'submission_failed',
+          agentType: "lead_packaging",
+          action: "submission_failed",
           description: `Lead submission failed: ${webhookResult.error}`,
           targetId: leadPackageId,
           metadata: {
@@ -360,10 +364,10 @@ export class LeadPackagingAgent {
         throw new Error(`Lead submission failed: ${webhookResult.error}`);
       }
     } catch (error) {
-      console.error('[LeadPackagingAgent] Error packaging and submitting lead:', error);
+      console.error("[LeadPackagingAgent] Error packaging and submitting lead:", error);
       return {
         success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }

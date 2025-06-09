@@ -1,21 +1,21 @@
-import { Router } from 'express';
-import { emailTemplateManager } from '../services/email-campaign-templates';
-import emailService from '../services/email-onerylie';
-import { storage } from '../storage';
-import { handleApiError } from '../utils/error-handler';
-import { sanitizeEmail, sanitizeJsonData } from '../utils/input-sanitizer';
-import { multiAttemptScheduler } from '../services/multi-attempt-scheduler';
+import { Router } from "express";
+import { emailTemplateManager } from "../services/email-campaign-templates";
+import emailService from "../services/email-onerylie";
+import { storage } from "../storage";
+import { handleApiError } from "../utils/error-handler";
+import { sanitizeEmail, sanitizeJsonData } from "../utils/input-sanitizer";
+import { multiAttemptScheduler } from "../services/multi-attempt-scheduler";
 
 const router = Router();
 
 // Get all email templates
-router.get('/templates', async (req, res) => {
+router.get("/templates", async (req, res) => {
   try {
     const templates = emailTemplateManager.getAllTemplates();
     res.json({
       success: true,
       data: templates,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     handleApiError(res, error);
@@ -23,14 +23,14 @@ router.get('/templates', async (req, res) => {
 });
 
 // Get templates by category
-router.get('/templates/category/:category', async (req, res) => {
+router.get("/templates/category/:category", async (req, res) => {
   try {
     const { category } = req.params;
     const templates = emailTemplateManager.getTemplatesByCategory(category as any);
     res.json({
       success: true,
       data: templates,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     handleApiError(res, error);
@@ -38,26 +38,26 @@ router.get('/templates/category/:category', async (req, res) => {
 });
 
 // Get specific template
-router.get('/templates/:id', async (req, res) => {
+router.get("/templates/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const template = emailTemplateManager.getTemplate(id);
-    
+
     if (!template) {
       return res.status(404).json({
         success: false,
         error: {
-          code: 'TEMPLATE_NOT_FOUND',
-          message: 'Email template not found',
-          category: 'validation'
-        }
+          code: "TEMPLATE_NOT_FOUND",
+          message: "Email template not found",
+          category: "validation",
+        },
       });
     }
 
     res.json({
       success: true,
       data: template,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     handleApiError(res, error);
@@ -65,7 +65,7 @@ router.get('/templates/:id', async (req, res) => {
 });
 
 // Create new email template
-router.post('/templates', async (req, res) => {
+router.post("/templates", async (req, res) => {
   try {
     const { name, subject, html, text, variables, category } = req.body;
 
@@ -73,10 +73,10 @@ router.post('/templates', async (req, res) => {
       return res.status(400).json({
         success: false,
         error: {
-          code: 'VALIDATION_001',
-          message: 'Name, subject, and html content are required',
-          category: 'validation'
-        }
+          code: "VALIDATION_001",
+          message: "Name, subject, and html content are required",
+          category: "validation",
+        },
       });
     }
 
@@ -84,22 +84,22 @@ router.post('/templates', async (req, res) => {
       name: name.trim(),
       subject: subject.trim(),
       html: html.trim(),
-      text: text?.trim() || '',
+      text: text?.trim() || "",
       variables: variables || [],
-      category: category || 'custom'
+      category: category || "custom",
     });
 
     await storage.createActivity(
-      'template_created',
+      "template_created",
       `Email template "${template.name}" created`,
-      'system',
+      "system",
       { templateId: template.id, category: template.category }
     );
 
     res.json({
       success: true,
       data: template,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     handleApiError(res, error);
@@ -107,35 +107,35 @@ router.post('/templates', async (req, res) => {
 });
 
 // Update email template
-router.put('/templates/:id', async (req, res) => {
+router.put("/templates/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const updates = sanitizeJsonData(req.body);
 
     const updatedTemplate = emailTemplateManager.updateTemplate(id, updates);
-    
+
     if (!updatedTemplate) {
       return res.status(404).json({
         success: false,
         error: {
-          code: 'TEMPLATE_NOT_FOUND',
-          message: 'Email template not found',
-          category: 'validation'
-        }
+          code: "TEMPLATE_NOT_FOUND",
+          message: "Email template not found",
+          category: "validation",
+        },
       });
     }
 
     await storage.createActivity(
-      'template_updated',
+      "template_updated",
       `Email template "${updatedTemplate.name}" updated`,
-      'system',
+      "system",
       { templateId: id, updates: Object.keys(updates) }
     );
 
     res.json({
       success: true,
       data: updatedTemplate,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     handleApiError(res, error);
@@ -143,29 +143,29 @@ router.put('/templates/:id', async (req, res) => {
 });
 
 // Delete email template
-router.delete('/templates/:id', async (req, res) => {
+router.delete("/templates/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const template = emailTemplateManager.getTemplate(id);
-    
+
     if (!template) {
       return res.status(404).json({
         success: false,
         error: {
-          code: 'TEMPLATE_NOT_FOUND',
-          message: 'Email template not found',
-          category: 'validation'
-        }
+          code: "TEMPLATE_NOT_FOUND",
+          message: "Email template not found",
+          category: "validation",
+        },
       });
     }
 
     const deleted = emailTemplateManager.deleteTemplate(id);
-    
+
     if (deleted) {
       await storage.createActivity(
-        'template_deleted',
+        "template_deleted",
         `Email template "${template.name}" deleted`,
-        'system',
+        "system",
         { templateId: id }
       );
     }
@@ -173,7 +173,7 @@ router.delete('/templates/:id', async (req, res) => {
     res.json({
       success: true,
       data: { deleted },
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     handleApiError(res, error);
@@ -181,28 +181,28 @@ router.delete('/templates/:id', async (req, res) => {
 });
 
 // Preview template with variables
-router.post('/templates/:id/preview', async (req, res) => {
+router.post("/templates/:id/preview", async (req, res) => {
   try {
     const { id } = req.params;
     const { variables } = req.body;
 
     const rendered = emailTemplateManager.renderTemplate(id, variables || {});
-    
+
     if (!rendered) {
       return res.status(404).json({
         success: false,
         error: {
-          code: 'TEMPLATE_NOT_FOUND',
-          message: 'Email template not found',
-          category: 'validation'
-        }
+          code: "TEMPLATE_NOT_FOUND",
+          message: "Email template not found",
+          category: "validation",
+        },
       });
     }
 
     res.json({
       success: true,
       data: rendered,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     handleApiError(res, error);
@@ -210,7 +210,7 @@ router.post('/templates/:id/preview', async (req, res) => {
 });
 
 // Send test email using template
-router.post('/templates/:id/test-send', async (req, res) => {
+router.post("/templates/:id/test-send", async (req, res) => {
   try {
     const { id } = req.params;
     const { testEmail, variables } = req.body;
@@ -219,10 +219,10 @@ router.post('/templates/:id/test-send', async (req, res) => {
       return res.status(400).json({
         success: false,
         error: {
-          code: 'VALIDATION_001',
-          message: 'Test email address is required',
-          category: 'validation'
-        }
+          code: "VALIDATION_001",
+          message: "Test email address is required",
+          category: "validation",
+        },
       });
     }
 
@@ -231,23 +231,23 @@ router.post('/templates/:id/test-send', async (req, res) => {
       return res.status(400).json({
         success: false,
         error: {
-          code: 'VALIDATION_002',
-          message: 'Invalid email format',
-          category: 'validation'
-        }
+          code: "VALIDATION_002",
+          message: "Invalid email format",
+          category: "validation",
+        },
       });
     }
 
     const rendered = emailTemplateManager.renderTemplate(id, variables || {});
-    
+
     if (!rendered) {
       return res.status(404).json({
         success: false,
         error: {
-          code: 'TEMPLATE_NOT_FOUND',
-          message: 'Email template not found',
-          category: 'validation'
-        }
+          code: "TEMPLATE_NOT_FOUND",
+          message: "Email template not found",
+          category: "validation",
+        },
       });
     }
 
@@ -255,18 +255,18 @@ router.post('/templates/:id/test-send', async (req, res) => {
       to: sanitizedEmail,
       subject: `[TEST] ${rendered.subject}`,
       html: rendered.html,
-      text: rendered.text
+      text: rendered.text,
     });
 
     await storage.createActivity(
-      'template_test_sent',
+      "template_test_sent",
       `Test email sent using template ${id} to ${sanitizedEmail}`,
-      'email_agent',
-      { 
-        templateId: id, 
+      "email_agent",
+      {
+        templateId: id,
         testEmail: sanitizedEmail,
         success: emailResult.success,
-        messageId: emailResult.messageId 
+        messageId: emailResult.messageId,
       }
     );
 
@@ -276,14 +276,16 @@ router.post('/templates/:id/test-send', async (req, res) => {
         templateId: id,
         testEmail: sanitizedEmail,
         messageId: emailResult.messageId,
-        emailSent: emailResult.success
+        emailSent: emailResult.success,
       },
-      error: emailResult.error ? {
-        code: 'EMAIL_SEND_FAILED',
-        message: emailResult.error,
-        category: 'email'
-      } : undefined,
-      timestamp: new Date().toISOString()
+      error: emailResult.error
+        ? {
+            code: "EMAIL_SEND_FAILED",
+            message: emailResult.error,
+            category: "email",
+          }
+        : undefined,
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     handleApiError(res, error);
@@ -291,13 +293,13 @@ router.post('/templates/:id/test-send', async (req, res) => {
 });
 
 // Get all campaigns
-router.get('/campaigns', async (req, res) => {
+router.get("/campaigns", async (req, res) => {
   try {
     const campaigns = emailTemplateManager.getAllCampaigns();
     res.json({
       success: true,
       data: campaigns,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     handleApiError(res, error);
@@ -305,26 +307,26 @@ router.get('/campaigns', async (req, res) => {
 });
 
 // Get specific campaign
-router.get('/campaigns/:id', async (req, res) => {
+router.get("/campaigns/:id", async (req, res) => {
   try {
     const { id } = req.params;
     const campaign = emailTemplateManager.getCampaign(id);
-    
+
     if (!campaign) {
       return res.status(404).json({
         success: false,
         error: {
-          code: 'CAMPAIGN_NOT_FOUND',
-          message: 'Email campaign not found',
-          category: 'validation'
-        }
+          code: "CAMPAIGN_NOT_FOUND",
+          message: "Email campaign not found",
+          category: "validation",
+        },
       });
     }
 
     res.json({
       success: true,
       data: campaign,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     handleApiError(res, error);
@@ -332,7 +334,7 @@ router.get('/campaigns/:id', async (req, res) => {
 });
 
 // Create new campaign
-router.post('/campaigns', async (req, res) => {
+router.post("/campaigns", async (req, res) => {
   try {
     const { name, description, templates, triggerConditions } = req.body;
 
@@ -340,10 +342,10 @@ router.post('/campaigns', async (req, res) => {
       return res.status(400).json({
         success: false,
         error: {
-          code: 'VALIDATION_001',
-          message: 'Campaign name and description are required',
-          category: 'validation'
-        }
+          code: "VALIDATION_001",
+          message: "Campaign name and description are required",
+          category: "validation",
+        },
       });
     }
 
@@ -351,20 +353,20 @@ router.post('/campaigns', async (req, res) => {
       name: name.trim(),
       description: description.trim(),
       templates: templates || [],
-      triggerConditions: triggerConditions || {}
+      triggerConditions: triggerConditions || {},
     });
 
     await storage.createActivity(
-      'campaign_created',
+      "campaign_created",
       `Email campaign "${campaign.name}" created`,
-      'system',
+      "system",
       { campaignId: campaign.id, templateCount: campaign.templates.length }
     );
 
     res.json({
       success: true,
       data: campaign,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     handleApiError(res, error);
@@ -372,7 +374,7 @@ router.post('/campaigns', async (req, res) => {
 });
 
 // Send campaign email to specific lead
-router.post('/campaigns/:campaignId/send/:templateId', async (req, res) => {
+router.post("/campaigns/:campaignId/send/:templateId", async (req, res) => {
   try {
     const { campaignId, templateId } = req.params;
     const { leadId, email, variables } = req.body;
@@ -381,10 +383,10 @@ router.post('/campaigns/:campaignId/send/:templateId', async (req, res) => {
       return res.status(400).json({
         success: false,
         error: {
-          code: 'VALIDATION_001',
-          message: 'Email address is required',
-          category: 'validation'
-        }
+          code: "VALIDATION_001",
+          message: "Email address is required",
+          category: "validation",
+        },
       });
     }
 
@@ -393,10 +395,10 @@ router.post('/campaigns/:campaignId/send/:templateId', async (req, res) => {
       return res.status(400).json({
         success: false,
         error: {
-          code: 'VALIDATION_002',
-          message: 'Invalid email format',
-          category: 'validation'
-        }
+          code: "VALIDATION_002",
+          message: "Invalid email format",
+          category: "validation",
+        },
       });
     }
 
@@ -405,10 +407,10 @@ router.post('/campaigns/:campaignId/send/:templateId', async (req, res) => {
       return res.status(404).json({
         success: false,
         error: {
-          code: 'CAMPAIGN_NOT_FOUND',
-          message: 'Email campaign not found',
-          category: 'validation'
-        }
+          code: "CAMPAIGN_NOT_FOUND",
+          message: "Email campaign not found",
+          category: "validation",
+        },
       });
     }
 
@@ -417,10 +419,10 @@ router.post('/campaigns/:campaignId/send/:templateId', async (req, res) => {
       return res.status(404).json({
         success: false,
         error: {
-          code: 'TEMPLATE_NOT_FOUND',
-          message: 'Email template not found',
-          category: 'validation'
-        }
+          code: "TEMPLATE_NOT_FOUND",
+          message: "Email template not found",
+          category: "validation",
+        },
       });
     }
 
@@ -428,20 +430,20 @@ router.post('/campaigns/:campaignId/send/:templateId', async (req, res) => {
       to: sanitizedEmail,
       subject: rendered.subject,
       html: rendered.html,
-      text: rendered.text
+      text: rendered.text,
     });
 
     await storage.createActivity(
-      'campaign_email_sent',
+      "campaign_email_sent",
       `Campaign "${campaign.name}" email sent to ${sanitizedEmail}`,
-      'email_agent',
-      { 
+      "email_agent",
+      {
         campaignId,
         templateId,
         leadId,
         email: sanitizedEmail,
         success: emailResult.success,
-        messageId: emailResult.messageId 
+        messageId: emailResult.messageId,
       }
     );
 
@@ -453,14 +455,16 @@ router.post('/campaigns/:campaignId/send/:templateId', async (req, res) => {
         leadId,
         email: sanitizedEmail,
         messageId: emailResult.messageId,
-        emailSent: emailResult.success
+        emailSent: emailResult.success,
       },
-      error: emailResult.error ? {
-        code: 'EMAIL_SEND_FAILED',
-        message: emailResult.error,
-        category: 'email'
-      } : undefined,
-      timestamp: new Date().toISOString()
+      error: emailResult.error
+        ? {
+            code: "EMAIL_SEND_FAILED",
+            message: emailResult.error,
+            category: "email",
+          }
+        : undefined,
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     handleApiError(res, error);
@@ -468,7 +472,7 @@ router.post('/campaigns/:campaignId/send/:templateId', async (req, res) => {
 });
 
 // Bulk send campaign to multiple leads
-router.post('/campaigns/:campaignId/bulk-send', async (req, res) => {
+router.post("/campaigns/:campaignId/bulk-send", async (req, res) => {
   try {
     const { campaignId } = req.params;
     const { templateId, leads, variables } = req.body;
@@ -477,10 +481,10 @@ router.post('/campaigns/:campaignId/bulk-send', async (req, res) => {
       return res.status(400).json({
         success: false,
         error: {
-          code: 'VALIDATION_001',
-          message: 'Template ID and leads array are required',
-          category: 'validation'
-        }
+          code: "VALIDATION_001",
+          message: "Template ID and leads array are required",
+          category: "validation",
+        },
       });
     }
 
@@ -489,10 +493,10 @@ router.post('/campaigns/:campaignId/bulk-send', async (req, res) => {
       return res.status(404).json({
         success: false,
         error: {
-          code: 'CAMPAIGN_NOT_FOUND',
-          message: 'Email campaign not found',
-          category: 'validation'
-        }
+          code: "CAMPAIGN_NOT_FOUND",
+          message: "Email campaign not found",
+          category: "validation",
+        },
       });
     }
 
@@ -508,7 +512,7 @@ router.post('/campaigns/:campaignId/bulk-send', async (req, res) => {
             leadId: lead.id,
             email: lead.email,
             success: false,
-            error: 'Invalid email format'
+            error: "Invalid email format",
           });
           failureCount++;
           continue;
@@ -516,13 +520,13 @@ router.post('/campaigns/:campaignId/bulk-send', async (req, res) => {
 
         const leadVariables = { ...variables, ...lead.variables };
         const rendered = emailTemplateManager.renderTemplate(templateId, leadVariables);
-        
+
         if (!rendered) {
           results.push({
             leadId: lead.id,
             email: sanitizedEmail,
             success: false,
-            error: 'Template not found'
+            error: "Template not found",
           });
           failureCount++;
           continue;
@@ -532,7 +536,7 @@ router.post('/campaigns/:campaignId/bulk-send', async (req, res) => {
           to: sanitizedEmail,
           subject: rendered.subject,
           html: rendered.html,
-          text: rendered.text
+          text: rendered.text,
         });
 
         results.push({
@@ -540,7 +544,7 @@ router.post('/campaigns/:campaignId/bulk-send', async (req, res) => {
           email: sanitizedEmail,
           success: emailResult.success,
           messageId: emailResult.messageId,
-          error: emailResult.error
+          error: emailResult.error,
         });
 
         if (emailResult.success) {
@@ -551,28 +555,27 @@ router.post('/campaigns/:campaignId/bulk-send', async (req, res) => {
 
         // Small delay to avoid overwhelming email service
         await new Promise(resolve => setTimeout(resolve, 100));
-
       } catch (error: any) {
         results.push({
           leadId: lead.id,
           email: lead.email,
           success: false,
-          error: error.message
+          error: error.message,
         });
         failureCount++;
       }
     }
 
     await storage.createActivity(
-      'campaign_bulk_sent',
+      "campaign_bulk_sent",
       `Bulk campaign "${campaign.name}" sent: ${successCount} success, ${failureCount} failed`,
-      'email_agent',
-      { 
+      "email_agent",
+      {
         campaignId,
         templateId,
         totalLeads: leads.length,
         successCount,
-        failureCount
+        failureCount,
       }
     );
 
@@ -584,9 +587,9 @@ router.post('/campaigns/:campaignId/bulk-send', async (req, res) => {
         totalLeads: leads.length,
         successCount,
         failureCount,
-        results
+        results,
       },
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     handleApiError(res, error);
@@ -594,13 +597,13 @@ router.post('/campaigns/:campaignId/bulk-send', async (req, res) => {
 });
 
 // Multi-attempt campaign schedules
-router.get('/schedules', async (req, res) => {
+router.get("/schedules", async (req, res) => {
   try {
     const schedules = await multiAttemptScheduler.getActiveSchedules();
     res.json({
       success: true,
       data: schedules,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     handleApiError(res, error);
@@ -608,7 +611,7 @@ router.get('/schedules', async (req, res) => {
 });
 
 // Create multi-attempt schedule
-router.post('/schedules', async (req, res) => {
+router.post("/schedules", async (req, res) => {
   try {
     const { name, description, attempts } = req.body;
 
@@ -616,32 +619,36 @@ router.post('/schedules', async (req, res) => {
       return res.status(400).json({
         success: false,
         error: {
-          code: 'VALIDATION_001',
-          message: 'Schedule name and attempts array are required',
-          category: 'validation'
-        }
+          code: "VALIDATION_001",
+          message: "Schedule name and attempts array are required",
+          category: "validation",
+        },
       });
     }
 
     // Validate attempts configuration
     for (const attempt of attempts) {
-      if (!attempt.templateId || typeof attempt.delayHours !== 'number' || typeof attempt.delayDays !== 'number') {
+      if (
+        !attempt.templateId ||
+        typeof attempt.delayHours !== "number" ||
+        typeof attempt.delayDays !== "number"
+      ) {
         return res.status(400).json({
           success: false,
           error: {
-            code: 'VALIDATION_002',
-            message: 'Each attempt must have templateId, delayHours, and delayDays',
-            category: 'validation'
-          }
+            code: "VALIDATION_002",
+            message: "Each attempt must have templateId, delayHours, and delayDays",
+            category: "validation",
+          },
         });
       }
     }
 
     const scheduleId = await multiAttemptScheduler.createSchedule({
       name: name.trim(),
-      description: description?.trim() || '',
+      description: description?.trim() || "",
       attempts,
-      isActive: true
+      isActive: true,
     });
 
     res.json({
@@ -650,9 +657,9 @@ router.post('/schedules', async (req, res) => {
         scheduleId,
         name,
         attemptCount: attempts.length,
-        message: `Multi-attempt schedule "${name}" created with ${attempts.length} scheduled attempts`
+        message: `Multi-attempt schedule "${name}" created with ${attempts.length} scheduled attempts`,
       },
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     handleApiError(res, error);
@@ -660,15 +667,15 @@ router.post('/schedules', async (req, res) => {
 });
 
 // Get schedule status and statistics
-router.get('/schedules/:scheduleId/status', async (req, res) => {
+router.get("/schedules/:scheduleId/status", async (req, res) => {
   try {
     const { scheduleId } = req.params;
     const status = await multiAttemptScheduler.getScheduleStatus(scheduleId);
-    
+
     res.json({
       success: true,
       data: status,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     handleApiError(res, error);
@@ -676,7 +683,7 @@ router.get('/schedules/:scheduleId/status', async (req, res) => {
 });
 
 // Enroll lead in multi-attempt schedule
-router.post('/schedules/:scheduleId/enroll', async (req, res) => {
+router.post("/schedules/:scheduleId/enroll", async (req, res) => {
   try {
     const { scheduleId } = req.params;
     const { leadId, variables } = req.body;
@@ -685,10 +692,10 @@ router.post('/schedules/:scheduleId/enroll', async (req, res) => {
       return res.status(400).json({
         success: false,
         error: {
-          code: 'VALIDATION_001',
-          message: 'Lead ID is required',
-          category: 'validation'
-        }
+          code: "VALIDATION_001",
+          message: "Lead ID is required",
+          category: "validation",
+        },
       });
     }
 
@@ -699,9 +706,9 @@ router.post('/schedules/:scheduleId/enroll', async (req, res) => {
       data: {
         scheduleId,
         leadId,
-        message: `Lead ${leadId} enrolled in multi-attempt schedule`
+        message: `Lead ${leadId} enrolled in multi-attempt schedule`,
       },
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     handleApiError(res, error);
@@ -709,7 +716,7 @@ router.post('/schedules/:scheduleId/enroll', async (req, res) => {
 });
 
 // Bulk enroll multiple leads
-router.post('/schedules/:scheduleId/bulk-enroll', async (req, res) => {
+router.post("/schedules/:scheduleId/bulk-enroll", async (req, res) => {
   try {
     const { scheduleId } = req.params;
     const { leadIds, variables } = req.body;
@@ -718,10 +725,10 @@ router.post('/schedules/:scheduleId/bulk-enroll', async (req, res) => {
       return res.status(400).json({
         success: false,
         error: {
-          code: 'VALIDATION_001',
-          message: 'Lead IDs array is required',
-          category: 'validation'
-        }
+          code: "VALIDATION_001",
+          message: "Lead IDs array is required",
+          category: "validation",
+        },
       });
     }
 
@@ -748,9 +755,9 @@ router.post('/schedules/:scheduleId/bulk-enroll', async (req, res) => {
         successCount,
         failureCount,
         results,
-        message: `Bulk enrollment completed: ${successCount} success, ${failureCount} failed`
+        message: `Bulk enrollment completed: ${successCount} success, ${failureCount} failed`,
       },
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     handleApiError(res, error);
@@ -758,19 +765,19 @@ router.post('/schedules/:scheduleId/bulk-enroll', async (req, res) => {
 });
 
 // Get upcoming scheduled attempts
-router.get('/schedules/upcoming', async (req, res) => {
+router.get("/schedules/upcoming", async (req, res) => {
   try {
     const hours = parseInt(req.query.hours as string) || 24;
     const attempts = await multiAttemptScheduler.getUpcomingAttempts(hours);
-    
+
     res.json({
       success: true,
       data: {
         timeframe: `${hours} hours`,
         attempts,
-        count: attempts.length
+        count: attempts.length,
       },
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     handleApiError(res, error);
@@ -778,19 +785,19 @@ router.get('/schedules/upcoming', async (req, res) => {
 });
 
 // Pause/resume schedule
-router.post('/schedules/:scheduleId/toggle', async (req, res) => {
+router.post("/schedules/:scheduleId/toggle", async (req, res) => {
   try {
     const { scheduleId } = req.params;
     const { isActive } = req.body;
 
-    if (typeof isActive !== 'boolean') {
+    if (typeof isActive !== "boolean") {
       return res.status(400).json({
         success: false,
         error: {
-          code: 'VALIDATION_001',
-          message: 'isActive boolean value is required',
-          category: 'validation'
-        }
+          code: "VALIDATION_001",
+          message: "isActive boolean value is required",
+          category: "validation",
+        },
       });
     }
 
@@ -801,9 +808,9 @@ router.post('/schedules/:scheduleId/toggle', async (req, res) => {
       data: {
         scheduleId,
         isActive,
-        message: `Schedule ${isActive ? 'activated' : 'paused'}`
+        message: `Schedule ${isActive ? "activated" : "paused"}`,
       },
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     handleApiError(res, error);
@@ -811,16 +818,16 @@ router.post('/schedules/:scheduleId/toggle', async (req, res) => {
 });
 
 // Process scheduled attempts manually (for testing)
-router.post('/schedules/process-now', async (req, res) => {
+router.post("/schedules/process-now", async (req, res) => {
   try {
     await multiAttemptScheduler.processScheduledAttempts();
-    
+
     res.json({
       success: true,
       data: {
-        message: 'Scheduled attempts processed successfully'
+        message: "Scheduled attempts processed successfully",
       },
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     });
   } catch (error) {
     handleApiError(res, error);

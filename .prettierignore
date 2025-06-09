@@ -13,3 +13,10 @@ coverage
 .nyc_output
 *.min.js
 *.min.css
+attached_assets/
+data/
+docs/assets/
+scripts/test-system.js
+archive/
+playwright-report/
+test-results/

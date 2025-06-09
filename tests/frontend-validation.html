@@ -1,102 +1,114 @@
-
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Frontend Component Test</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .test-item { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
-        .pass { background-color: #d4edda; border-color: #c3e6cb; }
-        .fail { background-color: #f8d7da; border-color: #f5c6cb; }
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+      }
+      .test-item {
+        margin: 10px 0;
+        padding: 10px;
+        border: 1px solid #ccc;
+      }
+      .pass {
+        background-color: #d4edda;
+        border-color: #c3e6cb;
+      }
+      .fail {
+        background-color: #f8d7da;
+        border-color: #f5c6cb;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <h1>Frontend Component Validation</h1>
     <div id="test-results"></div>
 
     <script>
-        class FrontendValidator {
-            constructor() {
-                this.results = [];
-                this.resultsContainer = document.getElementById('test-results');
-            }
-
-            test(name, testFn) {
-                try {
-                    testFn();
-                    this.addResult(name, 'PASS', null);
-                } catch (error) {
-                    this.addResult(name, 'FAIL', error.message);
-                }
-            }
-
-            addResult(name, status, error) {
-                const div = document.createElement('div');
-                div.className = `test-item ${status.toLowerCase()}`;
-                div.innerHTML = `
-                    <strong>${name}</strong>: ${status}
-                    ${error ? `<br><small>Error: ${error}</small>` : ''}
-                `;
-                this.resultsContainer.appendChild(div);
-                this.results.push({ name, status, error });
-            }
-
-            async runTests() {
-                // Test if main app elements exist
-                this.test('Main App Container', () => {
-                    const app = document.querySelector('#root');
-                    if (!app) throw new Error('Main app container not found');
-                });
-
-                // Test API accessibility
-                this.test('API Health Check', async () => {
-                    try {
-                        const response = await fetch('/health');
-                        if (!response.ok) throw new Error('Health check failed');
-                    } catch (error) {
-                        throw new Error('Cannot reach API: ' + error.message);
-                    }
-                });
-
-                // Test data ingestion endpoint
-                this.test('Data Ingestion API', async () => {
-                    try {
-                        const response = await fetch('/api/data-ingestion/stats', {
-                            headers: { 'x-api-key': 'test-key-12345' }
-                        });
-                        if (response.status === 401) {
-                            // Authentication working correctly
-                            return;
-                        }
-                        if (!response.ok) throw new Error('Stats API failed');
-                    } catch (error) {
-                        throw new Error('Data ingestion API error: ' + error.message);
-                    }
-                });
-
-                const passed = this.results.filter(r => r.status === 'PASS').length;
-                const total = this.results.length;
-                
-                const summary = document.createElement('div');
-                summary.style.marginTop = '20px';
-                summary.style.padding = '15px';
-                summary.style.backgroundColor = passed === total ? '#d4edda' : '#f8d7da';
-                summary.innerHTML = `
-                    <h3>Test Summary</h3>
-                    <p>Passed: ${passed}/${total}</p>
-                    <p>Status: ${passed === total ? 'ALL TESTS PASSED' : 'SOME TESTS FAILED'}</p>
-                `;
-                this.resultsContainer.appendChild(summary);
-            }
+      class FrontendValidator {
+        constructor() {
+          this.results = [];
+          this.resultsContainer = document.getElementById("test-results");
         }
 
-        // Run tests when page loads
-        window.addEventListener('load', () => {
-            const validator = new FrontendValidator();
-            validator.runTests();
-        });
+        test(name, testFn) {
+          try {
+            testFn();
+            this.addResult(name, "PASS", null);
+          } catch (error) {
+            this.addResult(name, "FAIL", error.message);
+          }
+        }
+
+        addResult(name, status, error) {
+          const div = document.createElement("div");
+          div.className = `test-item ${status.toLowerCase()}`;
+          div.innerHTML = `
+                    <strong>${name}</strong>: ${status}
+                    ${error ? `<br><small>Error: ${error}</small>` : ""}
+                `;
+          this.resultsContainer.appendChild(div);
+          this.results.push({ name, status, error });
+        }
+
+        async runTests() {
+          // Test if main app elements exist
+          this.test("Main App Container", () => {
+            const app = document.querySelector("#root");
+            if (!app) throw new Error("Main app container not found");
+          });
+
+          // Test API accessibility
+          this.test("API Health Check", async () => {
+            try {
+              const response = await fetch("/health");
+              if (!response.ok) throw new Error("Health check failed");
+            } catch (error) {
+              throw new Error("Cannot reach API: " + error.message);
+            }
+          });
+
+          // Test data ingestion endpoint
+          this.test("Data Ingestion API", async () => {
+            try {
+              const response = await fetch("/api/data-ingestion/stats", {
+                headers: { "x-api-key": "test-key-12345" },
+              });
+              if (response.status === 401) {
+                // Authentication working correctly
+                return;
+              }
+              if (!response.ok) throw new Error("Stats API failed");
+            } catch (error) {
+              throw new Error("Data ingestion API error: " + error.message);
+            }
+          });
+
+          const passed = this.results.filter(r => r.status === "PASS").length;
+          const total = this.results.length;
+
+          const summary = document.createElement("div");
+          summary.style.marginTop = "20px";
+          summary.style.padding = "15px";
+          summary.style.backgroundColor = passed === total ? "#d4edda" : "#f8d7da";
+          summary.innerHTML = `
+                    <h3>Test Summary</h3>
+                    <p>Passed: ${passed}/${total}</p>
+                    <p>Status: ${passed === total ? "ALL TESTS PASSED" : "SOME TESTS FAILED"}</p>
+                `;
+          this.resultsContainer.appendChild(summary);
+        }
+      }
+
+      // Run tests when page loads
+      window.addEventListener("load", () => {
+        const validator = new FrontendValidator();
+        validator.runTests();
+      });
     </script>
-</body>
+  </body>
 </html>

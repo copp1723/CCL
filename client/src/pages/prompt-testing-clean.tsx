@@ -1,15 +1,15 @@
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
-import { Copy, Send, RotateCcw, MessageSquare } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from '@/lib/queryClient';
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Copy, Send, RotateCcw, MessageSquare } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 interface TestResponse {
   customerMessage: string;
@@ -24,7 +24,7 @@ interface TestResponse {
 
 interface ConversationMessage {
   id: string;
-  type: 'user' | 'agent';
+  type: "user" | "agent";
   content: string;
   timestamp: Date;
   metadata?: any;
@@ -32,9 +32,9 @@ interface ConversationMessage {
 
 export default function PromptTesting() {
   const [conversation, setConversation] = useState<ConversationMessage[]>([]);
-  const [currentMessage, setCurrentMessage] = useState('');
-  const [customerName, setCustomerName] = useState('John Smith');
-  const [customerSituation, setCustomerSituation] = useState('');
+  const [currentMessage, setCurrentMessage] = useState("");
+  const [customerName, setCustomerName] = useState("John Smith");
+  const [customerSituation, setCustomerSituation] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [lastResponse, setLastResponse] = useState<TestResponse | null>(null);
   const { toast } = useToast();
@@ -42,34 +42,40 @@ export default function PromptTesting() {
   const scenarios = [
     {
       name: "Credit Anxiety",
-      message: "I'm worried about my credit score. I've had some issues in the past and I'm not sure if I can get approved for a car loan.",
-      situation: "Previous credit challenges, anxious about approval"
+      message:
+        "I'm worried about my credit score. I've had some issues in the past and I'm not sure if I can get approved for a car loan.",
+      situation: "Previous credit challenges, anxious about approval",
     },
     {
-      name: "First Time Buyer", 
-      message: "Hi, I'm looking to buy my first car and I'm not sure how auto financing works. Can you help me understand the process?",
-      situation: "First-time buyer, needs education"
+      name: "First Time Buyer",
+      message:
+        "Hi, I'm looking to buy my first car and I'm not sure how auto financing works. Can you help me understand the process?",
+      situation: "First-time buyer, needs education",
     },
     {
       name: "Ready to Apply",
-      message: "I'm ready to get pre-approved for an auto loan. I found a car I like and want to move forward quickly.",
-      situation: "High intent, ready to proceed"
+      message:
+        "I'm ready to get pre-approved for an auto loan. I found a car I like and want to move forward quickly.",
+      situation: "High intent, ready to proceed",
     },
     {
       name: "Confused & Overwhelmed",
-      message: "This is all so confusing. I've been to three dealerships and everyone is telling me different things. I don't know what to believe.",
-      situation: "Overwhelmed by conflicting information"
+      message:
+        "This is all so confusing. I've been to three dealerships and everyone is telling me different things. I don't know what to believe.",
+      situation: "Overwhelmed by conflicting information",
     },
     {
       name: "Budget Focused",
-      message: "I need to keep my monthly payment under $300. Is that possible with my credit situation?",
-      situation: "Budget constraints, payment focused"
+      message:
+        "I need to keep my monthly payment under $300. Is that possible with my credit situation?",
+      situation: "Budget constraints, payment focused",
     },
     {
       name: "Abandoned Application",
-      message: "I started an application last week but got confused with all the paperwork. Do I need to start over?",
-      situation: "Previous abandonment, needs reassurance"
-    }
+      message:
+        "I started an application last week but got confused with all the paperwork. Do I need to start over?",
+      situation: "Previous abandonment, needs reassurance",
+    },
   ];
 
   const sendMessage = async () => {
@@ -78,46 +84,46 @@ export default function PromptTesting() {
     setIsLoading(true);
     const userMessage: ConversationMessage = {
       id: Date.now().toString(),
-      type: 'user',
+      type: "user",
       content: currentMessage,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
 
     setConversation(prev => [...prev, userMessage]);
     const messageToSend = currentMessage;
-    setCurrentMessage('');
+    setCurrentMessage("");
 
     try {
-      const response = await apiRequest('/api/test/chat-response', {
-        method: 'POST',
+      const response = await apiRequest("/api/test/chat-response", {
+        method: "POST",
         data: {
           userMessage: messageToSend,
           customerName,
           customerSituation,
           conversationHistory: conversation.map(msg => ({
             type: msg.type,
-            content: msg.content
-          }))
-        }
+            content: msg.content,
+          })),
+        },
       });
 
       setLastResponse(response);
 
       const agentMessage: ConversationMessage = {
         id: (Date.now() + 1).toString(),
-        type: 'agent',
+        type: "agent",
         content: response.cathyResponse,
         timestamp: new Date(),
-        metadata: response
+        metadata: response,
       };
 
       setConversation(prev => [...prev, agentMessage]);
     } catch (error) {
-      console.error('Failed to send message:', error);
+      console.error("Failed to send message:", error);
       toast({
         title: "Error",
         description: "Failed to generate response. Please try again.",
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
@@ -138,18 +144,18 @@ export default function PromptTesting() {
     navigator.clipboard.writeText(content);
     toast({
       title: "Copied",
-      description: "Message copied to clipboard"
+      description: "Message copied to clipboard",
     });
   };
-
-
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <div className="container mx-auto p-6">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Prompt Testing</h1>
-          <p className="text-gray-600 dark:text-gray-400">Test AI responses with realistic customer scenarios</p>
+          <p className="text-gray-600 dark:text-gray-400">
+            Test AI responses with realistic customer scenarios
+          </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -161,7 +167,9 @@ export default function PromptTesting() {
                   <MessageSquare className="w-5 h-5" />
                   Conversation
                 </CardTitle>
-                <p className="text-sm text-gray-600">Test the system prompt with realistic customer scenarios</p>
+                <p className="text-sm text-gray-600">
+                  Test the system prompt with realistic customer scenarios
+                </p>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-2 gap-4">
@@ -170,7 +178,7 @@ export default function PromptTesting() {
                     <Input
                       id="customerName"
                       value={customerName}
-                      onChange={(e) => setCustomerName(e.target.value)}
+                      onChange={e => setCustomerName(e.target.value)}
                       placeholder="John Smith"
                     />
                   </div>
@@ -179,7 +187,7 @@ export default function PromptTesting() {
                     <Input
                       id="customerSituation"
                       value={customerSituation}
-                      onChange={(e) => setCustomerSituation(e.target.value)}
+                      onChange={e => setCustomerSituation(e.target.value)}
                       placeholder="e.g., Previous credit challenges"
                     />
                   </div>
@@ -194,18 +202,18 @@ export default function PromptTesting() {
                       <p>No messages yet. Start a conversation by sending a message.</p>
                     </div>
                   ) : (
-                    conversation.map((message) => (
+                    conversation.map(message => (
                       <div
                         key={message.id}
                         className={`mb-4 p-4 rounded-lg ${
-                          message.type === 'user'
-                            ? 'bg-blue-50 dark:bg-blue-900/20 ml-8 border-l-4 border-blue-500'
-                            : 'bg-green-50 dark:bg-green-900/20 mr-8 border-l-4 border-green-500'
+                          message.type === "user"
+                            ? "bg-blue-50 dark:bg-blue-900/20 ml-8 border-l-4 border-blue-500"
+                            : "bg-green-50 dark:bg-green-900/20 mr-8 border-l-4 border-green-500"
                         }`}
                       >
                         <div className="flex justify-between items-start mb-2">
                           <span className="font-semibold text-sm">
-                            {message.type === 'user' ? customerName : 'Cathy'}
+                            {message.type === "user" ? customerName : "Cathy"}
                           </span>
                           <Button
                             variant="ghost"
@@ -215,7 +223,9 @@ export default function PromptTesting() {
                             <Copy className="w-4 h-4" />
                           </Button>
                         </div>
-                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                          {message.content}
+                        </p>
                         <span className="text-xs text-gray-500 mt-2 block">
                           {message.timestamp.toLocaleTimeString()}
                         </span>
@@ -227,12 +237,12 @@ export default function PromptTesting() {
                 <div className="flex space-x-2">
                   <Textarea
                     value={currentMessage}
-                    onChange={(e) => setCurrentMessage(e.target.value)}
+                    onChange={e => setCurrentMessage(e.target.value)}
                     placeholder="Type your message here..."
                     className="flex-1"
                     rows={3}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && !e.shiftKey) {
+                    onKeyDown={e => {
+                      if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
                         sendMessage();
                       }
@@ -254,7 +264,9 @@ export default function PromptTesting() {
             <Card>
               <CardHeader>
                 <CardTitle>Test Scenarios</CardTitle>
-                <p className="text-sm text-gray-600">Pre-built scenarios to test different customer situations</p>
+                <p className="text-sm text-gray-600">
+                  Pre-built scenarios to test different customer situations
+                </p>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-1 gap-3">
@@ -312,36 +324,53 @@ export default function PromptTesting() {
                     {/* Analysis Grid */}
                     <div className="grid grid-cols-1 gap-4">
                       <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                        <Label className="text-sm font-medium text-gray-600 dark:text-gray-400">Customer Name:</Label>
+                        <Label className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                          Customer Name:
+                        </Label>
                         <p className="mt-1">{lastResponse.customerName}</p>
                       </div>
 
                       <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                        <Label className="text-sm font-medium text-gray-600 dark:text-gray-400">Customer Message:</Label>
+                        <Label className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                          Customer Message:
+                        </Label>
                         <p className="mt-1 text-sm">{lastResponse.customerMessage}</p>
                       </div>
 
                       <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                        <Label className="text-sm font-medium text-gray-600 dark:text-gray-400">Analysis:</Label>
+                        <Label className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                          Analysis:
+                        </Label>
                         <p className="mt-1 text-sm">{lastResponse.analysis}</p>
                       </div>
 
                       <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                        <Label className="text-sm font-medium text-gray-600 dark:text-gray-400">Channel:</Label>
-                        <Badge variant="outline" className="mt-1">{lastResponse.channel}</Badge>
+                        <Label className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                          Channel:
+                        </Label>
+                        <Badge variant="outline" className="mt-1">
+                          {lastResponse.channel}
+                        </Badge>
                       </div>
 
                       <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                        <Label className="text-sm font-medium text-gray-600 dark:text-gray-400">Customer Insights:</Label>
+                        <Label className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                          Customer Insights:
+                        </Label>
                         <p className="mt-1 text-sm">{lastResponse.insights}</p>
                       </div>
 
                       <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                        <Label className="text-sm font-medium text-gray-600 dark:text-gray-400">Sales Readiness:</Label>
-                        <Badge 
+                        <Label className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                          Sales Readiness:
+                        </Label>
+                        <Badge
                           variant={
-                            lastResponse.salesReadiness === 'high' ? 'default' :
-                            lastResponse.salesReadiness === 'medium' ? 'secondary' : 'outline'
+                            lastResponse.salesReadiness === "high"
+                              ? "default"
+                              : lastResponse.salesReadiness === "medium"
+                                ? "secondary"
+                                : "outline"
                           }
                           className="mt-1"
                         >
@@ -351,8 +380,12 @@ export default function PromptTesting() {
 
                       {lastResponse.nextSteps && (
                         <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border-l-4 border-blue-500">
-                          <Label className="text-sm font-medium text-blue-600 dark:text-blue-400">Next Steps:</Label>
-                          <p className="mt-1 text-sm text-blue-800 dark:text-blue-200">{lastResponse.nextSteps}</p>
+                          <Label className="text-sm font-medium text-blue-600 dark:text-blue-400">
+                            Next Steps:
+                          </Label>
+                          <p className="mt-1 text-sm text-blue-800 dark:text-blue-200">
+                            {lastResponse.nextSteps}
+                          </p>
                         </div>
                       )}
                     </div>

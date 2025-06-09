@@ -1,17 +1,16 @@
-
 /**
  * Server-side data processing utilities
  */
 
-import { ApiError, ErrorCode } from './error-handler';
+import { ApiError, ErrorCode } from "./error-handler";
 
 /**
  * Sanitize email for logging (hide domain for privacy)
  */
 export function sanitizeEmailForLogging(email: string): string {
-  const [local, domain] = email.split('@');
+  const [local, domain] = email.split("@");
   if (!domain) return email;
-  
+
   return `${local}@...`;
 }
 
@@ -19,11 +18,11 @@ export function sanitizeEmailForLogging(email: string): string {
  * Sanitize phone number for logging
  */
 export function sanitizePhoneForLogging(phone: string): string {
-  const cleaned = phone.replace(/\D/g, '');
+  const cleaned = phone.replace(/\D/g, "");
   if (cleaned.length >= 10) {
     return `***-***-${cleaned.slice(-4)}`;
   }
-  return '***-***-****';
+  return "***-***-****";
 }
 
 /**
@@ -39,20 +38,20 @@ export function processCSVData(csvData: any[]): { valid: any[]; invalid: any[]; 
     const rowErrors = [];
 
     // Validate required fields
-    if (!row.email) rowErrors.push('Missing email');
-    if (!row.firstName) rowErrors.push('Missing firstName');
-    if (!row.lastName) rowErrors.push('Missing lastName');
+    if (!row.email) rowErrors.push("Missing email");
+    if (!row.firstName) rowErrors.push("Missing firstName");
+    if (!row.lastName) rowErrors.push("Missing lastName");
 
     // Validate email format
     if (row.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(row.email)) {
-      rowErrors.push('Invalid email format');
+      rowErrors.push("Invalid email format");
     }
 
     if (rowErrors.length === 0) {
       valid.push(row);
     } else {
       invalid.push({ ...row, rowIndex: i + 1 });
-      errors.push(`Row ${i + 1}: ${rowErrors.join(', ')}`);
+      errors.push(`Row ${i + 1}: ${rowErrors.join(", ")}`);
     }
   }
 
@@ -64,11 +63,11 @@ export function processCSVData(csvData: any[]): { valid: any[]; invalid: any[]; 
  */
 export function batchProcessData<T>(data: T[], batchSize: number = 100): T[][] {
   const batches = [];
-  
+
   for (let i = 0; i < data.length; i += batchSize) {
     batches.push(data.slice(i, i + batchSize));
   }
-  
+
   return batches;
 }
 
@@ -87,9 +86,9 @@ export async function retryWithBackoff<T>(
       return await operation();
     } catch (error) {
       lastError = error;
-      
+
       if (attempt === maxRetries) break;
-      
+
       const delay = baseDelay * Math.pow(2, attempt);
       await new Promise(resolve => setTimeout(resolve, delay));
     }

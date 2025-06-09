@@ -9,31 +9,31 @@ import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import { Textarea } from "@/components/ui/textarea";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { 
-  Mail, 
-  Send, 
-  Clock, 
-  Users, 
-  BarChart3, 
-  Play, 
-  Pause, 
+import {
+  Mail,
+  Send,
+  Clock,
+  Users,
+  BarChart3,
+  Play,
+  Pause,
   Settings,
   Calendar,
   CheckCircle,
   XCircle,
   Eye,
-  MousePointer
+  MousePointer,
 } from "lucide-react";
 
 interface EmailTemplate {
   id: string;
   name: string;
   subject: string;
-  messageType: 'reengagement' | 'inmarket' | 'followup';
+  messageType: "reengagement" | "inmarket" | "followup";
   delayHours: number;
   isActive: boolean;
 }
@@ -42,7 +42,7 @@ interface Campaign {
   id: string;
   name: string;
   templates: EmailTemplate[];
-  targetAudience: 'reengagement' | 'inmarket' | 'followup' | 'all';
+  targetAudience: "reengagement" | "inmarket" | "followup" | "all";
   isActive: boolean;
   createdAt: string;
   stats: {
@@ -69,56 +69,56 @@ export function EmailCampaigns() {
   const queryClient = useQueryClient();
 
   const campaignsQuery = useQuery({
-    queryKey: ['/api/email-campaigns'],
-    queryFn: () => apiRequest('/api/email-campaigns')
+    queryKey: ["/api/email-campaigns"],
+    queryFn: () => apiRequest("/api/email-campaigns"),
   });
 
   const selectedCampaignQuery = useQuery({
-    queryKey: ['/api/email-campaigns', selectedCampaign],
+    queryKey: ["/api/email-campaigns", selectedCampaign],
     queryFn: () => apiRequest(`/api/email-campaigns/${selectedCampaign}`),
-    enabled: !!selectedCampaign
+    enabled: !!selectedCampaign,
   });
 
   const metricsQuery = useQuery({
-    queryKey: ['/api/email-campaigns', selectedCampaign, 'metrics'],
+    queryKey: ["/api/email-campaigns", selectedCampaign, "metrics"],
     queryFn: () => apiRequest(`/api/email-campaigns/${selectedCampaign}/metrics`),
-    enabled: !!selectedCampaign
+    enabled: !!selectedCampaign,
   });
 
   const scheduledQuery = useQuery({
-    queryKey: ['/api/email-campaigns', selectedCampaign, 'scheduled'],
+    queryKey: ["/api/email-campaigns", selectedCampaign, "scheduled"],
     queryFn: () => apiRequest(`/api/email-campaigns/${selectedCampaign}/scheduled`),
     enabled: !!selectedCampaign,
-    refetchInterval: 30000
+    refetchInterval: 30000,
   });
 
   const bulkSendMutation = useMutation({
     mutationFn: async (data: any) => {
-      return fetch('/api/email-campaigns/bulk-send', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
+      return fetch("/api/email-campaigns/bulk-send", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
       }).then(res => res.json());
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/email-campaigns'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/activity'] });
+      queryClient.invalidateQueries({ queryKey: ["/api/email-campaigns"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/activity"] });
       setCsvData("");
-    }
+    },
   });
 
   const handleBulkSend = () => {
     if (!selectedCampaign || !csvData.trim()) return;
 
     try {
-      const lines = csvData.trim().split('\n');
-      const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+      const lines = csvData.trim().split("\n");
+      const headers = lines[0].split(",").map(h => h.trim().replace(/"/g, ""));
 
       const parsedData = lines.slice(1).map(line => {
-        const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
+        const values = line.split(",").map(v => v.trim().replace(/"/g, ""));
         const record: any = {};
         headers.forEach((header, index) => {
-          record[header] = values[index] || '';
+          record[header] = values[index] || "";
         });
         return record;
       });
@@ -128,15 +128,15 @@ export function EmailCampaigns() {
       bulkSendMutation.mutate({
         campaignId: selectedCampaign,
         csvData: parsedData,
-        messageType: campaign?.targetAudience || 'reengagement',
-        scheduleDelay
+        messageType: campaign?.targetAudience || "reengagement",
+        scheduleDelay,
       });
     } catch (error) {
-      console.error('Error parsing CSV:', error);
+      console.error("Error parsing CSV:", error);
     }
   };
 
-  const campaigns = campaignsQuery.data as Campaign[] || [];
+  const campaigns = (campaignsQuery.data as Campaign[]) || [];
   const selectedCampaignData = selectedCampaignQuery.data as Campaign;
   const metrics = metricsQuery.data as CampaignMetrics;
   const scheduled = scheduledQuery.data || [];
@@ -155,11 +155,11 @@ export function EmailCampaigns() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {campaigns.map((campaign) => (
-              <Card 
-                key={campaign.id} 
+            {campaigns.map(campaign => (
+              <Card
+                key={campaign.id}
                 className={`cursor-pointer transition-colors ${
-                  selectedCampaign === campaign.id ? 'ring-2 ring-blue-500' : 'hover:bg-muted/50'
+                  selectedCampaign === campaign.id ? "ring-2 ring-blue-500" : "hover:bg-muted/50"
                 }`}
                 onClick={() => setSelectedCampaign(campaign.id)}
               >
@@ -203,9 +203,7 @@ export function EmailCampaigns() {
               {metrics && (
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                   <div className="text-center p-3 bg-blue-50 rounded-lg">
-                    <div className="text-2xl font-semibold text-blue-700">
-                      {metrics.totalSent}
-                    </div>
+                    <div className="text-2xl font-semibold text-blue-700">{metrics.totalSent}</div>
                     <div className="text-sm text-blue-600">Total Sent</div>
                   </div>
                   <div className="text-center p-3 bg-green-50 rounded-lg">
@@ -244,9 +242,7 @@ export function EmailCampaigns() {
                   <Send className="h-5 w-5" />
                   Bulk Email Launch
                 </CardTitle>
-                <CardDescription>
-                  Upload CSV data to start automated email sequence
-                </CardDescription>
+                <CardDescription>Upload CSV data to start automated email sequence</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
@@ -256,7 +252,7 @@ export function EmailCampaigns() {
                     type="number"
                     min="0"
                     value={scheduleDelay}
-                    onChange={(e) => setScheduleDelay(parseInt(e.target.value) || 0)}
+                    onChange={e => setScheduleDelay(parseInt(e.target.value) || 0)}
                     placeholder="0"
                   />
                   <p className="text-xs text-muted-foreground">
@@ -270,12 +266,12 @@ export function EmailCampaigns() {
                     id="csv-data"
                     placeholder="Paste CSV data here (First Name, Last Name, Email, Dealer, etc.)"
                     value={csvData}
-                    onChange={(e) => setCsvData(e.target.value)}
+                    onChange={e => setCsvData(e.target.value)}
                     className="min-h-32 font-mono text-sm"
                   />
                 </div>
 
-                <Button 
+                <Button
                   onClick={handleBulkSend}
                   disabled={!csvData.trim() || bulkSendMutation.isPending}
                   className="w-full"
@@ -297,10 +293,12 @@ export function EmailCampaigns() {
                   <Alert>
                     <CheckCircle className="h-4 w-4" />
                     <AlertDescription>
-                      Campaign launched successfully! {bulkSendMutation.data.scheduled} emails scheduled.
+                      Campaign launched successfully! {bulkSendMutation.data.scheduled} emails
+                      scheduled.
                       {bulkSendMutation.data.errors?.length > 0 && (
                         <span className="text-amber-600">
-                          {' '}({bulkSendMutation.data.errors.length} records had errors)
+                          {" "}
+                          ({bulkSendMutation.data.errors.length} records had errors)
                         </span>
                       )}
                     </AlertDescription>
@@ -324,16 +322,17 @@ export function EmailCampaigns() {
                   <Calendar className="h-5 w-5" />
                   Scheduled Emails
                 </CardTitle>
-                <CardDescription>
-                  Upcoming email executions for this campaign
-                </CardDescription>
+                <CardDescription>Upcoming email executions for this campaign</CardDescription>
               </CardHeader>
               <CardContent>
                 <ScrollArea className="h-64">
                   {scheduled.length > 0 ? (
                     <div className="space-y-2">
                       {scheduled.map((execution: any, index: number) => (
-                        <div key={index} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-3 bg-muted rounded-lg"
+                        >
                           <div>
                             <div className="font-medium text-sm">
                               Customer: {execution.customerId}
@@ -345,11 +344,17 @@ export function EmailCampaigns() {
                               Scheduled: {new Date(execution.scheduledAt).toLocaleString()}
                             </div>
                           </div>
-                          <Badge variant={
-                            execution.status === 'scheduled' ? 'secondary' :
-                            execution.status === 'sent' ? 'default' :
-                            execution.status === 'failed' ? 'destructive' : 'secondary'
-                          }>
+                          <Badge
+                            variant={
+                              execution.status === "scheduled"
+                                ? "secondary"
+                                : execution.status === "sent"
+                                  ? "default"
+                                  : execution.status === "failed"
+                                    ? "destructive"
+                                    : "secondary"
+                            }
+                          >
                             {execution.status}
                           </Badge>
                         </div>
@@ -387,9 +392,7 @@ export function EmailCampaigns() {
                         <h4 className="font-medium">{template.name}</h4>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Badge variant="outline">
-                          {template.delayHours}h delay
-                        </Badge>
+                        <Badge variant="outline">{template.delayHours}h delay</Badge>
                         <Badge variant={template.isActive ? "default" : "secondary"}>
                           {template.isActive ? "Active" : "Inactive"}
                         </Badge>

@@ -2,7 +2,9 @@
 
 ## Overview
 
-Complete Car Loans API now implements a standardized error handling pattern across all endpoints. This ensures consistent error responses, proper logging, and maintainable error management.
+Complete Car Loans API now implements a standardized error handling pattern
+across all endpoints. This ensures consistent error responses, proper logging,
+and maintainable error management.
 
 ## Error Code System
 
@@ -23,16 +25,17 @@ Complete Car Loans API now implements a standardized error handling pattern acro
 ### Error Code Examples
 
 ```typescript
-ErrorCode.LEAD_PROCESSING_FAILED     // DATA_001
-ErrorCode.EMAIL_DELIVERY_FAILED      // EMAIL_001
-ErrorCode.AGENT_STATUS_FETCH_FAILED  // AGENT_001
-ErrorCode.REQUIRED_FIELD_MISSING     // VALIDATION_001
-ErrorCode.INVALID_EMAIL_FORMAT       // VALIDATION_002
+ErrorCode.LEAD_PROCESSING_FAILED; // DATA_001
+ErrorCode.EMAIL_DELIVERY_FAILED; // EMAIL_001
+ErrorCode.AGENT_STATUS_FETCH_FAILED; // AGENT_001
+ErrorCode.REQUIRED_FIELD_MISSING; // VALIDATION_001
+ErrorCode.INVALID_EMAIL_FORMAT; // VALIDATION_002
 ```
 
 ## Standardized Error Response Format
 
 ### Success Response
+
 ```json
 {
   "success": true,
@@ -43,6 +46,7 @@ ErrorCode.INVALID_EMAIL_FORMAT       // VALIDATION_002
 ```
 
 ### Error Response
+
 ```json
 {
   "success": false,
@@ -66,6 +70,7 @@ ErrorCode.INVALID_EMAIL_FORMAT       // VALIDATION_002
 ### 1. Error Codes (`server/utils/error-codes.ts`)
 
 Centralized error code definitions with metadata:
+
 - HTTP status codes
 - Error categories
 - Retry indicators
@@ -74,32 +79,37 @@ Centralized error code definitions with metadata:
 ### 2. Enhanced Error Handler (`server/utils/error-handler.ts`)
 
 #### ApiError Class
+
 ```typescript
-const error = new ApiError(
-  ErrorCode.LEAD_PROCESSING_FAILED,
-  'Custom message',
-  { additionalDetails: 'context' }
-);
+const error = new ApiError(ErrorCode.LEAD_PROCESSING_FAILED, "Custom message", {
+  additionalDetails: "context",
+});
 ```
 
 #### Validation Functions
+
 ```typescript
-validateRequired(req.body, ['email', 'campaignName']);
+validateRequired(req.body, ["email", "campaignName"]);
 validateEmail(email);
-validateDataFormat(data, 'array', 'bulkData');
-validateFieldLength(name, 'campaignName', 100);
+validateDataFormat(data, "array", "bulkData");
+validateFieldLength(name, "campaignName", 100);
 ```
 
 #### Async Handler Wrapper
+
 ```typescript
-app.post('/api/endpoint', asyncHandler(async (req, res) => {
-  // Route logic with automatic error handling
-}));
+app.post(
+  "/api/endpoint",
+  asyncHandler(async (req, res) => {
+    // Route logic with automatic error handling
+  })
+);
 ```
 
 ### 3. Consistent Route Implementation
 
 All API endpoints now use:
+
 - `asyncHandler` wrapper for automatic error catching
 - Standardized validation at request entry
 - Consistent success/error responses
@@ -108,8 +118,9 @@ All API endpoints now use:
 ## API Endpoint Updates
 
 ### Before (Inconsistent)
+
 ```typescript
-app.get('/api/leads', async (req, res) => {
+app.get("/api/leads", async (req, res) => {
   try {
     const leads = storage.getLeads();
     res.json(leads);
@@ -121,25 +132,35 @@ app.get('/api/leads', async (req, res) => {
 ```
 
 ### After (Standardized)
+
 ```typescript
-app.get('/api/leads', asyncHandler(async (req: RequestWithId, res: Response) => {
-  try {
-    const leads = storage.getLeads();
-    res.json(createSuccessResponse(leads, req.requestId));
-  } catch (error) {
-    throw new ApiError(ErrorCode.LEAD_PROCESSING_FAILED, 'Failed to retrieve leads', { originalError: error });
-  }
-}));
+app.get(
+  "/api/leads",
+  asyncHandler(async (req: RequestWithId, res: Response) => {
+    try {
+      const leads = storage.getLeads();
+      res.json(createSuccessResponse(leads, req.requestId));
+    } catch (error) {
+      throw new ApiError(
+        ErrorCode.LEAD_PROCESSING_FAILED,
+        "Failed to retrieve leads",
+        { originalError: error }
+      );
+    }
+  })
+);
 ```
 
 ## Error Logging
 
 ### Log Levels by Category
+
 - **Error**: System failures, external service errors
 - **Warn**: Validation failures, client errors
 - **Info**: Authentication events, session management
 
 ### Log Format
+
 ```javascript
 {
   code: 'DATA_001',
@@ -155,38 +176,44 @@ app.get('/api/leads', asyncHandler(async (req: RequestWithId, res: Response) => 
 ## Validation System
 
 ### Required Field Validation
+
 ```typescript
-validateRequired(req.body, ['email', 'campaignName']);
+validateRequired(req.body, ["email", "campaignName"]);
 // Throws: ErrorCode.REQUIRED_FIELD_MISSING
 ```
 
 ### Email Format Validation
+
 ```typescript
 validateEmail(email);
 // Throws: ErrorCode.INVALID_EMAIL_FORMAT
 ```
 
 ### Data Type Validation
+
 ```typescript
-validateDataFormat(bulkData, 'array', 'data');
+validateDataFormat(bulkData, "array", "data");
 // Throws: ErrorCode.INVALID_DATA_FORMAT
 ```
 
 ### Field Length Validation
+
 ```typescript
-validateFieldLength(value, 'fieldName', 100);
+validateFieldLength(value, "fieldName", 100);
 // Throws: ErrorCode.FIELD_LENGTH_EXCEEDED
 ```
 
 ## Request Tracking
 
 Each request receives a unique identifier:
+
 ```typescript
 const requestId = generateRequestId();
 // Format: req_1749093682999_abc123def
 ```
 
 Request IDs are:
+
 - Generated automatically by `asyncHandler`
 - Included in all responses
 - Logged with all errors
@@ -195,6 +222,7 @@ Request IDs are:
 ## Backward Compatibility
 
 The implementation maintains backward compatibility by:
+
 - Preserving existing error message content
 - Maintaining HTTP status codes
 - Adding new fields without removing old ones
@@ -203,37 +231,38 @@ The implementation maintains backward compatibility by:
 ## Usage Examples
 
 ### Endpoint with Validation
+
 ```typescript
-app.post('/api/leads/process', asyncHandler(async (req: RequestWithId, res: Response) => {
-  const { email, campaignName } = req.body;
-  
-  // Validation
-  validateRequired(req.body, ['email']);
-  validateEmail(email);
-  validateFieldLength(campaignName, 'campaignName', 50);
-  
-  try {
-    const result = await processLead(email, campaignName);
-    res.json(createSuccessResponse(result, req.requestId));
-  } catch (error) {
-    throw new ApiError(ErrorCode.LEAD_PROCESSING_FAILED, undefined, { 
-      originalError: error,
-      email: email.replace(/@.*/, '@...')
-    });
-  }
-}));
+app.post(
+  "/api/leads/process",
+  asyncHandler(async (req: RequestWithId, res: Response) => {
+    const { email, campaignName } = req.body;
+
+    // Validation
+    validateRequired(req.body, ["email"]);
+    validateEmail(email);
+    validateFieldLength(campaignName, "campaignName", 50);
+
+    try {
+      const result = await processLead(email, campaignName);
+      res.json(createSuccessResponse(result, req.requestId));
+    } catch (error) {
+      throw new ApiError(ErrorCode.LEAD_PROCESSING_FAILED, undefined, {
+        originalError: error,
+        email: email.replace(/@.*/, "@..."),
+      });
+    }
+  })
+);
 ```
 
 ### External Service Error Handling
+
 ```typescript
 try {
   const result = await mailgunAPI.send(emailData);
 } catch (error) {
-  throw ApiError.external(
-    ErrorCode.MAILGUN_API_ERROR,
-    'mailgun',
-    error
-  );
+  throw ApiError.external(ErrorCode.MAILGUN_API_ERROR, "mailgun", error);
 }
 ```
 
@@ -248,14 +277,11 @@ try {
 
 ## Self-Validation Checklist
 
-✅ All API endpoints return consistent error format
-✅ Error logging includes necessary context information
-✅ Existing error handling behavior preserved
-✅ No breaking changes to public API responses
-✅ Error codes documented and categorized
-✅ Request tracking implemented across all endpoints
-✅ Validation functions standardized
-✅ Backward compatibility maintained
+✅ All API endpoints return consistent error format ✅ Error logging includes
+necessary context information ✅ Existing error handling behavior preserved ✅
+No breaking changes to public API responses ✅ Error codes documented and
+categorized ✅ Request tracking implemented across all endpoints ✅ Validation
+functions standardized ✅ Backward compatibility maintained
 
 ## Next Steps
 

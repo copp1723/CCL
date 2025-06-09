@@ -1,17 +1,17 @@
-import { useState, useEffect } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
-import { Copy, Send, RotateCcw, Settings } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-import { apiRequest } from '@/lib/queryClient';
+import { useState, useEffect } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { Switch } from "@/components/ui/switch";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import { Copy, Send, RotateCcw, Settings } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 interface TestResponse {
   watermark: string;
@@ -32,19 +32,19 @@ interface TestResponse {
 
 interface ConversationMessage {
   id: string;
-  type: 'user' | 'agent';
+  type: "user" | "agent";
   content: string;
   timestamp: Date;
   analysis?: any;
 }
 
 export default function PromptTesting() {
-  const [systemPrompt, setSystemPrompt] = useState('');
+  const [systemPrompt, setSystemPrompt] = useState("");
   const [conversation, setConversation] = useState<ConversationMessage[]>([]);
-  const [currentMessage, setCurrentMessage] = useState('');
-  const [customerName, setCustomerName] = useState('John Smith');
-  const [customerSituation, setCustomerSituation] = useState('');
-  const [responseType, setResponseType] = useState<'chat' | 'email'>('chat');
+  const [currentMessage, setCurrentMessage] = useState("");
+  const [customerName, setCustomerName] = useState("John Smith");
+  const [customerSituation, setCustomerSituation] = useState("");
+  const [responseType, setResponseType] = useState<"chat" | "email">("chat");
   const [showJSON, setShowJSON] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [lastResponse, setLastResponse] = useState<TestResponse | null>(null);
@@ -53,29 +53,34 @@ export default function PromptTesting() {
   const scenarios = [
     {
       name: "Credit Anxiety",
-      message: "I'm worried about my credit score. I've had some issues in the past and I'm not sure if I can get approved for a car loan.",
-      situation: "Previous credit challenges, anxious about approval"
+      message:
+        "I'm worried about my credit score. I've had some issues in the past and I'm not sure if I can get approved for a car loan.",
+      situation: "Previous credit challenges, anxious about approval",
     },
     {
-      name: "First Time Buyer", 
-      message: "Hi, I'm looking to buy my first car and I'm not sure how auto financing works. Can you help me understand the process?",
-      situation: "First-time buyer, needs education"
+      name: "First Time Buyer",
+      message:
+        "Hi, I'm looking to buy my first car and I'm not sure how auto financing works. Can you help me understand the process?",
+      situation: "First-time buyer, needs education",
     },
     {
       name: "Ready to Apply",
-      message: "I'm ready to get pre-approved for an auto loan. I found a car I like and want to move forward quickly.",
-      situation: "High intent, ready to proceed"
+      message:
+        "I'm ready to get pre-approved for an auto loan. I found a car I like and want to move forward quickly.",
+      situation: "High intent, ready to proceed",
     },
     {
       name: "Confused & Overwhelmed",
-      message: "This is all so confusing. I've been to three dealerships and everyone is telling me different things. I don't know what to believe.",
-      situation: "Overwhelmed by conflicting information"
+      message:
+        "This is all so confusing. I've been to three dealerships and everyone is telling me different things. I don't know what to believe.",
+      situation: "Overwhelmed by conflicting information",
     },
     {
       name: "Price Sensitive",
-      message: "I need to keep my monthly payment under $300. Is that possible with my credit situation?",
-      situation: "Budget constraints, payment focused"
-    }
+      message:
+        "I need to keep my monthly payment under $300. Is that possible with my credit situation?",
+      situation: "Budget constraints, payment focused",
+    },
   ];
 
   useEffect(() => {
@@ -84,10 +89,10 @@ export default function PromptTesting() {
 
   const loadSystemPrompt = async () => {
     try {
-      const response = await apiRequest('/api/agents/system-prompt');
-      setSystemPrompt(response.prompt || '');
+      const response = await apiRequest("/api/agents/system-prompt");
+      setSystemPrompt(response.prompt || "");
     } catch (error) {
-      console.error('Failed to load system prompt:', error);
+      console.error("Failed to load system prompt:", error);
     }
   };
 
@@ -97,47 +102,48 @@ export default function PromptTesting() {
     setIsLoading(true);
     const userMessage: ConversationMessage = {
       id: Date.now().toString(),
-      type: 'user',
+      type: "user",
       content: currentMessage,
-      timestamp: new Date()
+      timestamp: new Date(),
     };
 
     setConversation(prev => [...prev, userMessage]);
-    setCurrentMessage('');
+    setCurrentMessage("");
 
     try {
-      const endpoint = responseType === 'chat' ? '/api/test/chat-response' : '/api/test/email-response';
+      const endpoint =
+        responseType === "chat" ? "/api/test/chat-response" : "/api/test/email-response";
       const response = await apiRequest(endpoint, {
-        method: 'POST',
+        method: "POST",
         data: {
           userMessage: currentMessage,
           customerName,
           customerSituation,
           conversationHistory: conversation.map(msg => ({
             type: msg.type,
-            content: msg.content
+            content: msg.content,
           })),
-          systemPrompt: systemPrompt
-        }
+          systemPrompt: systemPrompt,
+        },
       });
 
       setLastResponse(response);
 
       const agentMessage: ConversationMessage = {
         id: (Date.now() + 1).toString(),
-        type: 'agent',
-        content: response.answer || response.email?.body || 'No response generated',
+        type: "agent",
+        content: response.answer || response.email?.body || "No response generated",
         timestamp: new Date(),
-        analysis: response
+        analysis: response,
       };
 
       setConversation(prev => [...prev, agentMessage]);
     } catch (error) {
-      console.error('Failed to send message:', error);
+      console.error("Failed to send message:", error);
       toast({
         title: "Error",
         description: "Failed to generate response. Please try again.",
-        variant: "destructive"
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
@@ -158,26 +164,26 @@ export default function PromptTesting() {
     navigator.clipboard.writeText(content);
     toast({
       title: "Copied",
-      description: "Message copied to clipboard"
+      description: "Message copied to clipboard",
     });
   };
 
   const updateSystemPrompt = async () => {
     try {
-      await apiRequest('/api/agents/system-prompt', {
-        method: 'POST',
-        data: { prompt: systemPrompt }
+      await apiRequest("/api/agents/system-prompt", {
+        method: "POST",
+        data: { prompt: systemPrompt },
       });
-      
+
       toast({
         title: "Updated",
-        description: "System prompt updated successfully"
+        description: "System prompt updated successfully",
       });
     } catch (error) {
       toast({
-        title: "Error", 
+        title: "Error",
         description: "Failed to update system prompt",
-        variant: "destructive"
+        variant: "destructive",
       });
     }
   };
@@ -187,7 +193,9 @@ export default function PromptTesting() {
       <div className="container mx-auto p-6">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Prompt Testing</h1>
-          <p className="text-gray-600 dark:text-gray-400">Test AI responses with realistic customer scenarios</p>
+          <p className="text-gray-600 dark:text-gray-400">
+            Test AI responses with realistic customer scenarios
+          </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -215,7 +223,7 @@ export default function PromptTesting() {
                   <CardContent>
                     <Textarea
                       value={systemPrompt}
-                      onChange={(e) => setSystemPrompt(e.target.value)}
+                      onChange={e => setSystemPrompt(e.target.value)}
                       placeholder="Enter system prompt..."
                       className="min-h-[400px] font-mono text-sm"
                     />
@@ -227,7 +235,9 @@ export default function PromptTesting() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Conversation</CardTitle>
-                    <p className="text-sm text-gray-600">Test the system prompt with a conversation</p>
+                    <p className="text-sm text-gray-600">
+                      Test the system prompt with a conversation
+                    </p>
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="grid grid-cols-2 gap-4">
@@ -236,7 +246,7 @@ export default function PromptTesting() {
                         <Input
                           id="customerName"
                           value={customerName}
-                          onChange={(e) => setCustomerName(e.target.value)}
+                          onChange={e => setCustomerName(e.target.value)}
                           placeholder="John Smith"
                         />
                       </div>
@@ -245,7 +255,7 @@ export default function PromptTesting() {
                         <select
                           className="w-full p-2 border rounded-md"
                           value={responseType}
-                          onChange={(e) => setResponseType(e.target.value as 'chat' | 'email')}
+                          onChange={e => setResponseType(e.target.value as "chat" | "email")}
                         >
                           <option value="chat">Chat Response</option>
                           <option value="email">Email Response</option>
@@ -258,7 +268,7 @@ export default function PromptTesting() {
                       <Input
                         id="customerSituation"
                         value={customerSituation}
-                        onChange={(e) => setCustomerSituation(e.target.value)}
+                        onChange={e => setCustomerSituation(e.target.value)}
                         placeholder="e.g., Previous credit challenges, first-time buyer"
                       />
                     </div>
@@ -267,20 +277,22 @@ export default function PromptTesting() {
 
                     <ScrollArea className="h-[300px] w-full border rounded-md p-4">
                       {conversation.length === 0 ? (
-                        <p className="text-center text-gray-500">No messages yet. Start a conversation by sending a message.</p>
+                        <p className="text-center text-gray-500">
+                          No messages yet. Start a conversation by sending a message.
+                        </p>
                       ) : (
-                        conversation.map((message) => (
+                        conversation.map(message => (
                           <div
                             key={message.id}
                             className={`mb-4 p-3 rounded-lg ${
-                              message.type === 'user'
-                                ? 'bg-blue-100 dark:bg-blue-900 ml-8'
-                                : 'bg-gray-100 dark:bg-gray-800 mr-8'
+                              message.type === "user"
+                                ? "bg-blue-100 dark:bg-blue-900 ml-8"
+                                : "bg-gray-100 dark:bg-gray-800 mr-8"
                             }`}
                           >
                             <div className="flex justify-between items-start mb-2">
                               <span className="font-semibold">
-                                {message.type === 'user' ? customerName : 'Cathy'}
+                                {message.type === "user" ? customerName : "Cathy"}
                               </span>
                               <Button
                                 variant="ghost"
@@ -294,7 +306,7 @@ export default function PromptTesting() {
                             {message.analysis && (
                               <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
                                 <Badge variant="outline" className="mr-2">
-                                  Sales Readiness: {message.analysis.sales_readiness || 'Unknown'}
+                                  Sales Readiness: {message.analysis.sales_readiness || "Unknown"}
                                 </Badge>
                               </div>
                             )}
@@ -306,12 +318,12 @@ export default function PromptTesting() {
                     <div className="flex space-x-2">
                       <Textarea
                         value={currentMessage}
-                        onChange={(e) => setCurrentMessage(e.target.value)}
+                        onChange={e => setCurrentMessage(e.target.value)}
                         placeholder="Type your message here..."
                         className="flex-1"
                         rows={2}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && !e.shiftKey) {
+                        onKeyDown={e => {
+                          if (e.key === "Enter" && !e.shiftKey) {
                             e.preventDefault();
                             sendMessage();
                           }
@@ -334,7 +346,9 @@ export default function PromptTesting() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Test Scenarios</CardTitle>
-                    <p className="text-sm text-gray-600">Pre-built scenarios to test different customer situations</p>
+                    <p className="text-sm text-gray-600">
+                      Pre-built scenarios to test different customer situations
+                    </p>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
@@ -366,11 +380,7 @@ export default function PromptTesting() {
                   <CardContent className="space-y-4">
                     <div className="flex items-center justify-between">
                       <Label htmlFor="show-json">Show JSON Response</Label>
-                      <Switch
-                        id="show-json"
-                        checked={showJSON}
-                        onCheckedChange={setShowJSON}
-                      />
+                      <Switch id="show-json" checked={showJSON} onCheckedChange={setShowJSON} />
                     </div>
                   </CardContent>
                 </Card>
@@ -388,11 +398,7 @@ export default function PromptTesting() {
                 </div>
                 <div className="flex items-center space-x-2">
                   <Label htmlFor="json-toggle">Show JSON</Label>
-                  <Switch
-                    id="json-toggle"
-                    checked={showJSON}
-                    onCheckedChange={setShowJSON}
-                  />
+                  <Switch id="json-toggle" checked={showJSON} onCheckedChange={setShowJSON} />
                 </div>
               </CardHeader>
               <CardContent>
@@ -421,7 +427,9 @@ export default function PromptTesting() {
                         variant="outline"
                         size="sm"
                         className="mt-2"
-                        onClick={() => copyMessage(lastResponse.answer || lastResponse.email?.body || '')}
+                        onClick={() =>
+                          copyMessage(lastResponse.answer || lastResponse.email?.body || "")
+                        }
                       >
                         <Copy className="w-4 h-4 mr-2" />
                         Copy Message
@@ -439,7 +447,7 @@ export default function PromptTesting() {
                         <div>
                           <Label className="text-gray-600">Query:</Label>
                           <p className="text-gray-800 dark:text-gray-200">
-                            {currentMessage || 'No query'}
+                            {currentMessage || "No query"}
                           </p>
                         </div>
                         <div>
@@ -455,16 +463,21 @@ export default function PromptTesting() {
                         <div>
                           <Label className="text-gray-600">Insights:</Label>
                           <p className="text-gray-800 dark:text-gray-200">
-                            {lastResponse.insights || 'Customer seeking information'}
+                            {lastResponse.insights || "Customer seeking information"}
                           </p>
                         </div>
                         <div>
                           <Label className="text-gray-600">Sales Readiness:</Label>
-                          <Badge variant={
-                            lastResponse.sales_readiness === 'high' ? 'default' :
-                            lastResponse.sales_readiness === 'medium' ? 'secondary' : 'outline'
-                          }>
-                            {lastResponse.sales_readiness || 'medium'}
+                          <Badge
+                            variant={
+                              lastResponse.sales_readiness === "high"
+                                ? "default"
+                                : lastResponse.sales_readiness === "medium"
+                                  ? "secondary"
+                                  : "outline"
+                            }
+                          >
+                            {lastResponse.sales_readiness || "medium"}
                           </Badge>
                         </div>
                       </div>
@@ -492,19 +505,25 @@ export default function PromptTesting() {
                     )}
 
                     {/* Required Fields */}
-                    {lastResponse.required_fields && Object.keys(lastResponse.required_fields).length > 0 && (
-                      <div>
-                        <h4 className="font-semibold mb-3">Required Fields:</h4>
-                        <div className="space-y-2">
-                          {Object.entries(lastResponse.required_fields).map(([field, config]: [string, any]) => (
-                            <div key={field} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded">
-                              <span className="font-medium">{field.replace('_', ' ')}</span>
-                              <Badge variant="outline">{config.type}</Badge>
-                            </div>
-                          ))}
+                    {lastResponse.required_fields &&
+                      Object.keys(lastResponse.required_fields).length > 0 && (
+                        <div>
+                          <h4 className="font-semibold mb-3">Required Fields:</h4>
+                          <div className="space-y-2">
+                            {Object.entries(lastResponse.required_fields).map(
+                              ([field, config]: [string, any]) => (
+                                <div
+                                  key={field}
+                                  className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded"
+                                >
+                                  <span className="font-medium">{field.replace("_", " ")}</span>
+                                  <Badge variant="outline">{config.type}</Badge>
+                                </div>
+                              )
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
                   </div>
                 )}
               </CardContent>

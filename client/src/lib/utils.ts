@@ -1,8 +1,8 @@
-import { type ClassValue, clsx } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { type ClassValue, clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
 export interface ApiError {
@@ -34,39 +34,42 @@ export class ClientError extends Error {
     super(message);
     this.code = code;
     this.statusCode = statusCode;
-    this.name = 'ClientError';
+    this.name = "ClientError";
   }
 }
 
 export const handleApiError = (error: any): ClientError => {
   // Handle fetch errors
-  if (error instanceof TypeError && error.message.includes('fetch')) {
-    return new ClientError('Network error. Please check your connection and try again.', 'NETWORK_ERROR');
+  if (error instanceof TypeError && error.message.includes("fetch")) {
+    return new ClientError(
+      "Network error. Please check your connection and try again.",
+      "NETWORK_ERROR"
+    );
   }
 
   // Handle API errors
   if (error.response) {
     const { status, data } = error.response;
-    const message = data?.message || data?.error || 'An error occurred';
+    const message = data?.message || data?.error || "An error occurred";
     return new ClientError(message, data?.code, status);
   }
 
   // Handle generic errors
   if (error instanceof Error) {
-    return new ClientError(error.message, 'GENERIC_ERROR');
+    return new ClientError(error.message, "GENERIC_ERROR");
   }
 
-  return new ClientError('An unexpected error occurred', 'UNKNOWN_ERROR');
+  return new ClientError("An unexpected error occurred", "UNKNOWN_ERROR");
 };
 
 export const apiRequest = async <T = any>(
-  url: string, 
+  url: string,
   options: RequestInit = {}
 ): Promise<ApiResponse<T>> => {
   try {
     const response = await fetch(url, {
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         ...options.headers,
       },
       ...options,
@@ -76,7 +79,7 @@ export const apiRequest = async <T = any>(
 
     if (!response.ok) {
       throw new ClientError(
-        data.message || data.error || 'Request failed',
+        data.message || data.error || "Request failed",
         data.code,
         response.status
       );
@@ -97,11 +100,11 @@ export const formatError = (error: unknown): string => {
     return error.message;
   }
 
-  if (typeof error === 'string') {
+  if (typeof error === "string") {
     return error;
   }
 
-  return 'An unexpected error occurred';
+  return "An unexpected error occurred";
 };
 
 export const retryWithBackoff = async <T>(
