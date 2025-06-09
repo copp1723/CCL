@@ -12,8 +12,10 @@ import { campaignSender } from './workers/campaign-sender';
 import campaignRoutes from './routes/campaigns';
 import webhookRoutes from './routes/webhooks';
 
-// Start background workers
-campaignSender.start();
+// Ensure port is set immediately and log it
+const PORT = parseInt(process.env.PORT || '5000', 10);
+console.log(`🚀 Starting CCL Agent System on port ${PORT}`);
+console.log(`📊 Environment: ${process.env.NODE_ENV}`);
 
 const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -40,7 +42,6 @@ app.use(apiRateLimiter);
 // Add the campaign and webhook routers
 app.use('/api/campaigns', campaignRoutes);
 app.use('/api/webhooks', webhookRoutes);
-
 
 // CORS configuration
 const allowedOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173'];
@@ -143,12 +144,14 @@ const apiKeyAuth = (req: any, res: any, next: any) => {
   next();
 };
 
-// Health check
+// Health check - CRITICAL for Render
 app.get('/health', (req, res) => {
-  res.json({ 
+  res.status(200).json({ 
     status: 'healthy', 
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV 
+    environment: process.env.NODE_ENV,
+    port: PORT,
+    uptime: Math.round(process.uptime())
   });
 });
 
@@ -403,35 +406,75 @@ wss.on('connection', (ws) => {
   }));
 });
 
-// Setup Vite in development
-if (process.env.NODE_ENV !== 'production') {
-  setupVite(app, server);
-} else {
-  serveStatic(app);
-}
-
-const PORT = parseInt(process.env.PORT || '5000', 10);
-
+// ========================================
+// START SERVER IMMEDIATELY - CRITICAL FOR RENDER
+// ========================================
+console.log(`🌐 Starting server on 0.0.0.0:${PORT}`);
 server.listen(PORT, '0.0.0.0', () => {
-  console.log(`CCL Agent System running on port ${PORT}`);
-  console.log(`Environment: ${process.env.NODE_ENV}`);
-  console.log(`Health check: http://0.0.0.0:${PORT}/health`);
-  console.log(`WebSocket available at ws://localhost:${PORT}/ws/chat`);
+  console.log(`✅ CCL Agent System running on port ${PORT}`);
+  console.log(`📈 Environment: ${process.env.NODE_ENV}`);
+  console.log(`🔍 Health check: http://0.0.0.0:${PORT}/health`);
+  console.log(`💬 WebSocket available at ws://localhost:${PORT}/ws/chat`);
+  
+  // Start background workers AFTER server is listening
+  console.log('🔄 Starting background workers...');
+  campaignSender.start();
+  
+  // Initialize storage AFTER server is running (non-blocking)
+  setTimeout(async () => {
+    try {
+      console.log('🗄️ Initializing storage services...');
+      await storage.initializeAgents();
+      console.log('✅ Storage services initialized');
+    } catch (error) {
+      console.error('⚠️ Storage initialization error (non-critical):', error);
+    }
+  }, 100);
 });
+
+// Setup Vite in development (after server is running)
+if (process.env.NODE_ENV !== 'production') {
+  setTimeout(() => {
+    setupVite(app, server).catch(console.error);
+  }, 500);
+} else {
+  setTimeout(() => {
+    try {
+      serveStatic(app);
+      console.log('📁 Static files served');
+    } catch (error) {
+      console.error('⚠️ Static file serving error:', error);
+    }
+  }, 100);
+}
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
+  console.log('🛑 SIGTERM received, shutting down gracefully');
+  campaignSender.stop();
   server.close(() => {
-    console.log('Server closed');
+    console.log('✅ Server closed');
     process.exit(0);
   });
 });
 
 process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down gracefully');
+  console.log('🛑 SIGINT received, shutting down gracefully');
+  campaignSender.stop();
   server.close(() => {
-    console.log('Server closed');
+    console.log('✅ Server closed');
     process.exit(0);
   });
+});
+
+// Handle unhandled rejections
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('⚠️ Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit the process - let Render detect the running server
+});
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  console.error('💥 Uncaught Exception:', error);
+  // Don't exit the process - let Render detect the running server
 });
