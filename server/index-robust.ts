@@ -429,6 +429,36 @@ async function setupRoutes() {
       }
     });
 
+    // Test OpenAI endpoint
+    app.get("/api/test-openai", async (req: Request, res: Response) => {
+      try {
+        if (!process.env.OPENAI_API_KEY) {
+          return res.json({ error: "No OpenAI API key configured" });
+        }
+        
+        const testResponse = await fetch("https://api.openai.com/v1/models", {
+          headers: {
+            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+          },
+        });
+        
+        if (testResponse.ok) {
+          const models = await testResponse.json();
+          const hasGPT4 = models.data.some((m: any) => m.id.includes("gpt-4"));
+          res.json({ 
+            status: "connected", 
+            hasGPT4Access: hasGPT4,
+            modelCount: models.data.length 
+          });
+        } else {
+          const error = await testResponse.json();
+          res.json({ status: "error", error });
+        }
+      } catch (error) {
+        res.json({ status: "error", message: error.message });
+      }
+    });
+    
     // CSV upload endpoint
     app.post("/api/bulk-email/send", upload.single("csvFile"), async (req: Request, res: Response) => {
       try {
