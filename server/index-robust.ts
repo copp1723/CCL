@@ -388,16 +388,32 @@ async function setupRoutes() {
         const { message } = req.body;
         let response = "Hi! I'm Cathy from Complete Car Loans. How can I help with your auto financing today?";
 
-        if (process.env.OPENAI_API_KEY) {
+        // Support both OpenRouter and OpenAI
+        const apiKey = process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY;
+        const useOpenRouter = !!process.env.OPENROUTER_API_KEY;
+        
+        if (apiKey) {
           try {
-            const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+            const apiUrl = useOpenRouter 
+              ? "https://openrouter.ai/api/v1/chat/completions"
+              : "https://api.openai.com/v1/chat/completions";
+            
+            const headers: any = {
+              Authorization: `Bearer ${apiKey}`,
+              "Content-Type": "application/json",
+            };
+            
+            // OpenRouter requires these additional headers
+            if (useOpenRouter) {
+              headers["HTTP-Referer"] = "https://ccl-agent-system.onrender.com";
+              headers["X-Title"] = "CCL Agent System";
+            }
+            
+            const openaiResponse = await fetch(apiUrl, {
               method: "POST",
-              headers: {
-                Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
-                "Content-Type": "application/json",
-              },
+              headers,
               body: JSON.stringify({
-                model: "gpt-4-turbo-preview",
+                model: useOpenRouter ? "openai/gpt-4-turbo-preview" : "gpt-4-turbo-preview",
                 messages: [
                   {
                     role: "system",

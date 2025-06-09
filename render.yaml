@@ -24,6 +24,8 @@ services:
         generateValue: true
       - key: OPENAI_API_KEY
         fromSecretKey: OPENAI_API_KEY
+      - key: OPENROUTER_API_KEY
+        fromSecretKey: OPENROUTER_API_KEY
       # Deployment Configuration
       - key: RENDER_DEPLOYMENT
         value: true
