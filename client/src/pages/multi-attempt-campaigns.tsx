@@ -16,7 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Calendar, Clock, Mail, Users, Play, Pause, Settings, Plus, Trash2 } from "lucide-react";
+import { Clock, Mail, Users, Play, Pause, Plus, Trash2 } from "lucide-react";
 
 interface AttemptConfig {
   attemptNumber: number;
