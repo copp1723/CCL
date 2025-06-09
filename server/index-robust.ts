@@ -397,7 +397,7 @@ async function setupRoutes() {
                 "Content-Type": "application/json",
               },
               body: JSON.stringify({
-                model: "gpt-3.5-turbo",
+                model: "gpt-4-turbo-preview",
                 messages: [
                   {
                     role: "system",
@@ -413,6 +413,9 @@ async function setupRoutes() {
             if (openaiResponse.ok) {
               const data = await openaiResponse.json();
               response = data.choices[0]?.message?.content || response;
+            } else {
+              const errorData = await openaiResponse.json();
+              console.error("OpenAI API returned error:", openaiResponse.status, errorData);
             }
           } catch (openaiError) {
             console.error("OpenAI API error:", openaiError);
