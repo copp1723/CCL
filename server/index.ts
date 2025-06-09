@@ -135,7 +135,7 @@ app.use(sanitizeInput);
 // API Key validation middleware
 const apiKeyAuth = (req: Request, res: Response, next: NextFunction) => {
   const apiKey = req.headers["x-api-key"] || req.query.apiKey;
-  const validApiKey = process.env.CCL_API_KEY || process.env.FLEXPATH_API_KEY;
+  const validApiKey = process.env.CCL_API_KEY || process.env.API_KEY;
 
   if (!validApiKey) {
     return res.status(500).json({ error: "Server configuration error" });
