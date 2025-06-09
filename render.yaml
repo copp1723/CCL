@@ -35,6 +35,9 @@ services:
         value: 5000
       - key: MAX_STARTUP_RETRIES
         value: 3
+      # Neon WebSocket Configuration
+      - key: NEON_WEBSOCKET_PROXY
+        value: false
 
 databases:
   - name: ccl-database
