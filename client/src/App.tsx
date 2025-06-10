@@ -6,8 +6,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Sidebar } from "@/components/sidebar";
 import { ChatWidget } from "@/components/chat-widget";
 import Dashboard from "@/pages/dashboard-streamlined";
-import EmailCampaigns from "@/pages/email-campaigns";
-import MultiAttemptCampaigns from "@/pages/multi-attempt-campaigns";
 import CampaignsPage from "@/pages/campaigns";
 import CampaignDetailPage from "@/pages/campaign-detail";
 import DataIngestion from "@/pages/data-ingestion";
@@ -24,8 +22,6 @@ function Router() {
           <Switch>
             <Route path="/" component={Dashboard} />
             <Route path="/dashboard" component={Dashboard} />
-            <Route path="/email-campaigns" component={EmailCampaigns} />
-            <Route path="/multi-attempt-campaigns" component={MultiAttemptCampaigns} />
             <Route path="/campaigns" component={CampaignsPage} />
             <Route path="/campaigns/:id" component={CampaignDetailPage} />
             <Route path="/data-ingestion" component={DataIngestion} />

@@ -27,22 +27,10 @@ const navItems: NavItem[] = [
     description: "Agent status and metrics overview",
   },
   {
-    title: "Email Campaigns",
-    href: "/email-campaigns",
-    icon: Mail,
-    description: "Manage re-engagement email campaigns",
-  },
-  {
-    title: "Multi-Attempt Campaigns",
-    href: "/multi-attempt-campaigns",
-    icon: BarChart3,
-    description: "Automated email sequences with timing controls",
-  },
-  {
     title: "Campaigns",
     href: "/campaigns",
-    icon: FileText,
-    description: "Create and manage automated email campaigns",
+    icon: Mail,
+    description: "Create and manage email campaigns",
   },
   {
     title: "Data Ingestion",
