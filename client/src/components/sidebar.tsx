@@ -4,12 +4,13 @@ import {
   Home,
   Mail,
   Database,
-  Settings,
+  Settings as SettingsIcon,
   Bot,
   BarChart3,
   FileText,
   Webhook,
   MessageSquare,
+  Sliders,
 } from "lucide-react";
 
 interface NavItem {
@@ -47,8 +48,14 @@ const navItems: NavItem[] = [
   {
     title: "Prompt Variables",
     href: "/prompt-variables",
-    icon: Settings,
+    icon: Sliders,
     description: "Configure dynamic AI response parameters",
+  },
+  {
+    title: "Settings",
+    href: "/settings",
+    icon: SettingsIcon,
+    description: "System configuration and integrations",
   },
 ];
 

@@ -66,6 +66,38 @@ router.get("/:campaignId/leads/enrolled", async (req, res) => {
   }
 });
 
+// Enroll leads in a campaign
+router.post("/:campaignId/enroll-leads", async (req, res) => {
+  const { campaignId } = req.params;
+  const { leadIds } = req.body;
+  
+  try {
+    if (!leadIds || !Array.isArray(leadIds) || leadIds.length === 0) {
+      return res.status(400).json({ error: "Please provide an array of lead IDs to enroll." });
+    }
+
+    // Enroll each lead
+    const enrolled = [];
+    for (const leadId of leadIds) {
+      try {
+        await storageService.enrollLeadInCampaign(leadId, campaignId);
+        enrolled.push(leadId);
+      } catch (error) {
+        console.error(`Failed to enroll lead ${leadId}:`, error);
+      }
+    }
+
+    res.status(200).json({ 
+      success: true, 
+      enrolled: enrolled.length,
+      message: `Successfully enrolled ${enrolled.length} leads in campaign`
+    });
+  } catch (error) {
+    console.error("Failed to enroll leads:", error);
+    res.status(500).json({ error: "Failed to enroll leads in campaign." });
+  }
+});
+
 // Start a campaign with actual email sending
 router.put("/:campaignId/start", async (req, res) => {
   const { campaignId } = req.params;

@@ -6,11 +6,12 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Sidebar } from "@/components/sidebar";
 import { ChatWidget } from "@/components/chat-widget";
 import Dashboard from "@/pages/dashboard-streamlined";
-import CampaignsPage from "@/pages/campaigns-unified";
+import CampaignsPage from "@/pages/campaigns-enhanced";
 import CampaignDetailPage from "@/pages/campaign-detail";
 import DataIngestion from "@/pages/data-ingestion";
 import PromptTesting from "@/pages/prompt-testing-clean";
 import PromptVariables from "@/pages/prompt-variables";
+import Settings from "@/pages/settings";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -27,6 +28,7 @@ function Router() {
             <Route path="/data-ingestion" component={DataIngestion} />
             <Route path="/prompt-testing" component={PromptTesting} />
             <Route path="/prompt-variables" component={PromptVariables} />
+            <Route path="/settings" component={Settings} />
             <Route component={NotFound} />
           </Switch>
         </div>
