@@ -6,7 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Sidebar } from "@/components/sidebar";
 import { ChatWidget } from "@/components/chat-widget";
 import Dashboard from "@/pages/dashboard-streamlined";
-import CampaignsPage from "@/pages/campaigns";
+import CampaignsPage from "@/pages/campaigns-unified";
 import CampaignDetailPage from "@/pages/campaign-detail";
 import DataIngestion from "@/pages/data-ingestion";
 import PromptTesting from "@/pages/prompt-testing-clean";
