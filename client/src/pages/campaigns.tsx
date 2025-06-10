@@ -2,7 +2,7 @@ import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, Play, Loader2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +23,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { useToast } from "@/hooks/use-toast";
 
 // API fetcher functions
 const fetchCampaigns = async () => {
@@ -43,6 +44,16 @@ const createCampaign = async (data: any) => {
   });
   if (!res.ok) {
     throw new Error("Failed to create campaign");
+  }
+  return res.json();
+};
+
+const startCampaign = async (campaignId: string) => {
+  const res = await fetch(`/api/campaigns/${campaignId}/start`, {
+    method: "PUT",
+  });
+  if (!res.ok) {
+    throw new Error("Failed to start campaign");
   }
   return res.json();
 };
@@ -114,6 +125,9 @@ function CreateCampaignForm({ setOpen }: { setOpen: (open: boolean) => void }) {
 
 export default function CampaignsPage() {
   const [open, setOpen] = React.useState(false);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  
   const {
     data: campaigns,
     isLoading,
@@ -122,6 +136,28 @@ export default function CampaignsPage() {
     queryKey: ["campaigns"],
     queryFn: fetchCampaigns,
   });
+
+  const startCampaignMutation = useMutation({
+    mutationFn: startCampaign,
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["campaigns"] });
+      toast({
+        title: "Success",
+        description: data.message || "Campaign started successfully",
+      });
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to start campaign",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleStartCampaign = (campaignId: string) => {
+    startCampaignMutation.mutate(campaignId);
+  };
 
   if (isLoading) return <div>Loading campaigns...</div>;
   if (error) return <div>Error loading campaigns.</div>;
@@ -163,6 +199,31 @@ export default function CampaignsPage() {
                   {campaign.status}
                 </span>
               </div>
+              {campaign.status !== "active" && (
+                <Button
+                  className="mt-4 w-full"
+                  onClick={() => handleStartCampaign(campaign.id)}
+                  disabled={startCampaignMutation.isLoading}
+                  variant="default"
+                >
+                  {startCampaignMutation.isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Starting...
+                    </>
+                  ) : (
+                    <>
+                      <Play className="mr-2 h-4 w-4" />
+                      Start Campaign
+                    </>
+                  )}
+                </Button>
+              )}
+              {campaign.status === "active" && (
+                <div className="mt-4 p-2 bg-green-50 border border-green-200 rounded text-sm text-green-700">
+                  Campaign is currently running
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}

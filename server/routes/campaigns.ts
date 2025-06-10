@@ -65,6 +65,46 @@ router.get("/:campaignId/leads/enrolled", async (req, res) => {
   }
 });
 
+// Start a campaign
+router.put("/:campaignId/start", async (req, res) => {
+  const { campaignId } = req.params;
+  try {
+    // Get the campaign first
+    const campaign = await storageService.getCampaignById(campaignId);
+    if (!campaign) {
+      return res.status(404).json({ error: "Campaign not found." });
+    }
+
+    // Check if campaign is already active
+    if (campaign.status === "active") {
+      return res.status(400).json({ error: "Campaign is already active." });
+    }
+
+    // Update campaign status to active
+    const updatedCampaign = await storageService.updateCampaign(campaignId, {
+      status: "active",
+      startedAt: new Date().toISOString(),
+    });
+
+    // Log the activity
+    await storageService.createActivity(
+      "campaign_started",
+      `Campaign "${campaign.name}" has been started`,
+      "campaign-management",
+      { campaignId, campaignName: campaign.name }
+    );
+
+    res.status(200).json({
+      success: true,
+      campaign: updatedCampaign,
+      message: "Campaign started successfully",
+    });
+  } catch (error) {
+    console.error(`Failed to start campaign ${campaignId}:`, error);
+    res.status(500).json({ error: "Failed to start campaign." });
+  }
+});
+
 // Update campaign (edit name, goal, status)
 router.patch("/:campaignId", async (req, res) => {
   const { campaignId } = req.params;
