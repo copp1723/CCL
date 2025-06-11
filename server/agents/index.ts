@@ -1,16 +1,16 @@
-import { visitorIdentifierService } from "./visitor-identifier";
-import { emailReengagementService } from "./email-reengagement";
-import { creditCheckService } from "./credit-check";
-import { leadPackagingService } from "./lead-packaging";
-import { WebSocketManager } from "../services/websocket";
+import { VisitorIdentifierService } from "./visitor-identifier-service";
+import { EmailReengagementService } from "./email-reengagement-service";
+// import { creditCheckService } from "./credit-check";
+// import { leadPackagingService } from "./lead-packaging";
+// import { WebSocketManager } from "../services/websocket";
 
-export {
-  // Services
-  visitorIdentifierService,
-  emailReengagementService,
-  creditCheckService,
-  leadPackagingService,
-};
+// Create service instances
+export const visitorIdentifierService = new VisitorIdentifierService();
+export const emailReengagementService = new EmailReengagementService();
+
+// Mock the missing services for now
+export const creditCheckService = null;
+export const leadPackagingService = null;
 
 export interface AgentMetrics {
   activeAgents: number;
@@ -29,11 +29,16 @@ export interface AgentStatus {
   color: string;
 }
 
-export class AgentOrchestrator {
-  private wsManager: WebSocketManager;
+// Define WebSocketManager interface locally
+interface WebSocketManager {
+  // Add necessary methods here
+}
 
-  constructor(wsManager: WebSocketManager) {
-    this.wsManager = wsManager;
+export class AgentOrchestrator {
+  private wsManager: WebSocketManager | null;
+
+  constructor(wsManager?: WebSocketManager) {
+    this.wsManager = wsManager || null;
     this.initializeAgents();
   }
 
@@ -187,7 +192,7 @@ export class AgentOrchestrator {
 
 export let agentOrchestrator: AgentOrchestrator;
 
-export function initializeAgentOrchestrator(wsManager: WebSocketManager): AgentOrchestrator {
+export function initializeAgentOrchestrator(wsManager?: WebSocketManager): AgentOrchestrator {
   agentOrchestrator = new AgentOrchestrator(wsManager);
   return agentOrchestrator;
 }

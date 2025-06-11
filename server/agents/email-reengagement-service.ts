@@ -1,5 +1,6 @@
 import { BaseAgent, AgentResult } from "./base-agent";
-import { tool } from "@openai/agents";
+// Remove dependency on @openai/agents
+// import { tool } from "@openai/agents";
 import { storage } from "../storage";
 import { randomUUID } from "crypto";
 
@@ -42,6 +43,24 @@ export class EmailReengagementService extends BaseAgent {
   private emailService: EmailService;
 
   constructor() {
+    const tools = [
+      {
+        name: "generate_email_content",
+        description: "Generate personalized email content based on visitor abandonment data",
+        execute: (params: any) => this.generateEmailContent(params),
+      },
+      {
+        name: "create_return_token",
+        description: "Create a secure return token with TTL",
+        execute: (params: any) => this.createReturnToken(params),
+      },
+      {
+        name: "send_email",
+        description: "Send email via service provider",
+        execute: (params: any) => this.sendEmail(params),
+      },
+    ];
+
     super({
       name: "EmailReengagementAgent",
       instructions: `
@@ -55,117 +74,95 @@ export class EmailReengagementService extends BaseAgent {
         Always use empathetic, human-like communication.
         Never reveal you are an AI system.
       `,
-      tools: [
-        this.createGenerateEmailContentTool(),
-        this.createCreateReturnTokenTool(),
-        this.createSendEmailTool(),
-      ],
+      tools,
     });
 
     this.emailService = new MockEmailService();
   }
 
-  private createGenerateEmailContentTool() {
-    return tool({
-      name: "generate_email_content",
-      description: "Generate personalized email content based on visitor abandonment data",
-      execute: async (params: { visitorId: number; abandonmentStep: number }) => {
-        try {
-          const { visitorId, abandonmentStep } = params;
+  private async generateEmailContent(params: { visitorId: number; abandonmentStep: number }) {
+    try {
+      const { visitorId, abandonmentStep } = params;
 
-          const visitor = await storage.getVisitor(visitorId);
-          if (!visitor) {
-            throw new Error("Visitor not found");
-          }
+      const visitor = await storage.getVisitorById(visitorId.toString());
+      if (!visitor) {
+        throw new Error("Visitor not found");
+      }
 
-          const content = this.generatePersonalizedContent(abandonmentStep);
+      const content = this.generatePersonalizedContent(abandonmentStep);
 
-          return this.createSuccessResult(content, {
-            operation: "generate_email_content",
-            step: abandonmentStep,
-          });
-        } catch (error) {
-          return this.handleError("generate_email_content", error);
-        }
-      },
-    });
+      return this.createSuccessResult(content, {
+        operation: "generate_email_content",
+        step: abandonmentStep,
+      });
+    } catch (error) {
+      return this.handleError("generate_email_content", error);
+    }
   }
 
-  private createCreateReturnTokenTool() {
-    return tool({
-      name: "create_return_token",
-      description: "Create a secure return token with 24-hour TTL",
-      execute: async (params: { visitorId: number }) => {
-        try {
-          const { visitorId } = params;
+  private async createReturnToken(params: { visitorId: number }) {
+    try {
+      const { visitorId } = params;
 
-          const returnToken = randomUUID();
-          const expiryTime = new Date();
-          expiryTime.setHours(expiryTime.getHours() + 24);
+      const returnToken = randomUUID();
+      const expiryTime = new Date();
+      expiryTime.setHours(expiryTime.getHours() + 24);
 
-          await storage.updateVisitor(visitorId, {
-            returnToken,
-            returnTokenExpiry: expiryTime,
-          });
+      await storage.updateVisitor(visitorId.toString(), {
+        returnToken,
+        returnTokenExpiry: expiryTime,
+      } as any);
 
-          return this.createSuccessResult(
-            {
-              returnToken,
-              expiryTime: expiryTime.toISOString(),
-            },
-            {
-              operation: "create_return_token",
-            }
-          );
-        } catch (error) {
-          return this.handleError("create_return_token", error);
+      return this.createSuccessResult(
+        {
+          returnToken,
+          expiryTime: expiryTime.toISOString(),
+        },
+        {
+          operation: "create_return_token",
         }
-      },
-    });
+      );
+    } catch (error) {
+      return this.handleError("create_return_token", error);
+    }
   }
 
-  private createSendEmailTool() {
-    return tool({
-      name: "send_email",
-      description: "Send re-engagement email via email service provider",
-      execute: async (params: {
-        visitorId: number;
-        emailHash: string;
-        subject: string;
-        body: string;
-        returnToken: string;
-      }) => {
-        try {
-          const { visitorId, emailHash, subject, body, returnToken } = params;
+  private async sendEmail(params: {
+    visitorId: number;
+    emailHash: string;
+    subject: string;
+    body: string;
+    returnToken: string;
+  }) {
+    try {
+      const { visitorId, emailHash, subject, body, returnToken } = params;
 
-          const emailResult = await this.emailService.sendReengagementEmail({
-            to: emailHash,
-            subject,
-            body,
-            returnToken,
-          });
+      const emailResult = await this.emailService.sendReengagementEmail({
+        to: emailHash,
+        subject,
+        body,
+        returnToken,
+      });
 
-          if (emailResult.success) {
-            await this.logActivity(
-              "email_sent",
-              `Re-engagement email sent via ${this.emailService.getProviderName()}`,
-              visitorId.toString(),
-              {
-                messageId: emailResult.messageId,
-                provider: this.emailService.getProviderName(),
-              }
-            );
-          }
-
-          return this.createSuccessResult(emailResult, {
-            operation: "send_email",
+      if (emailResult.success) {
+        await this.logActivity(
+          "email_sent",
+          `Re-engagement email sent via ${this.emailService.getProviderName()}`,
+          visitorId.toString(),
+          {
+            messageId: emailResult.messageId,
             provider: this.emailService.getProviderName(),
-          });
-        } catch (error) {
-          return this.handleError("send_email", error);
-        }
-      },
-    });
+          }
+        );
+      }
+
+      return this.createSuccessResult(emailResult, {
+        operation: "send_email",
+        provider: this.emailService.getProviderName(),
+      });
+    } catch (error) {
+      return this.handleError("send_email", error);
+    }
   }
 
   private generatePersonalizedContent(abandonmentStep: number): EmailContent {
@@ -189,7 +186,7 @@ export class EmailReengagementService extends BaseAgent {
 
   async sendReengagementEmail(visitorId: number): Promise<AgentResult<{ campaignId?: number }>> {
     try {
-      const visitor = await storage.getVisitor(visitorId);
+      const visitor = await storage.getVisitorById(visitorId.toString());
       if (!visitor) {
         throw new Error("Visitor not found");
       }
@@ -198,10 +195,10 @@ export class EmailReengagementService extends BaseAgent {
       const expiryTime = new Date();
       expiryTime.setHours(expiryTime.getHours() + 24);
 
-      await storage.updateVisitor(visitorId, {
+      await storage.updateVisitor(visitorId.toString(), {
         returnToken,
         returnTokenExpiry: expiryTime,
-      });
+      } as any);
 
       const content = this.generatePersonalizedContent(visitor.abandonmentStep || 1);
 

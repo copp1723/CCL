@@ -1,4 +1,12 @@
-import { Agent, tool } from "@openai/agents";
+// Remove dependency on @openai/agents
+// import { Agent, tool } from "@openai/agents";
+
+// Define Agent interface locally
+interface Agent {
+  name: string;
+  instructions: string;
+  tools: any[];
+}
 import { storage } from "../storage";
 import { createHash } from "crypto";
 import type { InsertVisitor, InsertAgentActivity } from "@shared/schema";

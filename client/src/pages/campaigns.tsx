@@ -103,8 +103,8 @@ function CreateCampaignForm({ setOpen }: { setOpen: (open: boolean) => void }) {
             </FormItem>
           )}
         />
-        <Button type="submit" disabled={mutation.isLoading}>
-          {mutation.isLoading ? "Creating..." : "Create Campaign"}
+        <Button type="submit" disabled={mutation.isPending}>
+          {mutation.isPending ? "Creating..." : "Create Campaign"}
         </Button>
       </form>
     </Form>
@@ -115,14 +115,14 @@ export default function CampaignsPage() {
   const [open, setOpen] = React.useState(false);
   const {
     data: campaigns,
-    isLoading,
+    isPending,
     error,
   } = useQuery({
     queryKey: ["campaigns"],
     queryFn: fetchCampaigns,
   });
 
-  if (isLoading) return <div>Loading campaigns...</div>;
+  if (isPending) return <div>Loading campaigns...</div>;
   if (error) return <div>Error loading campaigns.</div>;
 
   return (
