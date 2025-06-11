@@ -40,7 +40,7 @@ export class MailgunService {
     try {
       // Sanitize HTML content before sending
       const sanitizedHtml = DOMPurify.sanitize(emailData.html);
-      
+
       const messageData = {
         from: emailData.from || this.defaultFrom,
         to: emailData.to,
@@ -140,9 +140,9 @@ export class MailgunService {
    */
   private stripHtml(html: string): string {
     // Use DOMPurify to strip all HTML tags and keep only text content
-    const clean = DOMPurify.sanitize(html, { 
-      ALLOWED_TAGS: [], 
-      KEEP_CONTENT: true 
+    const clean = DOMPurify.sanitize(html, {
+      ALLOWED_TAGS: [],
+      KEEP_CONTENT: true,
     });
     return clean.replace(/\s+/g, " ").trim();
   }

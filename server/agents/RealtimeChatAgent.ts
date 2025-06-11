@@ -242,10 +242,10 @@ export class RealtimeChatAgent {
 
           // Log the trigger event
           await storage.createAgentActivity({
-            agentType: "realtime_chat",
+            agentName: "RealtimeChatAgent",
             action: "lead_packaging_triggered",
-            description: "Cathy triggered lead packaging after PII collection completion",
-            targetId: visitorId.toString(),
+            details: "Cathy triggered lead packaging after PII collection completion",
+            visitorId: visitorId,
             metadata: {
               source,
               piiComplete: true,
@@ -295,8 +295,6 @@ export class RealtimeChatAgent {
             const newSession: InsertChatSession = {
               sessionId,
               visitorId: visitorId || null,
-              agentType: "realtime_chat",
-              status: "active",
               messages: [],
             };
             chatSession = await storage.createChatSession(newSession);
@@ -761,10 +759,10 @@ export class RealtimeChatAgent {
   private async triggerLeadPackaging(visitorId: number, source: string) {
     try {
       await storage.createAgentActivity({
-        agentType: "realtime_chat",
+        agentName: "RealtimeChatAgent",
         action: "lead_packaging_triggered",
-        description: "Cathy triggered lead packaging after PII collection completion",
-        targetId: visitorId.toString(),
+        details: "Cathy triggered lead packaging after PII collection completion",
+        visitorId: visitorId,
         metadata: {
           source,
           piiComplete: true,
@@ -844,8 +842,7 @@ export class RealtimeChatAgent {
           const chatSession = await storage.getChatSessionBySessionId(sessionId);
           if (chatSession) {
             await storage.updateChatSession(chatSession.id, {
-              status: "completed",
-              agentType: "credit_check_handoff",
+              isActive: false,
             });
           }
 
@@ -858,10 +855,10 @@ export class RealtimeChatAgent {
 
           // Log handoff activity
           await storage.createAgentActivity({
-            agentType: "realtime_chat",
+            agentName: "RealtimeChatAgent",
             action: "handoff_to_credit_check",
-            description: "Cathy successfully connected customer to credit check with warm handoff",
-            targetId: sessionId,
+            details: "Cathy successfully connected customer to credit check with warm handoff",
+            visitorId: visitorId,
             metadata: {
               phoneNumber: this.formatPhoneNumber(phoneNumber),
               visitorId,
@@ -931,10 +928,10 @@ export class RealtimeChatAgent {
 
           // Log recovery activity
           await storage.createAgentActivity({
-            agentType: "realtime_chat",
+            agentName: "RealtimeChatAgent",
             action: "application_recovery",
-            description: "Cathy provided empathetic application recovery assistance",
-            targetId: visitor.id.toString(),
+            details: "Cathy provided empathetic application recovery assistance",
+            visitorId: visitor.id,
             metadata: {
               abandonmentStep: visitor.abandonmentStep,
               recoveryMethod: returnToken ? "return_token" : "email_hash",
@@ -949,8 +946,7 @@ export class RealtimeChatAgent {
           };
         } catch (error) {
           this.logger.error("Error recovering application", {
-            returnToken,
-            emailHash,
+            params,
             error: error instanceof Error ? error.message : "Unknown error",
           });
           return {
@@ -1004,8 +1000,6 @@ export class RealtimeChatAgent {
         const newSession: InsertChatSession = {
           sessionId,
           visitorId: visitorId || null,
-          agentType: "realtime_chat",
-          status: "active",
           messages: [],
         };
         chatSession = await storage.createChatSession(newSession);

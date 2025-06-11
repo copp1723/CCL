@@ -16,7 +16,7 @@ async function runCompleteTest() {
   console.log("🚀 Testing Complete CCL Integration...\n");
 
   // Skip integration tests in CI environment without database
-  if (process.env.CI && !process.env.DATABASE_URL?.includes('localhost')) {
+  if (process.env.CI && !process.env.DATABASE_URL?.includes("localhost")) {
     console.log("⏭️  Skipping integration tests in CI environment without database");
     console.log("✅ Integration tests would run in environment with database access");
     return;

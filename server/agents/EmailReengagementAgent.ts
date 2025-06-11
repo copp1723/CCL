@@ -1,6 +1,6 @@
 import { Agent, tool } from "@openai/agents";
 import { storage } from "../storage";
-import { EmailService } from "../services/EmailService";
+import { OneRylieEmailService } from "../services/email-onerylie";
 import { randomUUID } from "crypto";
 import type { InsertEmailCampaign } from "@shared/schema";
 import {
@@ -111,7 +111,7 @@ export class EmailReengagementAgent {
           expiryTime.setHours(expiryTime.getHours() + 24); // 24-hour TTL
 
           // Update visitor with return token
-          await storage.updateVisitor(visitorId, {
+          await storage.updateVisitor(visitorId.toString(), {
             returnToken,
             returnTokenExpiry: expiryTime,
           });
@@ -152,10 +152,9 @@ export class EmailReengagementAgent {
           // Create email campaign record
           const campaign: InsertEmailCampaign = {
             visitorId,
-            templateId: "abandonment_reengagement",
-            emailHash,
             returnToken,
-            status: "sent",
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+            emailSent: true,
           };
 
           const emailCampaign = await storage.createEmailCampaign(campaign);
@@ -170,15 +169,11 @@ export class EmailReengagementAgent {
 
           // Log activity
           await storage.createAgentActivity({
-            agentType: "email_reengagement",
+            agentName: "EmailReengagementAgent",
             action: "email_sent",
-            description: `Re-engagement email sent via ${this.emailService.getProviderName()}`,
-            targetId: visitorId.toString(),
-            metadata: {
-              emailCampaignId: emailCampaign.id,
-              returnToken,
-              provider: this.emailService.getProviderName(),
-            },
+            details: `Re-engagement email sent via ${this.emailService.getProviderName()}`,
+            visitorId: visitorId,
+            status: "success",
           });
 
           console.log(
@@ -284,7 +279,7 @@ export class EmailReengagementAgent {
       expiryTime.setHours(expiryTime.getHours() + 24);
 
       // Update visitor with return token
-      await storage.updateVisitor(visitorId, {
+      await storage.updateVisitor(visitorId.toString(), {
         returnToken,
         returnTokenExpiry: expiryTime,
       });
@@ -295,10 +290,9 @@ export class EmailReengagementAgent {
       // Create email campaign
       const campaign: InsertEmailCampaign = {
         visitorId,
-        templateId: "abandonment_reengagement",
-        emailHash: visitor.emailHash,
         returnToken,
-        status: "sent",
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+        emailSent: true,
       };
 
       const emailCampaign = await storage.createEmailCampaign(campaign);
@@ -316,15 +310,11 @@ export class EmailReengagementAgent {
 
       // Log activity
       await storage.createAgentActivity({
-        agentType: "email_reengagement",
+        agentName: "EmailReengagementAgent",
         action: "email_sent",
-        description: "Re-engagement email sent successfully",
-        targetId: visitorId.toString(),
-        metadata: {
-          emailCampaignId: emailCampaign.id,
-          returnToken,
-          abandonmentStep: visitor.abandonmentStep,
-        },
+        details: "Re-engagement email sent successfully",
+        visitorId: visitorId,
+        status: "success",
       });
 
       console.log(`[EmailReengagementAgent] Sent re-engagement email for visitor: ${visitorId}`);

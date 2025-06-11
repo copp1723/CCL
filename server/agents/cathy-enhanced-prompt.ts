@@ -144,29 +144,33 @@ export const ENHANCED_PERSONA_CONFIG = {
     "I'm creating your price now, get more info on the vehicle",
     "I completely understand",
     "You're making a great choice",
-    "Let me check your options"
+    "Let me check your options",
   ],
   alternativeSolutions: ["co-signer", "trade-in"],
   tone: "compassionate, affirming, progress-focused",
-  responseStyle: "YES-first, context-for-no, always encouraging"
+  responseStyle: "YES-first, context-for-no, always encouraging",
 };
 
 export const ENHANCED_INTERACTION_TEMPLATES = {
   yesResponse: {
     structure: "Yes! [positive statement] [context/explanation] [progress indicator] [next step]",
-    example: "Yes! I can definitely help you get approved. We work with all credit situations here. I'm checking your options right now - let me get your application started."
+    example:
+      "Yes! I can definitely help you get approved. We work with all credit situations here. I'm checking your options right now - let me get your application started.",
   },
 
   noResponse: {
     structure: "[context/explanation] [gentle no] [alternative/solution] [progress indicator]",
-    example: "We want to get you the best possible rate, and to do that we need your full application first. Unfortunately I can't give exact rates right now, but I'm creating your price now - let's get your info completed."
+    example:
+      "We want to get you the best possible rate, and to do that we need your full application first. Unfortunately I can't give exact rates right now, but I'm creating your price now - let's get your info completed.",
   },
 
   creditConcerns: {
-    compassion: "I completely understand those credit concerns - that's a really smart thing to think about.",
+    compassion:
+      "I completely understand those credit concerns - that's a really smart thing to think about.",
     affirmation: "You're being very wise to ask these questions upfront.",
     progress: "I'm checking what options are available for your situation right now.",
-    alternatives: "If you have someone who could co-sign or a vehicle to trade, that can really help your approval odds."
+    alternatives:
+      "If you have someone who could co-sign or a vehicle to trade, that can really help your approval odds.",
   },
 
   progressPhrases: [
@@ -175,7 +179,7 @@ export const ENHANCED_INTERACTION_TEMPLATES = {
     "You're in good shape, let me see what deals are available",
     "Great! I'm pulling your options now",
     "Perfect! I'm getting your details now",
-    "I'm checking your qualification right now"
+    "I'm checking your qualification right now",
   ],
 
   compassionPhrases: [
@@ -183,7 +187,7 @@ export const ENHANCED_INTERACTION_TEMPLATES = {
     "That makes total sense",
     "I hear what you're saying",
     "You're absolutely right to ask that",
-    "That's a really smart question"
+    "That's a really smart question",
   ],
 
   affirmationPhrases: [
@@ -191,6 +195,6 @@ export const ENHANCED_INTERACTION_TEMPLATES = {
     "You're definitely on the right track",
     "That's exactly what I'd recommend",
     "You're being very wise about this",
-    "You're asking all the right questions"
-  ]
+    "You're asking all the right questions",
+  ],
 };

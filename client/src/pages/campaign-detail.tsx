@@ -196,8 +196,8 @@ function AddTemplateForm({
             </FormItem>
           )}
         />
-        <Button type="submit" disabled={mutation.isLoading}>
-          {mutation.isLoading ? "Adding..." : "Add Template"}
+        <Button type="submit" disabled={mutation.isPending}>
+          {mutation.isPending ? "Adding..." : "Add Template"}
         </Button>
       </form>
     </Form>
@@ -259,8 +259,8 @@ function EditCampaignForm({
             </FormItem>
           )}
         />
-        <Button type="submit" disabled={mutation.isLoading}>
-          {mutation.isLoading ? "Saving..." : "Save Changes"}
+        <Button type="submit" disabled={mutation.isPending}>
+          {mutation.isPending ? "Saving..." : "Save Changes"}
         </Button>
       </form>
     </Form>
@@ -269,7 +269,7 @@ function EditCampaignForm({
 
 export default function CampaignDetailPage() {
   const params = useParams();
-  const campaignId = params.id;
+  const campaignId = params.id as string | undefined;
   const [open, setOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
@@ -504,10 +504,10 @@ export default function CampaignDetailPage() {
                 )}
                 <Button
                   className="mt-2"
-                  disabled={selectedLeadIds.length === 0 || mutationEnroll.isLoading}
+                  disabled={selectedLeadIds.length === 0 || mutationEnroll.isPending}
                   onClick={() => mutationEnroll.mutate(selectedLeadIds)}
                 >
-                  {mutationEnroll.isLoading ? "Enrolling..." : "Enroll Selected"}
+                  {mutationEnroll.isPending ? "Enrolling..." : "Enroll Selected"}
                 </Button>
               </div>
             </DialogContent>

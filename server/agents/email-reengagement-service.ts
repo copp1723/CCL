@@ -55,14 +55,16 @@ export class EmailReengagementService extends BaseAgent {
         Always use empathetic, human-like communication.
         Never reveal you are an AI system.
       `,
-      tools: [
-        this.createGenerateEmailContentTool(),
-        this.createCreateReturnTokenTool(),
-        this.createSendEmailTool(),
-      ],
     });
 
     this.emailService = new MockEmailService();
+
+    // Add tools after super() call
+    this.tools = [
+      this.createGenerateEmailContentTool(),
+      this.createCreateReturnTokenTool(),
+      this.createSendEmailTool(),
+    ];
   }
 
   private createGenerateEmailContentTool() {
@@ -103,7 +105,7 @@ export class EmailReengagementService extends BaseAgent {
           const expiryTime = new Date();
           expiryTime.setHours(expiryTime.getHours() + 24);
 
-          await storage.updateVisitor(visitorId, {
+          await storage.updateVisitor(visitorId.toString(), {
             returnToken,
             returnTokenExpiry: expiryTime,
           });
@@ -198,7 +200,7 @@ export class EmailReengagementService extends BaseAgent {
       const expiryTime = new Date();
       expiryTime.setHours(expiryTime.getHours() + 24);
 
-      await storage.updateVisitor(visitorId, {
+      await storage.updateVisitor(visitorId.toString(), {
         returnToken,
         returnTokenExpiry: expiryTime,
       });

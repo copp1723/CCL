@@ -287,7 +287,7 @@ export class LeadPackagingAgent {
             source: leadPackage.engagement.source,
             status: boberdooResult.success ? "submitted" : "failed",
             dealerCrmSubmitted: false,
-            boberdooSubmitted: boberdooResult.success,
+            dealerCrmSubmitted: boberdooResult.success,
             boberdooStatus: boberdooResult.status,
             boberdooPrice: boberdooResult.price,
             boberdooBuyerId: boberdooResult.buyerId,
@@ -299,7 +299,7 @@ export class LeadPackagingAgent {
           if (boberdooResult.success) {
             // Log successful submission
             await storage.createAgentActivity({
-              agentType: "lead_packaging",
+              agentName: "LeadPackagingAgent",
               action: "boberdoo_submitted",
               description: `Lead successfully submitted to Boberdoo marketplace`,
               targetId: leadPackage.leadId,
@@ -329,7 +329,7 @@ export class LeadPackagingAgent {
           } else {
             // Log failed submission
             await storage.createAgentActivity({
-              agentType: "lead_packaging",
+              agentName: "LeadPackagingAgent",
               action: "boberdoo_failed",
               description: `Boberdoo submission failed: ${boberdooResult.message}`,
               targetId: leadPackage.leadId,
@@ -393,7 +393,7 @@ export class LeadPackagingAgent {
 
             // Log success activity
             await storage.createAgentActivity({
-              agentType: "lead_packaging",
+              agentName: "LeadPackagingAgent",
               action: "lead_submitted",
               description: `Lead successfully submitted to dealer CRM`,
               targetId: leadPackage.leadId,
@@ -448,7 +448,7 @@ export class LeadPackagingAgent {
 
           // Log failure activity
           await storage.createAgentActivity({
-            agentType: "lead_packaging",
+            agentName: "LeadPackagingAgent",
             action: "submission_failed",
             description: `Lead submission failed after ${attemptCount} attempts: ${error}`,
             targetId: lead.leadId,
@@ -751,7 +751,7 @@ export class LeadPackagingAgent {
       source: leadPackage.engagement.source,
       status: boberdooResult.success ? "submitted" : "failed",
       dealerCrmSubmitted: false,
-      boberdooSubmitted: boberdooResult.success,
+      dealerCrmSubmitted: boberdooResult.success,
       boberdooStatus: boberdooResult.status,
       boberdooPrice: boberdooResult.price,
       boberdooBuyerId: boberdooResult.buyerId,
@@ -762,7 +762,7 @@ export class LeadPackagingAgent {
 
     if (boberdooResult.success) {
       await storage.createAgentActivity({
-        agentType: "lead_packaging",
+        agentName: "LeadPackagingAgent",
         action: "boberdoo_submitted",
         description: `Lead successfully submitted to Boberdoo marketplace`,
         targetId: leadPackage.leadId,
@@ -783,7 +783,7 @@ export class LeadPackagingAgent {
       };
     } else {
       await storage.createAgentActivity({
-        agentType: "lead_packaging",
+        agentName: "LeadPackagingAgent",
         action: "boberdoo_failed",
         description: `Boberdoo submission failed: ${boberdooResult.message}`,
         targetId: leadPackage.leadId,
@@ -825,7 +825,7 @@ export class LeadPackagingAgent {
       });
 
       await storage.createAgentActivity({
-        agentType: "lead_packaging",
+        agentName: "LeadPackagingAgent",
         action: "dealer_crm_submitted",
         description: "Lead successfully submitted to dealer CRM",
         targetId: leadPackage.leadId,
@@ -843,7 +843,7 @@ export class LeadPackagingAgent {
       });
 
       await storage.createAgentActivity({
-        agentType: "lead_packaging",
+        agentName: "LeadPackagingAgent",
         action: "dealer_crm_failed",
         description: `Dealer CRM submission failed: ${webhookResult.error}`,
         targetId: leadPackage.leadId,
