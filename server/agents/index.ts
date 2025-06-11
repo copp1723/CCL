@@ -1,15 +1,20 @@
-import { visitorIdentifierService } from "./visitor-identifier";
-import { emailReengagementService } from "./email-reengagement";
-import { creditCheckService } from "./credit-check";
-import { leadPackagingService } from "./lead-packaging";
-import { WebSocketManager } from "../services/websocket";
+import { visitorIdentifierService } from "./visitor-identifier-service";
+import { emailReengagementService } from "./email-reengagement-service";
+// import { creditCheckService } from "./credit-check"; // Not found
+// import { leadPackagingService } from "./lead-packaging"; // Not found
+// import { WebSocketManager } from "../services/websocket"; // File not found
+
+// Temporary WebSocketManager interface
+interface WebSocketManager {
+  // Add methods as needed
+}
 
 export {
   // Services
   visitorIdentifierService,
   emailReengagementService,
-  creditCheckService,
-  leadPackagingService,
+  // creditCheckService,
+  // leadPackagingService,
 };
 
 export interface AgentMetrics {

@@ -18,22 +18,147 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
 });
 
-export const visitors = pgTable("visitors", {
-  id: serial("id").primaryKey(),
-  emailHash: text("email_hash").unique(),
-  sessionId: text("session_id").notNull(),
-  phoneNumber: text("phone_number"),
-  email: text("email"),
-  ipAddress: text("ip_address"),
-  userAgent: text("user_agent"),
-  metadata: jsonb("metadata"),
-  returnToken: text("return_token").unique(),
-  returnTokenExpiry: timestamp("return_token_expiry"),
-  abandonmentStep: integer("abandonment_step").default(1),
-  lastActivity: timestamp("last_activity").notNull().defaultNow(),
-  abandonmentDetected: boolean("abandonment_detected").default(false),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+// Outreach attempts tracking table
+export const outreachAttempts = pgTable(
+  "outreach_attempts",
+  {
+    id: serial("id").primaryKey(),
+    visitorId: integer("visitor_id")
+      .references(() => visitors.id)
+      .notNull(),
+    channel: varchar("channel", { length: 20 }).notNull(), // 'sms', 'email'
+    messageContent: text("message_content"),
+    externalMessageId: varchar("external_message_id", { length: 255 }), // Twilio SID, SendGrid ID
+    status: varchar("status", { length: 20 }).default("sent"), // 'sent', 'delivered', 'failed', 'clicked'
+    returnToken: varchar("return_token", { length: 255 }),
+    sentAt: timestamp("sent_at").defaultNow(),
+    deliveredAt: timestamp("delivered_at"),
+    clickedAt: timestamp("clicked_at"),
+    errorMessage: text("error_message"),
+    metadata: jsonb("metadata"), // Store additional data like retry attempts, etc.
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  table => {
+    return {
+      visitorIdIdx: index("outreach_attempts_visitor_id_idx").on(table.visitorId),
+      channelIdx: index("outreach_attempts_channel_idx").on(table.channel),
+      statusIdx: index("outreach_attempts_status_idx").on(table.status),
+      sentAtIdx: index("outreach_attempts_sent_at_idx").on(table.sentAt),
+    };
+  }
+);
+
+// SFTP file ingestion tracking
+export const ingestedFiles = pgTable(
+  "ingested_files",
+  {
+    id: serial("id").primaryKey(),
+    fileName: varchar("file_name", { length: 255 }).notNull().unique(),
+    filePath: varchar("file_path", { length: 500 }),
+    fileSize: integer("file_size"),
+    rowCount: integer("row_count").default(0),
+    errorCount: integer("error_count").default(0),
+    processingTimeMs: integer("processing_time_ms"),
+    status: varchar("status", { length: 20 }).default("processed"), // 'processing', 'processed', 'failed'
+    errorDetails: jsonb("error_details"),
+    processedAt: timestamp("processed_at").notNull().defaultNow(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  table => {
+    return {
+      fileNameIdx: index("ingested_files_file_name_idx").on(table.fileName),
+      statusIdx: index("ingested_files_status_idx").on(table.status),
+      processedAtIdx: index("ingested_files_processed_at_idx").on(table.processedAt),
+    };
+  }
+);
+
+// Queue jobs tracking (for monitoring BullMQ jobs)
+export const queueJobs = pgTable(
+  "queue_jobs",
+  {
+    id: serial("id").primaryKey(),
+    jobId: varchar("job_id", { length: 255 }).notNull(),
+    queueName: varchar("queue_name", { length: 100 }).notNull(),
+    jobType: varchar("job_type", { length: 100 }).notNull(),
+    status: varchar("status", { length: 20 }).notNull(), // 'queued', 'processing', 'completed', 'failed'
+    priority: integer("priority").default(0),
+    attempts: integer("attempts").default(0),
+    maxAttempts: integer("max_attempts").default(3),
+    data: jsonb("data"),
+    result: jsonb("result"),
+    error: text("error"),
+    processingTime: integer("processing_time"),
+    scheduledFor: timestamp("scheduled_for"),
+    startedAt: timestamp("started_at"),
+    completedAt: timestamp("completed_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  table => {
+    return {
+      jobIdIdx: index("queue_jobs_job_id_idx").on(table.jobId),
+      queueNameIdx: index("queue_jobs_queue_name_idx").on(table.queueName),
+      statusIdx: index("queue_jobs_status_idx").on(table.status),
+      scheduledForIdx: index("queue_jobs_scheduled_for_idx").on(table.scheduledFor),
+    };
+  }
+);
+
+export const visitors = pgTable(
+  "visitors",
+  {
+    id: serial("id").primaryKey(),
+    emailHash: text("email_hash").unique(),
+    sessionId: text("session_id").notNull(),
+    phoneNumber: text("phone_number"),
+    email: text("email"),
+    ipAddress: text("ip_address"),
+    userAgent: text("user_agent"),
+    metadata: jsonb("metadata"),
+    returnToken: text("return_token").unique(),
+    returnTokenExpiry: timestamp("return_token_expiry"),
+    abandonmentStep: integer("abandonment_step").default(1),
+    lastActivity: timestamp("last_activity").notNull().defaultNow(),
+    abandonmentDetected: boolean("abandonment_detected").default(false),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+
+    // SFTP ingestion tracking
+    adClickTs: timestamp("ad_click_ts"),
+    formStartTs: timestamp("form_start_ts"),
+    formSubmitTs: timestamp("form_submit_ts"),
+    ingestSource: varchar("ingest_source", { length: 100 }).default("manual"),
+
+    // Complete PII fields for lead generation
+    firstName: varchar("first_name", { length: 100 }),
+    lastName: varchar("last_name", { length: 100 }),
+    street: varchar("street", { length: 255 }),
+    city: varchar("city", { length: 100 }),
+    state: varchar("state", { length: 2 }),
+    zip: varchar("zip", { length: 10 }),
+    employer: varchar("employer", { length: 255 }),
+    jobTitle: varchar("job_title", { length: 255 }),
+    annualIncome: integer("annual_income"),
+    timeOnJobMonths: integer("time_on_job_months"),
+    piiComplete: boolean("pii_complete").default(false),
+
+    // Credit check status (if performed)
+    creditCheckStatus: varchar("credit_check_status", { length: 20 }), // 'pending', 'approved', 'declined'
+    creditScore: integer("credit_score"),
+    creditCheckDate: timestamp("credit_check_date"),
+  },
+  table => {
+    return {
+      emailHashIdx: index("visitors_email_hash_idx").on(table.emailHash),
+      sessionIdIdx: index("visitors_session_id_idx").on(table.sessionId),
+      returnTokenIdx: index("visitors_return_token_idx").on(table.returnToken),
+      abandonmentIdx: index("visitors_abandonment_idx").on(table.adClickTs, table.formSubmitTs),
+      piiCompleteIdx: index("visitors_pii_complete_idx").on(
+        table.piiComplete,
+        table.abandonmentStep
+      ),
+    };
+  }
+);
 
 export const chatSessions = pgTable("chat_sessions", {
   id: serial("id").primaryKey(),
@@ -70,15 +195,36 @@ export const sessions = pgTable(
 );
 
 // System leads table
-export const systemLeads = pgTable("system_leads", {
-  id: text("id").primaryKey(),
-  email: text("email").notNull(),
-  status: text("status", { enum: ["new", "contacted", "qualified", "closed"] })
-    .notNull()
-    .default("new"),
-  leadData: jsonb("lead_data").notNull(),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+export const systemLeads = pgTable(
+  "system_leads",
+  {
+    id: text("id").primaryKey(),
+    email: text("email").notNull(),
+    status: text("status", { enum: ["new", "contacted", "qualified", "closed"] })
+      .notNull()
+      .default("new"),
+    leadData: jsonb("lead_data").notNull(),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+
+    // Enhanced lead tracking for Boberdoo integration
+    boberdooStatus: varchar("boberdoo_status", { length: 20 }).default("pending"), // 'pending', 'submitted', 'accepted', 'rejected'
+    boberdooResponseJson: jsonb("boberdoo_response_json"),
+    boberdooLeadId: varchar("boberdoo_lead_id", { length: 100 }),
+    submissionAttempts: integer("submission_attempts").default(0),
+    lastSubmissionAttempt: timestamp("last_submission_attempt"),
+    creditScore: integer("credit_score"),
+    approvedAmount: integer("approved_amount"),
+    interestRate: varchar("interest_rate", { length: 10 }), // Store as string to handle percentages
+  },
+  table => {
+    return {
+      boberdooStatusIdx: index("system_leads_boberdoo_status_idx").on(table.boberdooStatus),
+      submissionAttemptsIdx: index("system_leads_submission_attempts_idx").on(
+        table.submissionAttempts
+      ),
+    };
+  }
+);
 
 // System activities table
 export const systemActivities = pgTable("system_activities", {
@@ -137,19 +283,36 @@ export const campaignAttempts = pgTable("campaign_attempts", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-export const leads = pgTable("leads", {
-  id: serial("id").primaryKey(),
-  visitorId: integer("visitor_id")
-    .references(() => visitors.id)
-    .notNull(),
-  leadData: jsonb("lead_data").notNull(),
-  status: text("status", { enum: ["pending", "submitted", "failed"] })
-    .notNull()
-    .default("pending"),
-  dealerResponse: jsonb("dealer_response"),
-  submittedAt: timestamp("submitted_at"),
-  createdAt: timestamp("created_at").notNull().defaultNow(),
-});
+export const leads = pgTable(
+  "leads",
+  {
+    id: serial("id").primaryKey(),
+    visitorId: integer("visitor_id")
+      .references(() => visitors.id)
+      .notNull(),
+    leadId: varchar("lead_id", { length: 100 }).notNull().unique(), // External lead ID for tracking
+    contactEmail: varchar("contact_email", { length: 255 }),
+    contactPhone: varchar("contact_phone", { length: 20 }),
+    creditStatus: varchar("credit_status", { length: 20 }), // 'approved', 'declined', 'pending'
+    source: varchar("source", { length: 100 }).notNull().default("website"),
+    leadData: jsonb("lead_data").notNull(),
+    status: text("status", { enum: ["pending", "processing", "submitted", "failed"] })
+      .notNull()
+      .default("pending"),
+    dealerCrmSubmitted: boolean("dealer_crm_submitted").default(false),
+    dealerResponse: jsonb("dealer_response"),
+    submittedAt: timestamp("submitted_at"),
+    createdAt: timestamp("created_at").notNull().defaultNow(),
+  },
+  table => {
+    return {
+      leadIdIdx: index("leads_lead_id_idx").on(table.leadId),
+      visitorIdIdx: index("leads_visitor_id_idx").on(table.visitorId),
+      statusIdx: index("leads_status_idx").on(table.status),
+      sourceIdx: index("leads_source_idx").on(table.source),
+    };
+  }
+);
 
 export const agentActivity = pgTable("agent_activity", {
   id: serial("id").primaryKey(),

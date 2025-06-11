@@ -80,15 +80,16 @@ export default function SettingsPage() {
                 <Alert>
                   <CheckCircle2 className="h-4 w-4" />
                   <AlertDescription>
-                    Mailgun is configured and ready to send emails.
-                    Domain: <strong>{settings.data.mailgun.domain}</strong>
+                    Mailgun is configured and ready to send emails. Domain:{" "}
+                    <strong>{settings.data.mailgun.domain}</strong>
                   </AlertDescription>
                 </Alert>
               ) : (
                 <Alert>
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
-                    Mailgun is not configured. Add MAILGUN_API_KEY and MAILGUN_DOMAIN to your environment variables.
+                    Mailgun is not configured. Add MAILGUN_API_KEY and MAILGUN_DOMAIN to your
+                    environment variables.
                   </AlertDescription>
                 </Alert>
               )}
@@ -109,9 +110,13 @@ export default function SettingsPage() {
               <div className="space-y-2">
                 <Label>Email Sending Status</Label>
                 <div className="flex items-center gap-2">
-                  <div className={`h-3 w-3 rounded-full ${settings?.data?.mailgun?.configured ? "bg-green-500" : "bg-red-500"}`} />
+                  <div
+                    className={`h-3 w-3 rounded-full ${settings?.data?.mailgun?.configured ? "bg-green-500" : "bg-red-500"}`}
+                  />
                   <span className="text-sm">
-                    {settings?.data?.mailgun?.configured ? "Ready to send emails" : "Cannot send emails"}
+                    {settings?.data?.mailgun?.configured
+                      ? "Ready to send emails"
+                      : "Cannot send emails"}
                   </span>
                 </div>
               </div>
@@ -122,7 +127,8 @@ export default function SettingsPage() {
                   <li>Sign up for a Mailgun account at mailgun.com</li>
                   <li>Add your domain and verify it</li>
                   <li>Get your API key from the Mailgun dashboard</li>
-                  <li>Add these to your Render environment variables:
+                  <li>
+                    Add these to your Render environment variables:
                     <ul className="ml-6 mt-1 list-disc">
                       <li>MAILGUN_API_KEY</li>
                       <li>MAILGUN_DOMAIN</li>
@@ -143,17 +149,23 @@ export default function SettingsPage() {
               <div className="grid gap-4 md:grid-cols-3">
                 <div>
                   <Label>Step 1 Delay</Label>
-                  <div className="text-2xl font-bold">{settings?.data?.timing?.step1Delay || 24} hours</div>
+                  <div className="text-2xl font-bold">
+                    {settings?.data?.timing?.step1Delay || 24} hours
+                  </div>
                   <p className="text-xs text-muted-foreground">After initial trigger</p>
                 </div>
                 <div>
                   <Label>Step 2 Delay</Label>
-                  <div className="text-2xl font-bold">{settings?.data?.timing?.step2Delay || 72} hours</div>
+                  <div className="text-2xl font-bold">
+                    {settings?.data?.timing?.step2Delay || 72} hours
+                  </div>
                   <p className="text-xs text-muted-foreground">After Step 1</p>
                 </div>
                 <div>
                   <Label>Step 3 Delay</Label>
-                  <div className="text-2xl font-bold">{settings?.data?.timing?.step3Delay || 168} hours</div>
+                  <div className="text-2xl font-bold">
+                    {settings?.data?.timing?.step3Delay || 168} hours
+                  </div>
                   <p className="text-xs text-muted-foreground">After Step 2</p>
                 </div>
               </div>
@@ -232,16 +244,14 @@ export default function SettingsPage() {
                       <p className="text-sm text-muted-foreground">Render PostgreSQL</p>
                     </div>
                   </div>
-                  <Badge variant="secondary">
-                    Check logs for status
-                  </Badge>
+                  <Badge variant="secondary">Check logs for status</Badge>
                 </div>
 
                 <Alert>
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
-                    Database connection status can be verified in the Render logs. 
-                    The system will use in-memory storage if database is unavailable.
+                    Database connection status can be verified in the Render logs. The system will
+                    use in-memory storage if database is unavailable.
                   </AlertDescription>
                 </Alert>
               </div>

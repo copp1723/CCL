@@ -1,12 +1,13 @@
-import formData from 'form-data';
-import Mailgun from 'mailgun.js';
+import formData from "form-data";
+import Mailgun from "mailgun.js";
+import DOMPurify from "isomorphic-dompurify";
 
 const mailgun = new Mailgun(formData);
 
 // Initialize Mailgun client
 const mg = mailgun.client({
-  username: 'api',
-  key: process.env.MAILGUN_API_KEY || '',
+  username: "api",
+  key: process.env.MAILGUN_API_KEY || "",
 });
 
 export interface EmailData {
@@ -28,7 +29,7 @@ export class MailgunService {
   private defaultFrom: string;
 
   constructor() {
-    this.domain = process.env.MAILGUN_DOMAIN || 'mail.onerylie.com';
+    this.domain = process.env.MAILGUN_DOMAIN || "mail.onerylie.com";
     this.defaultFrom = `Cathy <cathy@${this.domain}>`;
   }
 
@@ -37,12 +38,15 @@ export class MailgunService {
    */
   async sendEmail(emailData: EmailData): Promise<any> {
     try {
+      // Sanitize HTML content before sending
+      const sanitizedHtml = DOMPurify.sanitize(emailData.html);
+
       const messageData = {
         from: emailData.from || this.defaultFrom,
         to: emailData.to,
         subject: emailData.subject,
-        html: emailData.html,
-        text: emailData.text || this.stripHtml(emailData.html),
+        html: sanitizedHtml,
+        text: emailData.text || this.stripHtml(sanitizedHtml),
       };
 
       const result = await mg.messages.create(this.domain, messageData);
@@ -57,7 +61,9 @@ export class MailgunService {
   /**
    * Send bulk emails (for campaigns)
    */
-  async sendBulkEmails(emails: EmailData[]): Promise<{ sent: number; failed: number; errors: any[] }> {
+  async sendBulkEmails(
+    emails: EmailData[]
+  ): Promise<{ sent: number; failed: number; errors: any[] }> {
     let sent = 0;
     let failed = 0;
     const errors: any[] = [];
@@ -98,26 +104,32 @@ export class MailgunService {
    */
   private processTemplate(template: string, variables: Record<string, any>): string {
     let processed = template;
-    
+
+    // Sanitize all variable values before replacing
+    const sanitizedVariables: Record<string, string> = {};
+    Object.entries(variables).forEach(([key, value]) => {
+      sanitizedVariables[key] = DOMPurify.sanitize(String(value || ""), { ALLOWED_TAGS: [] });
+    });
+
     // Replace common variables
-    if (variables.firstName) {
-      processed = processed.replace(/\{\{firstName\}\}/g, variables.firstName);
-      processed = processed.replace(/\{\{first_name\}\}/g, variables.firstName);
-    }
-    
-    if (variables.lastName) {
-      processed = processed.replace(/\{\{lastName\}\}/g, variables.lastName);
-      processed = processed.replace(/\{\{last_name\}\}/g, variables.lastName);
+    if (sanitizedVariables.firstName) {
+      processed = processed.replace(/\{\{firstName\}\}/g, sanitizedVariables.firstName);
+      processed = processed.replace(/\{\{first_name\}\}/g, sanitizedVariables.firstName);
     }
 
-    if (variables.email) {
-      processed = processed.replace(/\{\{email\}\}/g, variables.email);
+    if (sanitizedVariables.lastName) {
+      processed = processed.replace(/\{\{lastName\}\}/g, sanitizedVariables.lastName);
+      processed = processed.replace(/\{\{last_name\}\}/g, sanitizedVariables.lastName);
+    }
+
+    if (sanitizedVariables.email) {
+      processed = processed.replace(/\{\{email\}\}/g, sanitizedVariables.email);
     }
 
     // Replace any other custom variables
-    Object.entries(variables).forEach(([key, value]) => {
-      const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
-      processed = processed.replace(regex, String(value || ''));
+    Object.entries(sanitizedVariables).forEach(([key, value]) => {
+      const regex = new RegExp(`\\{\\{${key}\\}\\}`, "g");
+      processed = processed.replace(regex, value);
     });
 
     return processed;
@@ -127,7 +139,12 @@ export class MailgunService {
    * Strip HTML tags for plain text version
    */
   private stripHtml(html: string): string {
-    return html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+    // Use DOMPurify to strip all HTML tags and keep only text content
+    const clean = DOMPurify.sanitize(html, {
+      ALLOWED_TAGS: [],
+      KEEP_CONTENT: true,
+    });
+    return clean.replace(/\s+/g, " ").trim();
   }
 
   /**

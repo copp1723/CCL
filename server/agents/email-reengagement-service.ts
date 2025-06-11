@@ -40,6 +40,7 @@ class MockEmailService implements EmailService {
 
 export class EmailReengagementService extends BaseAgent {
   private emailService: EmailService;
+  private tools: any[];
 
   constructor() {
     super({
@@ -55,14 +56,17 @@ export class EmailReengagementService extends BaseAgent {
         Always use empathetic, human-like communication.
         Never reveal you are an AI system.
       `,
-      tools: [
-        this.createGenerateEmailContentTool(),
-        this.createCreateReturnTokenTool(),
-        this.createSendEmailTool(),
-      ],
+      tools: [],
     });
 
     this.emailService = new MockEmailService();
+
+    // Add tools after super() call
+    this.tools = [
+      this.createGenerateEmailContentTool(),
+      this.createCreateReturnTokenTool(),
+      this.createSendEmailTool(),
+    ];
   }
 
   private createGenerateEmailContentTool() {
@@ -103,9 +107,11 @@ export class EmailReengagementService extends BaseAgent {
           const expiryTime = new Date();
           expiryTime.setHours(expiryTime.getHours() + 24);
 
-          await storage.updateVisitor(visitorId, {
-            returnToken,
-            returnTokenExpiry: expiryTime,
+          await storage.updateVisitor(visitorId.toString(), {
+            metadata: {
+              returnToken,
+              returnTokenExpiry: expiryTime.toISOString(),
+            },
           });
 
           return this.createSuccessResult(
@@ -198,9 +204,11 @@ export class EmailReengagementService extends BaseAgent {
       const expiryTime = new Date();
       expiryTime.setHours(expiryTime.getHours() + 24);
 
-      await storage.updateVisitor(visitorId, {
-        returnToken,
-        returnTokenExpiry: expiryTime,
+      await storage.updateVisitor(visitorId.toString(), {
+        metadata: {
+          returnToken,
+          returnTokenExpiry: expiryTime.toISOString(),
+        },
       });
 
       const content = this.generatePersonalizedContent(visitor.abandonmentStep || 1);

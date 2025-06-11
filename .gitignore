@@ -70,3 +70,4 @@ generated-icon.png
 !config/environments/.env.example
 config/environments/.env*
 !config/environments/.env.example
+mcp-servers/

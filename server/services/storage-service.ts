@@ -623,6 +623,11 @@ class StorageService {
     return { success: true, enrolled: enrollments.length };
   }
 
+  // Alias for single lead enrollment
+  async enrollLeadInCampaign(leadId: string, campaignId: string): Promise<any> {
+    return this.enrollLeadsInCampaign(campaignId, [leadId]);
+  }
+
   // ============================================================================
   // SYSTEM STATISTICS
   // ============================================================================
@@ -834,5 +839,45 @@ export const storageService = {
   },
   getPerformanceMetrics() {
     return this.instance.getPerformanceMetrics();
+  },
+  // Campaign methods
+  async getCampaigns() {
+    return this.instance.getCampaigns();
+  },
+  async getCampaignById(campaignId: string) {
+    return this.instance.getCampaignById(campaignId);
+  },
+  async createCampaign(name: string, goal_prompt: string) {
+    return this.instance.createCampaign(name, goal_prompt);
+  },
+  async updateCampaign(campaignId: string, updates: any) {
+    return this.instance.updateCampaign(campaignId, updates);
+  },
+  async deleteCampaign(campaignId: string) {
+    return this.instance.deleteCampaign(campaignId);
+  },
+  async cloneCampaign(campaignId: string) {
+    return this.instance.cloneCampaign(campaignId);
+  },
+  async getAllLeads() {
+    return this.instance.getAllLeads();
+  },
+  async getEnrolledLeads(campaignId: string) {
+    return this.instance.getEnrolledLeads(campaignId);
+  },
+  async enrollLeadInCampaign(leadId: string, campaignId: string) {
+    return this.instance.enrollLeadInCampaign(leadId, campaignId);
+  },
+  async enrollLeadsInCampaign(campaignId: string, leadIds: string[]) {
+    return this.instance.enrollLeadsInCampaign(campaignId, leadIds);
+  },
+  async addEmailTemplate(campaignId: string, template: any) {
+    return this.instance.addEmailTemplate(campaignId, template);
+  },
+  async getEmailTemplatesForCampaign(campaignId: string) {
+    return this.instance.getEmailTemplatesForCampaign(campaignId);
+  },
+  async handleEmailReply(sender: string, subject: string, body: string) {
+    return this.instance.handleEmailReply(sender, subject, body);
   },
 };

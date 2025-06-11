@@ -43,10 +43,7 @@ export class ProductionCathyAgent {
       },
       async (params: any) => {
         try {
-          const response = await this.generateResponseFromMessage(
-            params.userMessage,
-            params.conversationHistory
-          );
+          const response = await this.generateCathyResponseFromParams(params);
 
           return {
             watermark: "CCL",
@@ -175,7 +172,7 @@ export class ProductionCathyAgent {
     );
   }
 
-  private async generateCathyResponse(params: any): Promise<string> {
+  private async generateCathyResponseFromParams(params: any): Promise<string> {
     const message = params.userMessage.toLowerCase();
 
     // Credit anxiety response
@@ -334,7 +331,7 @@ export class ProductionCathyAgent {
     return "Warm, supportive approach building trust and offering assistance";
   }
 
-  async generateCathyResponse(message: string, sessionId: string): Promise<string> {
+  public async generateCathyResponse(message: string, sessionId: string): Promise<string> {
     const lowerMsg = message.toLowerCase();
 
     // Detect emotional tone and respond with empathy

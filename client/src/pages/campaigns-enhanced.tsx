@@ -4,7 +4,19 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { PlusCircle, Play, Pause, Mail, Clock, Users, BarChart, Upload, Send, Settings, CheckSquare } from "lucide-react";
+import {
+  PlusCircle,
+  Play,
+  Pause,
+  Mail,
+  Clock,
+  Users,
+  BarChart,
+  Upload,
+  Send,
+  Settings,
+  CheckSquare,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -86,7 +98,7 @@ const startCampaign = async (campaignId: string) => {
 const uploadCSV = async (file: File) => {
   const formData = new FormData();
   formData.append("csvFile", file);
-  
+
   const res = await fetch("/api/bulk-email/send", {
     method: "POST",
     body: formData,
@@ -95,11 +107,17 @@ const uploadCSV = async (file: File) => {
   return res.json();
 };
 
-function LeadSelectionDialog({ campaignId, onSuccess }: { campaignId: string; onSuccess: () => void }) {
+function LeadSelectionDialog({
+  campaignId,
+  onSuccess,
+}: {
+  campaignId: string;
+  onSuccess: () => void;
+}) {
   const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
   const [selectAll, setSelectAll] = useState(false);
   const { toast } = useToast();
-  
+
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ["leads"],
     queryFn: fetchLeads,
@@ -143,10 +161,8 @@ function LeadSelectionDialog({ campaignId, onSuccess }: { campaignId: string; on
   };
 
   const handleLeadToggle = (leadId: string) => {
-    setSelectedLeads(prev => 
-      prev.includes(leadId) 
-        ? prev.filter(id => id !== leadId)
-        : [...prev, leadId]
+    setSelectedLeads(prev =>
+      prev.includes(leadId) ? prev.filter(id => id !== leadId) : [...prev, leadId]
     );
   };
 
@@ -178,15 +194,10 @@ function LeadSelectionDialog({ campaignId, onSuccess }: { campaignId: string; on
       <div className="space-y-4">
         <div className="flex items-center justify-between p-2 border-b">
           <div className="flex items-center space-x-2">
-            <Checkbox 
-              checked={selectAll}
-              onCheckedChange={handleSelectAll}
-            />
+            <Checkbox checked={selectAll} onCheckedChange={handleSelectAll} />
             <Label>Select all ({leads.length} leads)</Label>
           </div>
-          <span className="text-sm text-muted-foreground">
-            {selectedLeads.length} selected
-          </span>
+          <span className="text-sm text-muted-foreground">{selectedLeads.length} selected</span>
         </div>
 
         <ScrollArea className="h-[300px] border rounded-md p-4">
@@ -199,7 +210,10 @@ function LeadSelectionDialog({ campaignId, onSuccess }: { campaignId: string; on
           ) : (
             <div className="space-y-2">
               {leads.map((lead: any) => (
-                <div key={lead.id} className="flex items-center space-x-2 p-2 hover:bg-muted rounded">
+                <div
+                  key={lead.id}
+                  className="flex items-center space-x-2 p-2 hover:bg-muted rounded"
+                >
                   <Checkbox
                     checked={selectedLeads.includes(lead.id)}
                     onCheckedChange={() => handleLeadToggle(lead.id)}
@@ -222,7 +236,9 @@ function LeadSelectionDialog({ campaignId, onSuccess }: { campaignId: string; on
       <DialogFooter>
         <Button
           onClick={handleStartCampaign}
-          disabled={selectedLeads.length === 0 || enrollMutation.isPending || startMutation.isPending}
+          disabled={
+            selectedLeads.length === 0 || enrollMutation.isPending || startMutation.isPending
+          }
         >
           {enrollMutation.isPending || startMutation.isPending ? (
             "Processing..."
@@ -273,7 +289,7 @@ export default function EnhancedCampaignsPage() {
 
   const uploadCSVMutation = useMutation({
     mutationFn: uploadCSV,
-    onSuccess: (data) => {
+    onSuccess: data => {
       toast({
         title: "CSV uploaded",
         description: `Successfully processed ${data.data?.processed || 0} leads`,
@@ -285,10 +301,18 @@ export default function EnhancedCampaignsPage() {
 
   // Campaign stats
   const activeCampaigns = campaigns.filter((c: any) => c.status === "active").length;
-  const totalRecipients = campaigns.reduce((sum: number, c: any) => sum + (c.totalRecipients || 0), 0);
-  const avgOpenRate = campaigns.length > 0 
-    ? (campaigns.reduce((sum: number, c: any) => sum + (c.openRate || 0), 0) / campaigns.length * 100).toFixed(1)
-    : 0;
+  const totalRecipients = campaigns.reduce(
+    (sum: number, c: any) => sum + (c.totalRecipients || 0),
+    0
+  );
+  const avgOpenRate =
+    campaigns.length > 0
+      ? (
+          (campaigns.reduce((sum: number, c: any) => sum + (c.openRate || 0), 0) /
+            campaigns.length) *
+          100
+        ).toFixed(1)
+      : 0;
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
@@ -336,15 +360,18 @@ export default function EnhancedCampaignsPage() {
                   Set up a new email campaign with AI-powered content
                 </DialogDescription>
               </DialogHeader>
-              <form onSubmit={(e) => {
-                e.preventDefault();
-                const formData = new FormData(e.currentTarget);
-                createCampaignMutation.mutate({
-                  name: formData.get("name"),
-                  goal_prompt: formData.get("goal_prompt"),
-                  type: formData.get("type"),
-                });
-              }} className="space-y-4">
+              <form
+                onSubmit={e => {
+                  e.preventDefault();
+                  const formData = new FormData(e.currentTarget);
+                  createCampaignMutation.mutate({
+                    name: formData.get("name"),
+                    goal_prompt: formData.get("goal_prompt"),
+                    type: formData.get("type"),
+                  });
+                }}
+                className="space-y-4"
+              >
                 <div>
                   <Label htmlFor="name">Campaign Name</Label>
                   <Input id="name" name="name" required />
@@ -364,14 +391,18 @@ export default function EnhancedCampaignsPage() {
                 </div>
                 <div>
                   <Label htmlFor="goal_prompt">AI Goal Prompt</Label>
-                  <Textarea 
-                    id="goal_prompt" 
+                  <Textarea
+                    id="goal_prompt"
                     name="goal_prompt"
                     placeholder="E.g., Get customers excited about their auto financing options"
-                    required 
+                    required
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={createCampaignMutation.isPending}>
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={createCampaignMutation.isPending}
+                >
                   {createCampaignMutation.isPending ? "Creating..." : "Create Campaign"}
                 </Button>
               </form>
@@ -450,7 +481,9 @@ export default function EnhancedCampaignsPage() {
               <CardContent className="flex flex-col items-center justify-center py-10">
                 <Mail className="h-10 w-10 text-muted-foreground mb-4" />
                 <h3 className="text-lg font-medium">No campaigns yet</h3>
-                <p className="text-sm text-muted-foreground mb-4">Create your first campaign to get started</p>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Create your first campaign to get started
+                </p>
                 <Button onClick={() => setCreateDialogOpen(true)}>
                   <PlusCircle className="mr-2 h-4 w-4" />
                   Create Campaign
@@ -492,9 +525,9 @@ export default function EnhancedCampaignsPage() {
                           Pause
                         </Button>
                       ) : (
-                        <Button 
-                          variant="default" 
-                          size="sm" 
+                        <Button
+                          variant="default"
+                          size="sm"
                           className="w-full"
                           onClick={() => handleStartCampaign(campaign.id)}
                         >
@@ -526,7 +559,9 @@ export default function EnhancedCampaignsPage() {
                     step={1}
                     className="flex-1"
                   />
-                  <span className="w-12 text-right">{settings?.data?.timing?.step1Delay || 24}h</span>
+                  <span className="w-12 text-right">
+                    {settings?.data?.timing?.step1Delay || 24}h
+                  </span>
                 </div>
               </div>
               <div>
@@ -538,7 +573,9 @@ export default function EnhancedCampaignsPage() {
                     step={1}
                     className="flex-1"
                   />
-                  <span className="w-12 text-right">{settings?.data?.timing?.step2Delay || 72}h</span>
+                  <span className="w-12 text-right">
+                    {settings?.data?.timing?.step2Delay || 72}h
+                  </span>
                 </div>
               </div>
               <div>
@@ -550,20 +587,24 @@ export default function EnhancedCampaignsPage() {
                     step={1}
                     className="flex-1"
                   />
-                  <span className="w-12 text-right">{settings?.data?.timing?.step3Delay || 168}h</span>
+                  <span className="w-12 text-right">
+                    {settings?.data?.timing?.step3Delay || 168}h
+                  </span>
                 </div>
               </div>
               <div className="flex items-center justify-between">
                 <div>
                   <Label>Auto-start sequences</Label>
-                  <p className="text-sm text-muted-foreground">Automatically begin sequences when leads are added</p>
+                  <p className="text-sm text-muted-foreground">
+                    Automatically begin sequences when leads are added
+                  </p>
                 </div>
                 <Switch defaultChecked />
               </div>
               <Alert>
                 <AlertCircle className="h-4 w-4" />
                 <AlertDescription>
-                  Email sequences require Mailgun to be configured. 
+                  Email sequences require Mailgun to be configured.
                   {!settings?.data?.mailgun?.configured && (
                     <Link href="/settings" className="ml-1 text-primary hover:underline">
                       Configure now
@@ -579,7 +620,9 @@ export default function EnhancedCampaignsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Import Leads via CSV</CardTitle>
-              <CardDescription>Upload a CSV file to import leads and start campaigns</CardDescription>
+              <CardDescription>
+                Upload a CSV file to import leads and start campaigns
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -596,15 +639,17 @@ export default function EnhancedCampaignsPage() {
                     CSV should include: email, firstname, lastname, phone (optional)
                   </p>
                 </div>
-                
+
                 {selectedFile && (
                   <div className="p-4 border rounded-lg bg-muted/50">
                     <p className="text-sm font-medium">Selected file: {selectedFile.name}</p>
-                    <p className="text-xs text-muted-foreground">Size: {(selectedFile.size / 1024).toFixed(1)} KB</p>
+                    <p className="text-xs text-muted-foreground">
+                      Size: {(selectedFile.size / 1024).toFixed(1)} KB
+                    </p>
                   </div>
                 )}
 
-                <Button 
+                <Button
                   onClick={handleCSVUpload}
                   disabled={!selectedFile || uploadCSVMutation.isPending}
                   className="w-full"
@@ -629,7 +674,9 @@ export default function EnhancedCampaignsPage() {
             </CardHeader>
             <CardContent>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li>• After importing leads, create a campaign and select which leads to include</li>
+                <li>
+                  • After importing leads, create a campaign and select which leads to include
+                </li>
                 <li>• Leads can be enrolled in multiple campaigns</li>
                 <li>• Email service must be configured before starting campaigns</li>
                 <li>• Check the Settings page to configure Mailgun</li>
@@ -642,7 +689,7 @@ export default function EnhancedCampaignsPage() {
       {/* Lead Selection Dialog */}
       <Dialog open={leadSelectionOpen} onOpenChange={setLeadSelectionOpen}>
         {selectedCampaignId && (
-          <LeadSelectionDialog 
+          <LeadSelectionDialog
             campaignId={selectedCampaignId}
             onSuccess={() => {
               setLeadSelectionOpen(false);

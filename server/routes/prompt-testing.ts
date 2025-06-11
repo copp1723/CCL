@@ -2,7 +2,7 @@ import express from "express";
 import { Request, Response } from "express";
 import { CATHY_SYSTEM_PROMPT } from "../agents/cathy-system-prompt";
 import { CATHY_ENHANCED_SYSTEM_PROMPT } from "../agents/cathy-enhanced-prompt";
-import { promptVariableManager, PromptVariables } from "../config/prompt-variables-enhanced";
+import { promptVariableManager, PromptVariables } from "../config/prompt-variables";
 
 const router = express.Router();
 
@@ -169,7 +169,8 @@ async function generateCathyResponse(
     affirmation = "You're being really smart to think about this upfront";
     progress = "I'm checking what options are available for your situation right now";
     cathyResponse = `${compassion}, ${firstName}. ${affirmation}.\n\nHere's the thing: We work with people in all credit situations every day. ${progress}.\n\nI'm creating your price now, get more info on the vehicle. If you have someone who could co-sign or a vehicle to trade, that can really help your approval odds too!`;
-    analysis = "Customer expressing credit anxiety. Responding with required compassion, affirmation, and progress indicators.";
+    analysis =
+      "Customer expressing credit anxiety. Responding with required compassion, affirmation, and progress indicators.";
     salesReadiness = "medium";
     insights = "Customer has credit concerns but engaged. Building trust with enhanced strategy.";
     nextSteps = "Guide to application completion with co-signer/trade-in alternatives if needed.";
@@ -184,9 +185,11 @@ async function generateCathyResponse(
     affirmation = "You're being very wise to ask questions first";
     progress = "I'm getting your pre-qualification details ready right now";
     cathyResponse = `${compassion}, ${firstName}! ${affirmation}.\n\nYes! I can definitely walk you through this. Auto financing is actually pretty simple: quick soft credit check (no impact), see what you qualify for, then find a car that fits.\n\n${progress} - I'm creating your price now, get more info on the vehicle!`;
-    analysis = "First-time buyer seeking education. Using YES-first approach with required elements.";
+    analysis =
+      "First-time buyer seeking education. Using YES-first approach with required elements.";
     salesReadiness = "high";
-    insights = "New to auto financing, receptive to guidance. High conversion potential with enhanced strategy.";
+    insights =
+      "New to auto financing, receptive to guidance. High conversion potential with enhanced strategy.";
     nextSteps = "Guide through application process with progress reinforcement.";
   } else if (
     lowerMsg.includes("ready") ||
@@ -213,9 +216,11 @@ async function generateCathyResponse(
     affirmation = "You're absolutely right to want clear, straight answers";
     progress = "Let me check your specific options and give you the real facts";
     cathyResponse = `${compassion}, ${firstName}. ${affirmation}.\n\n${progress} right now. No pressure, just clear information about what's actually available for you.\n\nI'm creating your price now, get more info on the vehicle. What's your biggest question - let me give you a straight answer!`;
-    analysis = "Customer overwhelmed by information. Using enhanced compassion and clarity approach.";
+    analysis =
+      "Customer overwhelmed by information. Using enhanced compassion and clarity approach.";
     salesReadiness = "medium";
-    insights = "Needs clarity and trust-building. Enhanced strategy builds confidence through understanding.";
+    insights =
+      "Needs clarity and trust-building. Enhanced strategy builds confidence through understanding.";
     nextSteps = "Address specific concerns with compassion, then guide to application.";
   } else if (
     lowerMsg.includes("payment") ||
@@ -241,7 +246,8 @@ async function generateCathyResponse(
     analysis = "General inquiry. Using full enhanced strategy with all required elements.";
     salesReadiness = "medium";
     insights = "Early discovery phase. Enhanced strategy builds immediate rapport and confidence.";
-    nextSteps = "Build relationship with compassion/affirmation, then guide to application completion.";
+    nextSteps =
+      "Build relationship with compassion/affirmation, then guide to application completion.";
   }
 
   // Apply enhanced prompt variable manager
@@ -261,7 +267,7 @@ async function generateCathyResponse(
     // Enhanced response format with required elements
     compassion,
     affirmation,
-    progress
+    progress,
   } as TestResponse & { compassion: string; affirmation: string; progress: string };
 }
 

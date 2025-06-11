@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 
 test.describe("CCL Agent System E2E Tests", () => {
   // Skip tests if running in CI without a server
-  test.skip(!!process.env.CI, "Skipping E2E tests in CI environment without database");
+  test.skip(!!process.env.CI, "Skipping E2E tests in CI environment without running server");
 
   test("should load the homepage", async ({ page }) => {
     await page.goto("/");
