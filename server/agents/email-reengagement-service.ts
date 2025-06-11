@@ -40,6 +40,7 @@ class MockEmailService implements EmailService {
 
 export class EmailReengagementService extends BaseAgent {
   private emailService: EmailService;
+  private tools: any[];
 
   constructor() {
     super({
@@ -55,6 +56,7 @@ export class EmailReengagementService extends BaseAgent {
         Always use empathetic, human-like communication.
         Never reveal you are an AI system.
       `,
+      tools: [],
     });
 
     this.emailService = new MockEmailService();
@@ -106,8 +108,10 @@ export class EmailReengagementService extends BaseAgent {
           expiryTime.setHours(expiryTime.getHours() + 24);
 
           await storage.updateVisitor(visitorId.toString(), {
-            returnToken,
-            returnTokenExpiry: expiryTime,
+            metadata: {
+              returnToken,
+              returnTokenExpiry: expiryTime.toISOString(),
+            },
           });
 
           return this.createSuccessResult(
@@ -201,8 +205,10 @@ export class EmailReengagementService extends BaseAgent {
       expiryTime.setHours(expiryTime.getHours() + 24);
 
       await storage.updateVisitor(visitorId.toString(), {
-        returnToken,
-        returnTokenExpiry: expiryTime,
+        metadata: {
+          returnToken,
+          returnTokenExpiry: expiryTime.toISOString(),
+        },
       });
 
       const content = this.generatePersonalizedContent(visitor.abandonmentStep || 1);

@@ -343,10 +343,10 @@ class DatabaseStorage implements StorageInterface {
         { name: "Visitors", count: 1000 },
         { name: "Engaged", count: 350 },
         { name: "Qualified", count: 120 },
-        { name: "Converted", count: 45 }
+        { name: "Converted", count: 45 },
       ],
       conversionRate: 0.045,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 
@@ -359,7 +359,7 @@ class DatabaseStorage implements StorageInterface {
       contacted: leads.filter(l => l.status === "contacted").length,
       qualified: leads.filter(l => l.status === "qualified").length,
       closed: leads.filter(l => l.status === "closed").length,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
   }
 
@@ -371,7 +371,7 @@ class DatabaseStorage implements StorageInterface {
       createdAt: new Date().toISOString(),
       phoneNumber: null,
       email: null,
-      metadata: {}
+      metadata: {},
     };
   }
 
@@ -396,9 +396,9 @@ class DatabaseStorage implements StorageInterface {
       await db.select().from(systemLeads).limit(1);
       return { healthy: true };
     } catch (error) {
-      return { 
-        healthy: false, 
-        message: error instanceof Error ? error.message : "Database connection failed" 
+      return {
+        healthy: false,
+        message: error instanceof Error ? error.message : "Database connection failed",
       };
     }
   }

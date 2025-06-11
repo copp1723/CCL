@@ -1,6 +1,6 @@
 import { Agent, tool } from "@openai/agents";
 import { storage } from "../storage";
-import { OneRylieEmailService } from "../services/email-onerylie";
+import emailService from "../services/email-onerylie";
 import { randomUUID } from "crypto";
 import type { InsertEmailCampaign } from "@shared/schema";
 import {
@@ -13,10 +13,10 @@ import {
 
 export class EmailReengagementAgent {
   private agent: Agent;
-  private emailService: EmailService;
+  private emailService: typeof emailService;
 
   constructor() {
-    this.emailService = new EmailService();
+    this.emailService = emailService;
 
     this.agent = new Agent({
       name: "Email Re-engagement Agent",
@@ -110,10 +110,12 @@ export class EmailReengagementAgent {
           const expiryTime = new Date();
           expiryTime.setHours(expiryTime.getHours() + 24); // 24-hour TTL
 
-          // Update visitor with return token
+          // Update visitor with return token in metadata
           await storage.updateVisitor(visitorId.toString(), {
-            returnToken,
-            returnTokenExpiry: expiryTime,
+            metadata: {
+              returnToken,
+              returnTokenExpiry: expiryTime.toISOString(),
+            },
           });
 
           console.log(`[EmailReengagementAgent] Created return token for visitor: ${visitorId}`);
@@ -278,10 +280,12 @@ export class EmailReengagementAgent {
       const expiryTime = new Date();
       expiryTime.setHours(expiryTime.getHours() + 24);
 
-      // Update visitor with return token
+      // Update visitor with return token in metadata
       await storage.updateVisitor(visitorId.toString(), {
-        returnToken,
-        returnTokenExpiry: expiryTime,
+        metadata: {
+          returnToken,
+          returnTokenExpiry: expiryTime.toISOString(),
+        },
       });
 
       // Generate personalized content

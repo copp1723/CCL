@@ -86,7 +86,7 @@ export default function MultiAttemptCampaigns() {
     mutationFn: async (scheduleData: any) => {
       return apiRequest("/api/email-campaigns/schedules", {
         method: "POST",
-        body: JSON.stringify(scheduleData),
+        data: scheduleData,
       });
     },
     onSuccess: () => {
@@ -115,7 +115,7 @@ export default function MultiAttemptCampaigns() {
     mutationFn: async ({ scheduleId, isActive }: { scheduleId: string; isActive: boolean }) => {
       return apiRequest(`/api/email-campaigns/schedules/${scheduleId}/toggle`, {
         method: "POST",
-        body: JSON.stringify({ isActive }),
+        data: { isActive },
       });
     },
     onSuccess: () => {

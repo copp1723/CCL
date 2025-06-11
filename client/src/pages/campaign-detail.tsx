@@ -268,8 +268,8 @@ function EditCampaignForm({
 }
 
 export default function CampaignDetailPage() {
-  const params = useParams();
-  const campaignId = params.id as string | undefined;
+  const params = useParams<{ id: string }>();
+  const campaignId = params.id;
   const [open, setOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState(false);

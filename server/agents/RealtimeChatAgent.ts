@@ -140,10 +140,10 @@ export class RealtimeChatAgent {
           }
 
           // Update visitor with new PII
-          await storage.updateVisitor(visitorId, validation.data);
+          await storage.updateVisitor(visitorId.toString(), validation.data);
 
           // Check if PII is now complete
-          const updatedVisitor = await storage.getVisitor(visitorId);
+          const updatedVisitor = await storage.getVisitor(visitorId.toString());
           if (!updatedVisitor) {
             throw new Error("Failed to retrieve updated visitor");
           }
@@ -244,13 +244,9 @@ export class RealtimeChatAgent {
           await storage.createAgentActivity({
             agentName: "RealtimeChatAgent",
             action: "lead_packaging_triggered",
-            details: "Cathy triggered lead packaging after PII collection completion",
+            details: `Cathy triggered lead packaging after PII collection completion. Source: ${source}`,
             visitorId: visitorId,
-            metadata: {
-              source,
-              piiComplete: true,
-              triggeredAt: new Date(),
-            },
+            status: "success",
           });
 
           this.logger.info("Lead packaging triggered by chat agent", {
@@ -717,10 +713,10 @@ export class RealtimeChatAgent {
         return { success: false, error: "Invalid PII data" };
       }
 
-      await storage.updateVisitor(visitorId, validation.data);
+      await storage.updateVisitor(visitorId.toString(), validation.data);
 
       // Check completeness
-      const updatedVisitor = await storage.getVisitor(visitorId);
+      const updatedVisitor = await storage.getVisitor(visitorId.toString());
       if (!updatedVisitor) {
         return { success: false, error: "Failed to retrieve updated visitor" };
       }

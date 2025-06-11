@@ -12,9 +12,16 @@ import {
 } from "../../shared/validation/schemas";
 import config from "../config/environment";
 import { logger } from "../logger";
-import type { InsertLead, Visitor, CreditCheckResult } from "@shared/schema";
+import type { InsertLead, Visitor } from "@shared/schema";
 
 // Using LeadPackage type from validation schemas
+
+interface CreditCheckResult {
+  approved: boolean;
+  score?: number;
+  factors?: string[];
+  decision?: string;
+}
 
 export class LeadPackagingAgent {
   private agent: Agent;
@@ -286,23 +293,27 @@ export class LeadPackagingAgent {
             creditStatus: leadPackage.creditCheck.approved ? "approved" : "declined",
             source: leadPackage.engagement.source,
             status: boberdooResult.success ? "submitted" : "failed",
-            dealerCrmSubmitted: false,
             dealerCrmSubmitted: boberdooResult.success,
-            boberdooStatus: boberdooResult.status,
-            boberdooPrice: boberdooResult.price,
-            boberdooBuyerId: boberdooResult.buyerId,
-            leadData: leadPackage as any,
+            leadData: {
+              ...leadPackage,
+              boberdooStatus: boberdooResult.status,
+              boberdooPrice: boberdooResult.price,
+              boberdooBuyerId: boberdooResult.buyerId,
+            } as any,
           };
 
-          const lead = await storage.createLead(leadData);
+          const lead = await storage.createLead({
+            email: leadPackage.visitor.email || leadPackage.visitor.emailHash || "",
+            status: "new",
+            leadData: leadData,
+          });
 
           if (boberdooResult.success) {
             // Log successful submission
             await storage.createAgentActivity({
               agentName: "LeadPackagingAgent",
               action: "boberdoo_submitted",
-              description: `Lead successfully submitted to Boberdoo marketplace`,
-              targetId: leadPackage.leadId,
+              details: `Lead successfully submitted to Boberdoo marketplace`,
               metadata: {
                 leadId: lead.id,
                 boberdooStatus: boberdooResult.status,
@@ -331,8 +342,7 @@ export class LeadPackagingAgent {
             await storage.createAgentActivity({
               agentName: "LeadPackagingAgent",
               action: "boberdoo_failed",
-              description: `Boberdoo submission failed: ${boberdooResult.message}`,
-              targetId: leadPackage.leadId,
+              details: `Boberdoo submission failed: ${boberdooResult.message}`,
               metadata: {
                 leadId: lead.id,
                 errorCode: boberdooResult.errorCode,
@@ -386,17 +396,15 @@ export class LeadPackagingAgent {
 
           if (webhookResult.success) {
             // Update lead status
-            await storage.updateLead(lead.id, {
-              status: "submitted",
-              dealerCrmSubmitted: true,
+            await storage.updateLead(lead.id.toString(), {
+              status: "qualified",
             });
 
             // Log success activity
             await storage.createAgentActivity({
               agentName: "LeadPackagingAgent",
               action: "lead_submitted",
-              description: `Lead successfully submitted to dealer CRM`,
-              targetId: leadPackage.leadId,
+              details: `Lead successfully submitted to dealer CRM`,
               metadata: {
                 leadId: lead.id,
                 webhookResponse: webhookResult.response,
@@ -443,15 +451,14 @@ export class LeadPackagingAgent {
 
           // Update lead status to failed
           await storage.updateLead(leadId, {
-            status: "failed",
+            status: "closed",
           });
 
           // Log failure activity
           await storage.createAgentActivity({
             agentName: "LeadPackagingAgent",
             action: "submission_failed",
-            description: `Lead submission failed after ${attemptCount} attempts: ${error}`,
-            targetId: lead.leadId,
+            details: `Lead submission failed after ${attemptCount} attempts: ${error}`,
             metadata: {
               error,
               attemptCount,
@@ -750,22 +757,26 @@ export class LeadPackagingAgent {
       creditStatus: leadPackage.creditCheck.approved ? "approved" : "declined",
       source: leadPackage.engagement.source,
       status: boberdooResult.success ? "submitted" : "failed",
-      dealerCrmSubmitted: false,
       dealerCrmSubmitted: boberdooResult.success,
-      boberdooStatus: boberdooResult.status,
-      boberdooPrice: boberdooResult.price,
-      boberdooBuyerId: boberdooResult.buyerId,
-      leadData: leadPackage as any,
+      leadData: {
+        ...leadPackage,
+        boberdooStatus: boberdooResult.status,
+        boberdooPrice: boberdooResult.price,
+        boberdooBuyerId: boberdooResult.buyerId,
+      } as any,
     };
 
-    const lead = await storage.createLead(leadData);
+    const lead = await storage.createLead({
+      email: leadPackage.visitor.email || leadPackage.visitor.emailHash || "",
+      status: "new",
+      leadData: leadData,
+    });
 
     if (boberdooResult.success) {
       await storage.createAgentActivity({
         agentName: "LeadPackagingAgent",
         action: "boberdoo_submitted",
-        description: `Lead successfully submitted to Boberdoo marketplace`,
-        targetId: leadPackage.leadId,
+        details: `Lead successfully submitted to Boberdoo marketplace`,
         metadata: {
           leadId: lead.id,
           boberdooStatus: boberdooResult.status,
@@ -786,7 +797,6 @@ export class LeadPackagingAgent {
         agentName: "LeadPackagingAgent",
         action: "boberdoo_failed",
         description: `Boberdoo submission failed: ${boberdooResult.message}`,
-        targetId: leadPackage.leadId,
         metadata: {
           leadId: lead.id,
           errorCode: boberdooResult.errorCode,
@@ -819,16 +829,14 @@ export class LeadPackagingAgent {
     const webhookResult = await this.webhookService.submitToDealerCrm(leadPackage);
 
     if (webhookResult.success) {
-      await storage.updateLead(lead.id, {
-        status: "submitted",
-        dealerCrmSubmitted: true,
+      await storage.updateLead(lead.id.toString(), {
+        status: "qualified",
       });
 
       await storage.createAgentActivity({
         agentName: "LeadPackagingAgent",
         action: "dealer_crm_submitted",
         description: "Lead successfully submitted to dealer CRM",
-        targetId: leadPackage.leadId,
         metadata: {
           leadId: lead.id,
           webhookResponse: webhookResult.response,
@@ -838,15 +846,14 @@ export class LeadPackagingAgent {
 
       return { success: true, leadId: lead.id };
     } else {
-      await storage.updateLead(lead.id, {
-        status: "failed",
+      await storage.updateLead(lead.id.toString(), {
+        status: "closed",
       });
 
       await storage.createAgentActivity({
         agentName: "LeadPackagingAgent",
         action: "dealer_crm_failed",
         description: `Dealer CRM submission failed: ${webhookResult.error}`,
-        targetId: leadPackage.leadId,
         metadata: {
           error: webhookResult.error,
           leadId: lead.id,
