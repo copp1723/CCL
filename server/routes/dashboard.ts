@@ -23,7 +23,7 @@ router.get("/overview", async (req, res) => {
     const leadMetrics = await storage.getLeadMetrics();
 
     // Get conversion funnel
-    const conversionFunnel = await storage.getConversionFunnel();
+    const conversionFunnel = await storage.getConversionFunnelData();
 
     // Get revenue metrics
     const revenueMetrics = await storage.getRevenueMetrics();

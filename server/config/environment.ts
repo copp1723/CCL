@@ -7,6 +7,7 @@ const envSchema = z.object({
   // Security
   JWT_SECRET: z.string().min(32).default("ccl-dev-secret-key-change-in-production"),
   API_KEY: z.string().default("ccl-internal-2025"),
+  INTERNAL_API_KEY: z.string().default("ccl-internal-2025"),
 
   // Database
   DATABASE_URL: z.string().optional(),
@@ -277,6 +278,45 @@ class ConfigManager {
     }
 
     return errors;
+  }
+
+  // Production readiness validation
+  validateProductionReadiness(): { ready: boolean; issues: string[] } {
+    const issues: string[] = [];
+
+    // Check security settings
+    if (this.config.JWT_SECRET === "ccl-dev-secret-key-change-in-production") {
+      issues.push("JWT_SECRET is using default value");
+    }
+    if (this.config.API_KEY === "ccl-internal-2025") {
+      issues.push("API_KEY is using default value");
+    }
+
+    // Check required services
+    if (!this.config.DATABASE_URL) {
+      issues.push("Database URL not configured");
+    }
+    if (!this.config.MAILGUN_API_KEY) {
+      issues.push("Email service (Mailgun) not configured");
+    }
+    if (!this.config.OPENAI_API_KEY) {
+      issues.push("AI service (OpenAI) not configured");
+    }
+
+    // Check production-specific settings
+    if (this.config.NODE_ENV === "production") {
+      if (this.config.CORS_ORIGIN === "*") {
+        issues.push("CORS is allowing all origins in production");
+      }
+      if (this.config.LOG_LEVEL === "debug") {
+        issues.push("Debug logging enabled in production");
+      }
+    }
+
+    return {
+      ready: issues.length === 0,
+      issues,
+    };
   }
 }
 
