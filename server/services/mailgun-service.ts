@@ -129,8 +129,8 @@ export class MailgunService {
    * Strip HTML tags for plain text version
    */
   private stripHtml(html: string): string {
-    return html
-      .replace(/<[^>]*>/g, "")
+    const sanitizeHtml = require("sanitize-html");
+    return sanitizeHtml(html, { allowedTags: [], allowedAttributes: {} })
       .replace(/\s+/g, " ")
       .trim();
   }
