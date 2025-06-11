@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "staging", "production"]).default("development"),
-  PORT: z.string().transform(Number).default(5000),
+  PORT: z.string().transform(Number).default("5000"),
 
   // Security
   JWT_SECRET: z.string().min(32).default("ccl-dev-secret-key-change-in-production"),
@@ -24,11 +24,11 @@ const envSchema = z.object({
   SFTP_USER: z.string().optional(),
   SFTP_PASSWORD: z.string().optional(),
   SFTP_REMOTE_PATH: z.string().default("/inbound"),
-  SFTP_POLL_INTERVAL_MINUTES: z.string().transform(Number).default(15),
+  SFTP_POLL_INTERVAL_MINUTES: z.string().transform(Number).default("15"),
 
   // Queue & Workers (Redis for BullMQ)
   REDIS_URL: z.string().default("redis://localhost:6379"),
-  BULL_CONCURRENCY: z.string().transform(Number).default(5),
+  BULL_CONCURRENCY: z.string().transform(Number).default("5"),
 
   // Messaging Services for Outreach
   TWILIO_ACCOUNT_SID: z.string().optional(),
@@ -41,26 +41,26 @@ const envSchema = z.object({
   BOBERDOO_URL: z.string().optional(),
   BOBERDOO_VENDOR_ID: z.string().optional(),
   BOBERDOO_VENDOR_PASSWORD: z.string().optional(),
-  BOBERDOO_TIMEOUT_MS: z.string().transform(Number).default(10000),
+  BOBERDOO_TIMEOUT_MS: z.string().transform(Number).default("10000"),
 
   // Abandonment Detection
-  ABANDONMENT_THRESHOLD_MINUTES: z.string().transform(Number).default(15),
-  RETURN_TOKEN_EXPIRY_HOURS: z.string().transform(Number).default(48),
+  ABANDONMENT_THRESHOLD_MINUTES: z.string().transform(Number).default("15"),
+  RETURN_TOKEN_EXPIRY_HOURS: z.string().transform(Number).default("48"),
 
   // CORS
   CORS_ORIGIN: z.string().default("*"),
 
   // Rate Limiting
-  RATE_LIMIT_WINDOW_MS: z.string().transform(Number).default(60000),
-  RATE_LIMIT_MAX_REQUESTS: z.string().transform(Number).default(100),
+  RATE_LIMIT_WINDOW_MS: z.string().transform(Number).default("60000"),
+  RATE_LIMIT_MAX_REQUESTS: z.string().transform(Number).default("100"),
 
   // Performance
-  MEMORY_THRESHOLD: z.string().transform(Number).default(85),
-  CACHE_TTL_MINUTES: z.string().transform(Number).default(5),
+  MEMORY_THRESHOLD: z.string().transform(Number).default("85"),
+  CACHE_TTL_MINUTES: z.string().transform(Number).default("5"),
 
   // Monitoring
   LOG_LEVEL: z.enum(["error", "warn", "info", "debug"]).default("info"),
-  ENABLE_METRICS: z.string().transform(Boolean).default(true),
+  ENABLE_METRICS: z.string().transform(Boolean).default("true"),
 });
 
 type Environment = z.infer<typeof envSchema>;

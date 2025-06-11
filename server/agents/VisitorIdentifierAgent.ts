@@ -106,11 +106,11 @@ export class VisitorIdentifierAgent {
 
           // Log activity
           await storage.createAgentActivity({
-            agentType: "visitor_identifier",
+            agentName: "visitor_identifier",
             action: existingVisitor ? "visitor_updated" : "visitor_created",
-            description: `Visitor ${existingVisitor ? "updated" : "created"} from abandonment event`,
-            targetId: visitor.id.toString(),
-            metadata: { sessionId: visitorData.sessionId },
+            details: `Visitor ${existingVisitor ? "updated" : "created"} from abandonment event`,
+            visitorId: visitor.id,
+            status: "success",
           });
 
           return {
@@ -144,15 +144,11 @@ export class VisitorIdentifierAgent {
 
           // Log lead_ready event
           await storage.createAgentActivity({
-            agentType: "visitor_identifier",
+            agentName: "visitor_identifier",
             action: "lead_ready",
-            description: `Lead ready for re-engagement: ${reason}`,
-            targetId: visitorId.toString(),
-            metadata: {
-              emailHash: visitor.emailHash,
-              abandonmentStep: visitor.abandonmentStep,
-              reason,
-            },
+            details: `Lead ready for re-engagement: ${reason}`,
+            visitorId: visitorId,
+            status: "success",
           });
 
           console.log(
@@ -207,20 +203,20 @@ export class VisitorIdentifierAgent {
 
       // Log activity
       await storage.createAgentActivity({
-        agentType: "visitor_identifier",
+        agentName: "visitor_identifier",
         action: "abandonment_detected",
-        description: `Abandonment detected at step ${event.step}`,
-        targetId: visitor.id.toString(),
-        metadata: { sessionId: event.sessionId, step: event.step },
+        details: `Abandonment detected at step ${event.step}`,
+        visitorId: visitor.id,
+        status: "success",
       });
 
       // Emit lead_ready event for re-engagement
       await storage.createAgentActivity({
-        agentType: "visitor_identifier",
+        agentName: "visitor_identifier",
         action: "lead_ready",
-        description: "Lead ready for re-engagement after abandonment",
-        targetId: visitor.id.toString(),
-        metadata: { emailHash, abandonmentStep: event.step },
+        details: "Lead ready for re-engagement after abandonment",
+        visitorId: visitor.id,
+        status: "success",
       });
 
       console.log(

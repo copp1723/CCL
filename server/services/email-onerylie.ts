@@ -259,7 +259,7 @@ Complete Car Loans
       htmlContent += `<br><br><a href="${returnUrl}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Continue Your Application</a>`;
     }
 
-    return this.send({
+    return this.sendEmail({
       to,
       subject,
       text: content,

@@ -165,7 +165,7 @@ export class EmailReengagementAgent {
           const emailResult = await this.emailService.sendReengagementEmail({
             to: emailHash, // In production, this would be the actual email
             subject,
-            body,
+            content: body,
             returnToken,
           });
 
@@ -305,7 +305,7 @@ export class EmailReengagementAgent {
       const emailResult = await this.emailService.sendReengagementEmail({
         to: visitor.emailHash,
         subject: content.subject,
-        body: content.body.replace(
+        content: content.body.replace(
           "{{RETURN_LINK}}",
           `${process.env.BASE_URL || "https://app.completecarloans.com"}/return/${returnToken}`
         ),
