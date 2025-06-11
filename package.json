@@ -114,7 +114,8 @@
     "twilio": "^4.21.0",
     "@sendgrid/mail": "^8.1.0",
     "axios": "^1.6.7",
-    "libphonenumber-js": "^1.10.53"
+    "libphonenumber-js": "^1.10.53",
+    "sanitize-html": "^2.17.0"
   },
   "devDependencies": {
     "@playwright/test": "^1.40.0",
