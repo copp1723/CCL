@@ -8,22 +8,22 @@ import { storageService } from "./services/storage-service.js";
 import { requestLogger } from "./middleware/logger.js";
 import { apiRateLimiter } from "./middleware/rate-limit.js";
 import { setupVite, serveStatic } from "./vite.js";
-import { campaignSender } from "./workers/campaign-sender";
-import campaignRoutes from "./routes/campaigns";
-import webhookRoutes from "./routes/webhooks";
-import promptTestingRoutes from "./routes/prompt-testing";
-import { mailgunService } from "./services/mailgun-service";
+import { campaignSender } from "./workers/campaign-sender.js";
+import campaignRoutes from "./routes/campaigns.js";
+import webhookRoutes from "./routes/webhooks.js";
+import promptTestingRoutes from "./routes/prompt-testing.js";
+import { mailgunService } from "./services/mailgun-service.js";
 
 // Import MVP Automation Services
-import { enhancedRequestLogger, logger } from "./logger";
-import config from "./config/environment";
-import { sftpIngestor } from "./services/sftp-ingestor";
-import { abandonmentDetector } from "./jobs/abandonment-detector";
-import { outreachOrchestrator } from "./jobs/outreach-orchestrator";
-import { twilioSms } from "./services/twilio-sms";
-import { boberdooService } from "./services/boberdoo-service";
-import twilioWebhookRoutes from "./routes/twilio-webhooks";
-import dashboardRoutes from "./routes/dashboard";
+import { enhancedRequestLogger, logger } from "./logger.js";
+import config from "./config/environment.js";
+import { sftpIngestor } from "./services/sftp-ingestor.js";
+import { abandonmentDetector } from "./jobs/abandonment-detector.js";
+import { outreachOrchestrator } from "./jobs/outreach-orchestrator.js";
+import { twilioSms } from "./services/twilio-sms.js";
+import { boberdooService } from "./services/boberdoo-service.js";
+import twilioWebhookRoutes from "./routes/twilio-webhooks.js";
+import dashboardRoutes from "./routes/dashboard.js";
 
 // Initialize configuration and logging
 logger.info("Starting CCL Agent System with MVP Automation Pipeline");
@@ -63,6 +63,24 @@ async function initializeMvpServices() {
 
 const app = express();
 const upload = multer({ storage: multer.memoryStorage() });
+
+// API Key validation middleware
+const apiKeyAuth = (req: Request, res: Response, next: NextFunction) => {
+  const apiKey = req.headers["x-api-key"] || req.query.apiKey;
+  const validApiKey = process.env.CCL_API_KEY || process.env.API_KEY;
+
+  if (!validApiKey) {
+    return res.status(500).json({ error: "Server configuration error" });
+  }
+
+  if (!apiKey || apiKey !== validApiKey) {
+    return res.status(401).json({
+      error: "Unauthorized",
+      message: "Valid API key required",
+    });
+  }
+  next();
+};
 
 // =============================================================================
 // MVP AUTOMATION PIPELINE API ENDPOINTS
@@ -345,24 +363,6 @@ const sanitizeInput = (req: Request, res: Response, next: NextFunction) => {
 };
 
 app.use(sanitizeInput);
-
-// API Key validation middleware
-const apiKeyAuth = (req: Request, res: Response, next: NextFunction) => {
-  const apiKey = req.headers["x-api-key"] || req.query.apiKey;
-  const validApiKey = process.env.CCL_API_KEY || process.env.API_KEY;
-
-  if (!validApiKey) {
-    return res.status(500).json({ error: "Server configuration error" });
-  }
-
-  if (!apiKey || apiKey !== validApiKey) {
-    return res.status(401).json({
-      error: "Unauthorized",
-      message: "Valid API key required",
-    });
-  }
-  next();
-};
 
 // Health check
 app.get("/health", async (req: Request, res: Response) => {

@@ -21,6 +21,7 @@ interface LeadData {
   status: "new" | "contacted" | "qualified" | "closed";
   createdAt: string;
   email: string;
+  phoneNumber?: string;
   leadData: any;
 }
 
@@ -56,6 +57,7 @@ export interface StorageInterface {
   // Leads
   createLead(data: {
     email: string;
+    phoneNumber?: string;
     status: "new" | "contacted" | "qualified" | "closed";
     leadData: any;
   }): Promise<LeadData>;
@@ -189,6 +191,7 @@ class DatabaseStorage implements StorageInterface {
       status: lead.status as "new" | "contacted" | "qualified" | "closed",
       createdAt: lead.createdAt?.toISOString() || new Date().toISOString(),
       email: lead.email,
+      phoneNumber: undefined, // Add phoneNumber field (optional)
       leadData: lead.leadData || {},
     }));
   }
@@ -330,6 +333,74 @@ class DatabaseStorage implements StorageInterface {
   ): Promise<void> {
     // Visitor update logic would go here when needed
     console.log(`Visitor ${id} updated:`, updates);
+  }
+
+  // MVP Automation methods
+  async getConversionFunnelData(): Promise<any> {
+    // Return mock conversion funnel data for now
+    return {
+      stages: [
+        { name: "Visitors", count: 1000 },
+        { name: "Engaged", count: 350 },
+        { name: "Qualified", count: 120 },
+        { name: "Converted", count: 45 }
+      ],
+      conversionRate: 0.045,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  async getLeadMetrics(): Promise<any> {
+    // Return mock lead metrics for now
+    const leads = await this.getLeads();
+    return {
+      total: leads.length,
+      new: leads.filter(l => l.status === "new").length,
+      contacted: leads.filter(l => l.status === "contacted").length,
+      qualified: leads.filter(l => l.status === "qualified").length,
+      closed: leads.filter(l => l.status === "closed").length,
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  async getVisitor(visitorId: number): Promise<any> {
+    // Return mock visitor data for now
+    return {
+      id: visitorId,
+      sessionId: `session_${visitorId}`,
+      createdAt: new Date().toISOString(),
+      phoneNumber: null,
+      email: null,
+      metadata: {}
+    };
+  }
+
+  async getOutreachAttemptsByVisitor(visitorId: number): Promise<any[]> {
+    // Return empty array for now
+    return [];
+  }
+
+  async getChatSessionsByVisitor(visitorId: number): Promise<any[]> {
+    // Return empty array for now
+    return [];
+  }
+
+  async updateVisitorPii(visitorId: number, piiData: any): Promise<void> {
+    // Log the update for now
+    console.log(`Updating PII for visitor ${visitorId}:`, piiData);
+  }
+
+  async healthCheck(): Promise<{ healthy: boolean; message?: string }> {
+    try {
+      // Try a simple database query
+      await db.select().from(systemLeads).limit(1);
+      return { healthy: true };
+    } catch (error) {
+      return { 
+        healthy: false, 
+        message: error instanceof Error ? error.message : "Database connection failed" 
+      };
+    }
   }
 }
 
