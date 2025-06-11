@@ -12,7 +12,7 @@ import {
   type InsertSystemActivity,
   type InsertSystemAgent,
 } from "../shared/schema";
-import { db } from "./db";
+import { db } from "./db-postgres";
 import { eq, desc, count } from "drizzle-orm";
 import { dbOptimizer } from "./services/performance-optimizer";
 

@@ -1,7 +1,8 @@
 import express from "express";
 import { Request, Response } from "express";
 import { CATHY_SYSTEM_PROMPT } from "../agents/cathy-system-prompt";
-import { promptVariableManager, PromptVariables } from "../config/prompt-variables";
+import { CATHY_ENHANCED_SYSTEM_PROMPT } from "../agents/cathy-enhanced-prompt";
+import { promptVariableManager, PromptVariables } from "../config/prompt-variables-enhanced";
 
 const router = express.Router();
 
@@ -34,6 +35,7 @@ router.get("/system-prompt", (req: Request, res: Response) => {
 
     res.json({
       prompt: dynamicPrompt,
+      enhancedPrompt: CATHY_ENHANCED_SYSTEM_PROMPT,
       staticPrompt: CATHY_SYSTEM_PROMPT,
       variables: currentVariables,
       timestamp: new Date().toISOString(),
@@ -136,7 +138,7 @@ router.post("/email-response", async (req: Request, res: Response) => {
   }
 });
 
-// Helper function to generate Cathy's chat response
+// Helper function to generate Cathy's chat response with enhanced strategy
 async function generateCathyResponse(
   userMessage: string,
   customerName: string,
@@ -148,86 +150,101 @@ async function generateCathyResponse(
   // Extract first name only for natural greetings
   const firstName = customerName.split(" ")[0];
 
-  // Analyze customer intent and generate appropriate response
+  // Analyze customer intent and generate appropriate response using enhanced strategy
   let cathyResponse: string;
   let analysis: string;
   let salesReadiness: string;
   let insights: string;
   let nextSteps: string;
+  let compassion: string;
+  let affirmation: string;
+  let progress: string;
 
   if (
     lowerMsg.includes("credit") &&
     (lowerMsg.includes("worried") || lowerMsg.includes("issues") || lowerMsg.includes("anxious"))
   ) {
-    cathyResponse = `Hey ${firstName}! I get it - credit concerns are totally normal.\n\nHere's the thing: I work with customers in all credit situations every day. Your credit history just helps me find the right path for you.\n\nWhat kind of car are you looking for? I'd love to show you what's possible!`;
-    analysis = "Customer expressing credit anxiety. Responding with empathy and reassurance.";
+    // Credit concerns - enhanced with required elements
+    compassion = "I completely understand those credit concerns";
+    affirmation = "You're being really smart to think about this upfront";
+    progress = "I'm checking what options are available for your situation right now";
+    cathyResponse = `${compassion}, ${firstName}. ${affirmation}.\n\nHere's the thing: We work with people in all credit situations every day. ${progress}.\n\nI'm creating your price now, get more info on the vehicle. If you have someone who could co-sign or a vehicle to trade, that can really help your approval odds too!`;
+    analysis = "Customer expressing credit anxiety. Responding with required compassion, affirmation, and progress indicators.";
     salesReadiness = "medium";
-    insights = "Customer has credit concerns but engaged. Building trust is key.";
-    nextSteps = "Build confidence and show available options despite credit challenges.";
+    insights = "Customer has credit concerns but engaged. Building trust with enhanced strategy.";
+    nextSteps = "Guide to application completion with co-signer/trade-in alternatives if needed.";
   } else if (
     lowerMsg.includes("first") ||
     lowerMsg.includes("new") ||
     lowerMsg.includes("understand") ||
     (lowerMsg.includes("how") && lowerMsg.includes("work"))
   ) {
-    cathyResponse = `Hey ${firstName}! First car - how exciting!\n\nAuto financing is actually pretty simple: quick soft credit check (no impact), see what you qualify for, then find a car that fits your budget.\n\nWant me to walk you through it?`;
-    analysis = "First-time buyer seeking education. Providing clear, encouraging guidance.";
+    // First-time buyer - YES-first approach
+    compassion = "I completely understand wanting to learn how this works";
+    affirmation = "You're being very wise to ask questions first";
+    progress = "I'm getting your pre-qualification details ready right now";
+    cathyResponse = `${compassion}, ${firstName}! ${affirmation}.\n\nYes! I can definitely walk you through this. Auto financing is actually pretty simple: quick soft credit check (no impact), see what you qualify for, then find a car that fits.\n\n${progress} - I'm creating your price now, get more info on the vehicle!`;
+    analysis = "First-time buyer seeking education. Using YES-first approach with required elements.";
     salesReadiness = "high";
-    insights = "New to auto financing, receptive to guidance. High conversion potential.";
-    nextSteps = "Walk through financing process and initiate soft credit check.";
+    insights = "New to auto financing, receptive to guidance. High conversion potential with enhanced strategy.";
+    nextSteps = "Guide through application process with progress reinforcement.";
   } else if (
     lowerMsg.includes("ready") ||
     lowerMsg.includes("apply") ||
     lowerMsg.includes("pre-approved") ||
     lowerMsg.includes("move forward")
   ) {
-    cathyResponse = `Love it, ${firstName}! Ready to move forward - that's what I like to hear.\n\nI can get your pre-qualification started right now with a soft credit check. Zero impact to your score, and you'll know what you qualify for in minutes.\n\nSound good?`;
-    analysis = "Customer showing high intent. Moving toward pre-qualification.";
+    // High intent - immediate YES with progress
+    compassion = "I hear that you're ready to move forward";
+    affirmation = "You're making a great choice taking action";
+    progress = "I'm pulling up your qualification options right now";
+    cathyResponse = `Yes! ${compassion}, ${firstName} - ${affirmation}.\n\n${progress}. I can get your pre-qualification started with a soft credit check. Zero impact to your score, and you'll know what you qualify for in minutes.\n\nI'm creating your price now, get more info on the vehicle. Let's get this done!`;
+    analysis = "Customer showing high intent. Using YES-first with immediate progress indicators.";
     salesReadiness = "high";
-    insights = "Highly motivated, ready for action. Prime for immediate pre-qualification.";
-    nextSteps = "Guide through soft credit check and pre-qualification application.";
+    insights = "Highly motivated, ready for action. Prime for immediate application completion.";
+    nextSteps = "Direct to application completion with strong momentum.";
   } else if (
     lowerMsg.includes("confused") ||
     lowerMsg.includes("overwhelmed") ||
     lowerMsg.includes("different things")
   ) {
-    cathyResponse = `${firstName}, I totally get that! Everyone telling you different things is so frustrating.\n\nLet me cut through the noise and give you straight answers. No pressure, just facts.\n\nWhat's your biggest question right now?`;
-    analysis = "Customer overwhelmed by conflicting information. Positioning as trusted advisor.";
+    // Confusion - compassion first, then progress
+    compassion = "I completely understand feeling overwhelmed by all the different information";
+    affirmation = "You're absolutely right to want clear, straight answers";
+    progress = "Let me check your specific options and give you the real facts";
+    cathyResponse = `${compassion}, ${firstName}. ${affirmation}.\n\n${progress} right now. No pressure, just clear information about what's actually available for you.\n\nI'm creating your price now, get more info on the vehicle. What's your biggest question - let me give you a straight answer!`;
+    analysis = "Customer overwhelmed by information. Using enhanced compassion and clarity approach.";
     salesReadiness = "medium";
-    insights =
-      "Needs clarity and trust-building. Opportunity to differentiate through transparency.";
-    nextSteps = "Address specific concerns and build trust through clear information.";
+    insights = "Needs clarity and trust-building. Enhanced strategy builds confidence through understanding.";
+    nextSteps = "Address specific concerns with compassion, then guide to application.";
   } else if (
     lowerMsg.includes("payment") ||
     lowerMsg.includes("monthly") ||
     lowerMsg.includes("budget") ||
     lowerMsg.includes("afford")
   ) {
-    cathyResponse = `Absolutely, ${firstName}! Staying within budget is super important.\n\n$300/month is totally doable - I help customers in that range all the time. It's all about finding the right car and loan terms.\n\nWhat type of vehicle are you thinking?`;
-    analysis = "Customer focused on monthly payment and budget. Addressing affordability directly.";
+    // Budget questions - YES-first approach
+    compassion = "I completely understand wanting to know about payments upfront";
+    affirmation = "You're being really smart about staying within budget";
+    progress = "I'm checking what payment options fit your range right now";
+    cathyResponse = `Yes! ${compassion}, ${firstName}. ${affirmation}.\n\n${progress}. I help customers in all budget ranges find something that works. The key is getting your exact qualification first.\n\nI'm creating your price now, get more info on the vehicle. What monthly range feels comfortable for you?`;
+    analysis = "Customer focused on budget. Using YES-first approach with payment focus.";
     salesReadiness = "high";
-    insights =
-      "Has specific budget parameters, actively seeking solutions. Good qualification opportunity.";
-    nextSteps = "Gather vehicle preferences and show financing options within budget.";
-  } else if (
-    lowerMsg.includes("started") ||
-    lowerMsg.includes("application") ||
-    lowerMsg.includes("paperwork")
-  ) {
-    cathyResponse = `No worries, ${firstName}! You don't need to start over.\n\nI can pull up what you already did and help you finish. Paperwork can be a pain - that's why I'm here!\n\nWant me to see where you left off?`;
-    analysis = "Previous abandonment, needs reassurance and guidance to complete.";
-    salesReadiness = "high";
-    insights = "Shown previous intent. Strong re-engagement opportunity.";
-    nextSteps = "Reassure and provide guided completion assistance.";
+    insights = "Budget-conscious but engaged. Enhanced strategy shows understanding and solutions.";
+    nextSteps = "Gather budget parameters and guide to qualification for exact numbers.";
   } else {
-    cathyResponse = `Hey ${firstName}! Great to hear from you.\n\nI'm Cathy - I help people find the right auto financing, no matter their credit situation. Every situation is unique, and I'm here to make it easy.\n\nWhat can I help you with today?`;
-    analysis = "General inquiry. Establishing rapport and gathering needs.";
+    // General inquiry - full enhanced strategy
+    compassion = "I completely understand wanting to explore your auto financing options";
+    affirmation = "You're making a great choice looking into this";
+    progress = "I'm checking what's available for you right now";
+    cathyResponse = `${compassion}, ${firstName}! ${affirmation}.\n\nI'm Cathy - I help people find the right auto financing, no matter their credit situation. ${progress}.\n\nI'm creating your price now, get more info on the vehicle. What can I help you with specifically today?`;
+    analysis = "General inquiry. Using full enhanced strategy with all required elements.";
     salesReadiness = "medium";
-    insights = "Early discovery phase. Opportunity to build relationship and understand needs.";
-    nextSteps = "Build rapport, ask qualifying questions, identify specific needs.";
+    insights = "Early discovery phase. Enhanced strategy builds immediate rapport and confidence.";
+    nextSteps = "Build relationship with compassion/affirmation, then guide to application completion.";
   }
 
-  // Apply dynamic prompt variables to response
+  // Apply enhanced prompt variable manager
   const finalResponse = promptVariableManager.applyToResponse(cathyResponse, {
     customerName: customerName,
   });
@@ -241,7 +258,11 @@ async function generateCathyResponse(
     channel: "web_chat",
     insights,
     nextSteps,
-  };
+    // Enhanced response format with required elements
+    compassion,
+    affirmation,
+    progress
+  } as TestResponse & { compassion: string; affirmation: string; progress: string };
 }
 
 // Helper function to generate Cathy's email response

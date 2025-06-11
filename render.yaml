@@ -1,1 +1,47 @@
-c2VydmljZXM6CiAgIyBDQ0wgQWdlbnQgU3lzdGVtIC0gTGVhbiAmIE1lYW4gQXJjaGl0ZWN0dXJlCiAgLSB0eXBlOiB3ZWIKICAgIG5hbWU6IGNjbC1hZ2VudC1zeXN0ZW0KICAgIHJ1bnRpbWU6IG5vZGUKICAgIHBsYW46IHN0YXJ0ZXIKICAgIGJ1aWxkQ29tbWFuZDogbnBtIGluc3RhbGwgJiYgbnBtIHJ1biBidWlsZAogICAgc3RhcnRDb21tYW5kOiBucG0gc3RhcnQKICAgIGhlYWx0aENoZWNrUGF0aDogL2hlYWx0aAogICAgZW52VmFyczoKICAgICAgLSBrZXk6IE5PREVfRU5WCiAgICAgICAgdmFsdWU6IHByb2R1Y3Rpb24KICAgICAgLSBrZXk6IFBPUlQKICAgICAgICB2YWx1ZTogMTAwMDAKICAgICAgLSBrZXk6IERBVEFCQVNFV1JMCiAgICAgICAgZnJvbURhdGFiYXNlOgogICAgICAgICAgbmFtZTogY2NsLWRhdGFiYXNlCiAgICAgICAgICBwcm9wZXJ0eTogY29ubmVjdGlvblN0cmluZwogICAgICAtIGtleTogRU5DUllQVElPTl9LRVkKICAgICAgICBnZW5lcmF0ZVZhbHVlOiB0cnVlCiAgICAgIC0ga2V5OiBBUF9LRVkKICAgICAgICBnZW5lcmF0ZVZhbHVlOiB0cnVlCiAgICAgIC0ga2V5OiBPUEVOQUlfQVBJX0tFWQogICAgICAgIGZyb21TZWNyZXRLZXk6IE9QRU5BSV9BUklfS0VZCgpkYXRhYmFzZXM6CiAgLSBuYW1lOiBjY2wtZGF0YWJhc2UKICAgIGRhdGFiYXNlTmFtZTogY2NsX3Byb2R1Y3Rpb24KICAgIHVzZXI6IGNjbF91c2Vy
+services:
+  # CCL Agent System - Lean & Mean Architecture
+  - type: web
+    name: ccl-agent-system
+    runtime: node
+    plan: starter
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ccl-database
+          property: connectionString
+      - key: ENCRYPTION_KEY
+        generateValue: true
+      - key: API_KEY
+        generateValue: true
+      - key: CCL_API_KEY
+        generateValue: true
+      - key: OPENAI_API_KEY
+        fromSecretKey: OPENAI_API_KEY
+      - key: OPENROUTER_API_KEY
+        fromSecretKey: OPENROUTER_API_KEY
+      # Deployment Configuration
+      - key: RENDER_DEPLOYMENT
+        value: true
+      - key: GRACEFUL_STARTUP
+        value: true
+      - key: SERVICE_TIMEOUT_MS
+        value: 10000
+      - key: DB_CONNECTION_TIMEOUT_MS
+        value: 5000
+      - key: MAX_STARTUP_RETRIES
+        value: 3
+      # Neon WebSocket Configuration
+      - key: NEON_WEBSOCKET_PROXY
+        value: false
+
+databases:
+  - name: ccl-database
+    databaseName: ccl_production
+    user: ccl_user

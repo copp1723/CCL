@@ -32,7 +32,7 @@ import {
   type InsertAgentActivity,
   type AgentActivity,
 } from "../shared/schema";
-import { db } from "./db";
+import { db } from "./db-postgres";
 import { eq, desc, count, and, isNull, lt, sql } from "drizzle-orm";
 import { dbOptimizer } from "./services/performance-optimizer";
 import { LeadData, Activity, Agent, SystemStats } from "./types/common.js";

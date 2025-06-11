@@ -11,6 +11,8 @@ import { setupVite, serveStatic } from "./vite.js";
 import { campaignSender } from "./workers/campaign-sender";
 import campaignRoutes from "./routes/campaigns";
 import webhookRoutes from "./routes/webhooks";
+import promptTestingRoutes from "./routes/prompt-testing";
+import { mailgunService } from "./services/mailgun-service";
 
 // Import MVP Automation Services
 import { enhancedRequestLogger, logger } from './logger';
@@ -250,14 +252,15 @@ app.use(
 app.use(enhancedRequestLogger); // Use enhanced logger instead of basic one
 app.use(apiRateLimiter);
 
-// Add the campaign, webhook, and dashboard routers
+// Add the campaign, webhook, dashboard, and prompt-testing routers
 app.use("/api/campaigns", campaignRoutes);
 app.use("/api/webhooks", webhookRoutes);
 app.use("/api/webhooks", twilioWebhookRoutes); // Add Twilio webhook routes
 app.use("/api/dashboard", dashboardRoutes); // Add dashboard API routes
+app.use("/api/test", promptTestingRoutes);
 
 // CORS configuration
-const allowedOrigins = ["http://localhost:5173", "http://12y7.0.0.1:5173"];
+const allowedOrigins = ["http://localhost:5173", "http://127.0.0.1:5173"];
 if (process.env.FRONTEND_URL) {
   allowedOrigins.push(process.env.FRONTEND_URL);
 }
@@ -346,7 +349,7 @@ app.use(sanitizeInput);
 // API Key validation middleware
 const apiKeyAuth = (req: Request, res: Response, next: NextFunction) => {
   const apiKey = req.headers["x-api-key"] || req.query.apiKey;
-  const validApiKey = process.env.CCL_API_KEY || process.env.FLEXPATH_API_KEY;
+  const validApiKey = process.env.CCL_API_KEY || process.env.API_KEY;
 
   if (!validApiKey) {
     return res.status(500).json({ error: "Server configuration error" });
@@ -374,13 +377,14 @@ app.get("/health", async (req: Request, res: Response) => {
       twilioSms: await twilioSms.healthCheck(),
       boberdoo: await boberdooService.healthCheck(),
     };
-    
+
     const allHealthy = Object.values(healthChecks).every(check => check.healthy);
-    
+
     res.status(allHealthy ? 200 : 503).json({
       status: allHealthy ? "healthy" : "degraded",
       timestamp: new Date().toISOString(),
       environment: process.env.NODE_ENV,
+      mailgun: mailgunService.getStatus(),
       services: healthChecks,
       mvpAutomation: {
         sftpConfigured: config.getSftpConfig().configured,
@@ -478,7 +482,7 @@ app.get("/api/agents", async (req: Request, res: Response) => {
   }
 });
 
-// Chat endpoint with concise Cathy responses
+// Chat endpoint with OpenRouter integration
 app.post("/api/chat", async (req: Request, res: Response) => {
   try {
     const { message } = req.body;
@@ -486,21 +490,24 @@ app.post("/api/chat", async (req: Request, res: Response) => {
     let response =
       "Hi! I'm Cathy from Complete Car Loans. How can I help with your auto financing today?";
 
-    if (process.env.OPENAI_API_KEY) {
+    // Use OpenRouter instead of OpenAI
+    if (process.env.OPENROUTER_API_KEY) {
       try {
-        const openaiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+        const openRouterResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
           headers: {
-            Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+            Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
             "Content-Type": "application/json",
+            "HTTP-Referer": process.env.FRONTEND_URL || "http://localhost:5173",
+            "X-Title": "CCL Agent System",
           },
           body: JSON.stringify({
-            model: "gpt-4",
+            model: "anthropic/claude-3.5-sonnet", // Using Claude 3.5 Sonnet via OpenRouter
             messages: [
               {
                 role: "system",
                 content:
-                  "You are Cathy from Complete Car Loans. Keep responses under 50 words. Be warm but concise. Focus on: 1) Understanding their auto financing needs 2) Getting their phone number for soft credit check 3) Reassuring about credit acceptance. Avoid lengthy explanations.",
+                  "You are Cathy from Complete Car Loans. Keep responses under 50 words. Be warm but concise. Focus on: 1) Understanding their auto financing needs 2) Getting their phone number for soft credit check 3) Reassuring about credit acceptance. Avoid lengthy explanations. Use a conversational, helpful tone.",
               },
               { role: "user", content: message },
             ],
@@ -509,12 +516,14 @@ app.post("/api/chat", async (req: Request, res: Response) => {
           }),
         });
 
-        if (openaiResponse.ok) {
-          const data = await openaiResponse.json();
+        if (openRouterResponse.ok) {
+          const data = await openRouterResponse.json();
           response = data.choices[0]?.message?.content || response;
+        } else {
+          console.error("OpenRouter API error:", await openRouterResponse.text());
         }
-      } catch (openaiError) {
-        console.error("OpenAI API error:", openaiError);
+      } catch (openRouterError) {
+        console.error("OpenRouter API error:", openRouterError);
       }
     }
 
@@ -609,6 +618,7 @@ app.get("/api/bulk-email/campaigns", async (req: Request, res: Response) => {
 
 app.get("/api/bulk-email/settings", async (req: Request, res: Response) => {
   try {
+    const mailgunStatus = mailgunService.getStatus();
     res.json({
       success: true,
       data: {
@@ -618,8 +628,13 @@ app.get("/api/bulk-email/settings", async (req: Request, res: Response) => {
           step3Delay: 168,
         },
         mailgun: {
-          domain: process.env.MAILGUN_DOMAIN || "sandbox.mailgun.org",
-          status: process.env.MAILGUN_API_KEY ? "connected" : "not_configured",
+          domain: mailgunStatus.domain,
+          status: mailgunStatus.configured ? "connected" : "not_configured",
+          configured: mailgunStatus.configured,
+        },
+        openrouter: {
+          configured: !!process.env.OPENROUTER_API_KEY,
+          status: process.env.OPENROUTER_API_KEY ? "connected" : "not_configured",
         },
       },
     });
@@ -631,7 +646,7 @@ app.get("/api/bulk-email/settings", async (req: Request, res: Response) => {
 // Create HTTP server
 const server = createServer(app);
 
-// Simple WebSocket implementation
+// Simple WebSocket implementation with OpenRouter
 const wss = new WebSocketServer({ server, path: "/ws/chat" });
 
 wss.on("connection", (ws: WebSocket) => {
@@ -642,15 +657,41 @@ wss.on("connection", (ws: WebSocket) => {
       const message = JSON.parse(data.toString());
 
       if (message.type === "chat") {
-        const cathyResponses = [
-          "Hi! I'm Cathy from Complete Car Loans. How can I help with your auto financing today?",
-          "I understand financing can be stressful. Let me see what options we have for you.",
-          "We specialize in helping people with all credit situations. What's your main concern?",
-          "Would you like me to check your pre-approval status? It only takes a minute.",
-          "I'm here to make this process as smooth as possible. What questions do you have?",
-        ];
+        let response = "Hi! I'm Cathy from Complete Car Loans. How can I help with your auto financing today?";
 
-        const response = cathyResponses[Math.floor(Math.random() * cathyResponses.length)];
+        // Use OpenRouter for WebSocket chat too
+        if (process.env.OPENROUTER_API_KEY) {
+          try {
+            const openRouterResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                "Content-Type": "application/json",
+                "HTTP-Referer": process.env.FRONTEND_URL || "http://localhost:5173",
+                "X-Title": "CCL Agent System WebSocket",
+              },
+              body: JSON.stringify({
+                model: "anthropic/claude-3.5-sonnet",
+                messages: [
+                  {
+                    role: "system",
+                    content: "You are Cathy from Complete Car Loans. Keep responses under 50 words. Be warm, helpful, and focus on auto financing assistance.",
+                  },
+                  { role: "user", content: message.content },
+                ],
+                max_tokens: 150,
+                temperature: 0.7,
+              }),
+            });
+
+            if (openRouterResponse.ok) {
+              const data = await openRouterResponse.json();
+              response = data.choices[0]?.message?.content || response;
+            }
+          } catch (error) {
+            console.error("OpenRouter WebSocket error:", error);
+          }
+        }
 
         await storageService.createActivity(
           "chat_message",
@@ -695,6 +736,7 @@ if (process.env.NODE_ENV !== "production") {
 
 const PORT = parseInt(process.env.PORT || "5000", 10);
 
+<<<<<<< HEAD
 // Initialize MVP services before starting server
 initializeMvpServices().then(() => {
   server.listen(PORT, "0.0.0.0", () => {
@@ -711,6 +753,9 @@ initializeMvpServices().then(() => {
     console.log(`Health check: http://0.0.0.0:${PORT}/health`);
     console.log(`WebSocket available at ws://localhost:${PORT}/ws/chat`);
     console.log(`MVP API endpoints available at /api/mvp/*`);
+  });
+    console.log(`Mailgun configured: ${mailgunService.getStatus().configured}`);
+    console.log(`OpenRouter configured: ${!!process.env.OPENROUTER_API_KEY}`);
   });
 }).catch((error) => {
   logger.error({ error }, 'Failed to start server');

@@ -4,12 +4,13 @@ import {
   Home,
   Mail,
   Database,
-  Settings,
+  Settings as SettingsIcon,
   Bot,
   BarChart3,
   FileText,
   Webhook,
   MessageSquare,
+  Sliders,
 } from "lucide-react";
 
 interface NavItem {
@@ -27,22 +28,10 @@ const navItems: NavItem[] = [
     description: "Agent status and metrics overview",
   },
   {
-    title: "Email Campaigns",
-    href: "/email-campaigns",
-    icon: Mail,
-    description: "Manage re-engagement email campaigns",
-  },
-  {
-    title: "Multi-Attempt Campaigns",
-    href: "/multi-attempt-campaigns",
-    icon: BarChart3,
-    description: "Automated email sequences with timing controls",
-  },
-  {
     title: "Campaigns",
     href: "/campaigns",
-    icon: FileText,
-    description: "Create and manage automated email campaigns",
+    icon: Mail,
+    description: "Create and manage email campaigns",
   },
   {
     title: "Data Ingestion",
@@ -59,8 +48,14 @@ const navItems: NavItem[] = [
   {
     title: "Prompt Variables",
     href: "/prompt-variables",
-    icon: Settings,
+    icon: Sliders,
     description: "Configure dynamic AI response parameters",
+  },
+  {
+    title: "Settings",
+    href: "/settings",
+    icon: SettingsIcon,
+    description: "System configuration and integrations",
   },
 ];
 
