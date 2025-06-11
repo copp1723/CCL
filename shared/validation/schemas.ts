@@ -5,15 +5,19 @@ export const PhoneSchema = z
   .string()
   .regex(/^\+1\d{10}$/, "Phone must be E.164 format (+1XXXXXXXXXX)")
   .or(
-    z.string().regex(/^\(\d{3}\)\s?\d{3}-\d{4}$/, "Phone must be (XXX) XXX-XXXX format")
+    z
+      .string()
+      .regex(/^\(\d{3}\)\s?\d{3}-\d{4}$/, "Phone must be (XXX) XXX-XXXX format")
       .transform(phone => {
         // Convert (XXX) XXX-XXXX to +1XXXXXXXXXX
-        const cleaned = phone.replace(/\D/g, '');
+        const cleaned = phone.replace(/\D/g, "");
         return `+1${cleaned}`;
       })
   )
   .or(
-    z.string().regex(/^\d{10}$/, "Phone must be 10 digits")
+    z
+      .string()
+      .regex(/^\d{10}$/, "Phone must be 10 digits")
       .transform(phone => `+1${phone}`)
   );
 
@@ -31,12 +35,57 @@ export const StateSchema = z
   .toUpperCase()
   .refine(state => {
     const validStates = [
-      'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
-      'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
-      'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
-      'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
-      'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY',
-      'DC'
+      "AL",
+      "AK",
+      "AZ",
+      "AR",
+      "CA",
+      "CO",
+      "CT",
+      "DE",
+      "FL",
+      "GA",
+      "HI",
+      "ID",
+      "IL",
+      "IN",
+      "IA",
+      "KS",
+      "KY",
+      "LA",
+      "ME",
+      "MD",
+      "MA",
+      "MI",
+      "MN",
+      "MS",
+      "MO",
+      "MT",
+      "NE",
+      "NV",
+      "NH",
+      "NJ",
+      "NM",
+      "NY",
+      "NC",
+      "ND",
+      "OH",
+      "OK",
+      "OR",
+      "PA",
+      "RI",
+      "SC",
+      "SD",
+      "TN",
+      "TX",
+      "UT",
+      "VT",
+      "VA",
+      "WA",
+      "WV",
+      "WI",
+      "WY",
+      "DC",
     ];
     return validStates.includes(state);
   }, "Invalid US state abbreviation");
@@ -50,7 +99,10 @@ export const NameSchema = z
   .string()
   .min(1, "Name is required")
   .max(50, "Name must be 50 characters or less")
-  .regex(/^[a-zA-Z\s\-'\.]+$/, "Name can only contain letters, spaces, hyphens, apostrophes, and periods")
+  .regex(
+    /^[a-zA-Z\s\-'\.]+$/,
+    "Name can only contain letters, spaces, hyphens, apostrophes, and periods"
+  )
   .transform(name => name.trim());
 
 // Income validation schema
@@ -60,7 +112,8 @@ export const IncomeSchema = z
   .min(0, "Income cannot be negative")
   .max(10000000, "Income seems unreasonably high")
   .or(
-    z.string()
+    z
+      .string()
       .regex(/^\d+$/, "Income must be numeric")
       .transform(income => parseInt(income))
       .pipe(z.number().int().min(0).max(10000000))
@@ -85,7 +138,8 @@ export const TimeOnJobSchema = z
   .min(0, "Time on job cannot be negative")
   .max(600, "Time on job seems unreasonably long (50+ years)")
   .or(
-    z.string()
+    z
+      .string()
       .regex(/^\d+$/, "Time on job must be numeric (months)")
       .transform(months => parseInt(months))
       .pipe(z.number().int().min(0).max(600))
@@ -95,14 +149,19 @@ export const TimeOnJobSchema = z
 export const VisitorPiiSchema = z.object({
   firstName: NameSchema,
   lastName: NameSchema,
-  street: z.string()
+  street: z
+    .string()
     .min(5, "Street address must be at least 5 characters")
     .max(255, "Street address must be 255 characters or less")
     .transform(street => street.trim()),
-  city: z.string()
+  city: z
+    .string()
     .min(2, "City must be at least 2 characters")
     .max(100, "City must be 100 characters or less")
-    .regex(/^[a-zA-Z\s\-'\.]+$/, "City can only contain letters, spaces, hyphens, apostrophes, and periods")
+    .regex(
+      /^[a-zA-Z\s\-'\.]+$/,
+      "City can only contain letters, spaces, hyphens, apostrophes, and periods"
+    )
     .transform(city => city.trim()),
   state: StateSchema,
   zip: ZipCodeSchema,
@@ -171,11 +230,11 @@ export const SftpIngestRowSchema = z.object({
 // Outreach message schema
 export const OutreachMessageSchema = z.object({
   visitorId: z.number().int().positive(),
-  channel: z.enum(['sms', 'email']),
+  channel: z.enum(["sms", "email"]),
   messageContent: z.string().min(1, "Message content is required"),
   returnToken: z.string().uuid().optional(),
   scheduledFor: z.date().optional(),
-  priority: z.enum(['low', 'normal', 'high']).default('normal'),
+  priority: z.enum(["low", "normal", "high"]).default("normal"),
 });
 
 // Boberdoo submission schema
@@ -203,7 +262,7 @@ export const BoberdooSubmissionSchema = z.object({
 // Chat message validation
 export const ChatMessageSchema = z.object({
   id: z.string(),
-  type: z.enum(['user', 'agent']),
+  type: z.enum(["user", "agent"]),
   content: z.string().min(1, "Message content is required"),
   timestamp: z.date(),
   metadata: z.record(z.any()).optional(),
@@ -215,47 +274,79 @@ export const ChatSessionSchema = z.object({
   isActive: z.boolean().default(true),
   messages: z.array(ChatMessageSchema).default([]),
   agentType: z.string().optional(),
-  status: z.enum(['active', 'completed', 'abandoned']).default('active'),
+  status: z.enum(["active", "completed", "abandoned"]).default("active"),
   piiCollected: PartialVisitorPiiSchema.optional(),
   piiComplete: z.boolean().default(false),
 });
 
 // Utility functions for validation
-export function validatePhoneNumber(phone: string): { isValid: boolean; formatted?: string; error?: string } {
+export function validatePhoneNumber(phone: string): {
+  isValid: boolean;
+  formatted?: string;
+  error?: string;
+} {
   try {
     const formatted = PhoneSchema.parse(phone);
     return { isValid: true, formatted };
   } catch (error) {
-    return { isValid: false, error: error instanceof z.ZodError ? error.errors[0].message : 'Invalid phone number' };
+    return {
+      isValid: false,
+      error: error instanceof z.ZodError ? error.errors[0].message : "Invalid phone number",
+    };
   }
 }
 
-export function validateEmail(email: string): { isValid: boolean; formatted?: string; error?: string } {
+export function validateEmail(email: string): {
+  isValid: boolean;
+  formatted?: string;
+  error?: string;
+} {
   try {
     const formatted = EmailSchema.parse(email);
     return { isValid: true, formatted };
   } catch (error) {
-    return { isValid: false, error: error instanceof z.ZodError ? error.errors[0].message : 'Invalid email' };
+    return {
+      isValid: false,
+      error: error instanceof z.ZodError ? error.errors[0].message : "Invalid email",
+    };
   }
 }
 
-export function validatePartialPii(data: any): { isValid: boolean; data?: any; errors?: any; missingFields?: string[] } {
+export function validatePartialPii(data: any): {
+  isValid: boolean;
+  data?: any;
+  errors?: any;
+  missingFields?: string[];
+} {
   try {
     const validData = PartialVisitorPiiSchema.parse(data);
-    
+
     // Check which required fields are still missing for complete PII
-    const requiredFields = ['firstName', 'lastName', 'street', 'city', 'state', 'zip', 'employer', 'jobTitle', 'annualIncome', 'phoneNumber'];
-    const missingFields = requiredFields.filter(field => !validData[field as keyof typeof validData]);
-    
-    return { 
-      isValid: true, 
-      data: validData, 
-      missingFields: missingFields.length > 0 ? missingFields : undefined 
+    const requiredFields = [
+      "firstName",
+      "lastName",
+      "street",
+      "city",
+      "state",
+      "zip",
+      "employer",
+      "jobTitle",
+      "annualIncome",
+      "phoneNumber",
+    ];
+    const missingFields = requiredFields.filter(
+      field => !validData[field as keyof typeof validData]
+    );
+
+    return {
+      isValid: true,
+      data: validData,
+      missingFields: missingFields.length > 0 ? missingFields : undefined,
     };
   } catch (error) {
-    return { 
-      isValid: false, 
-      errors: error instanceof z.ZodError ? error.flatten() : error 
+    return {
+      isValid: false,
+      errors: error instanceof z.ZodError ? error.flatten() : error,
     };
   }
 }
@@ -265,9 +356,9 @@ export function validateCompletePii(data: any): { isValid: boolean; data?: any; 
     const validData = VisitorPiiSchema.parse(data);
     return { isValid: true, data: validData };
   } catch (error) {
-    return { 
-      isValid: false, 
-      errors: error instanceof z.ZodError ? error.flatten() : error 
+    return {
+      isValid: false,
+      errors: error instanceof z.ZodError ? error.flatten() : error,
     };
   }
 }

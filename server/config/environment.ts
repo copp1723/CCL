@@ -108,17 +108,25 @@ class ConfigManager {
     console.log(`   OpenAI: ${config.OPENAI_API_KEY ? "✅ Configured" : "⚠️  Not configured"}`);
     console.log(`   Mailgun: ${config.MAILGUN_API_KEY ? "✅ Configured" : "⚠️  Not configured"}`);
     console.log(`   FlexPath: ${config.FLEXPATH_API_KEY ? "✅ Configured" : "⚠️  Not configured"}`);
-    
+
     // MVP Automation Pipeline Status
     console.log("📋 MVP Automation Pipeline:");
     const sftpConfig = this.getSftpConfig();
-    console.log(`   SFTP Ingestion: ${sftpConfig.configured ? "✅ Configured" : "⚠️  Not configured"}`);
+    console.log(
+      `   SFTP Ingestion: ${sftpConfig.configured ? "✅ Configured" : "⚠️  Not configured"}`
+    );
     const messagingConfig = this.getMessagingConfig();
-    console.log(`   Twilio SMS: ${messagingConfig.twilio.configured ? "✅ Configured" : "⚠️  Not configured"}`);
-    console.log(`   SendGrid Email: ${messagingConfig.sendgrid.configured ? "✅ Configured" : "⚠️  Not configured"}`);
+    console.log(
+      `   Twilio SMS: ${messagingConfig.twilio.configured ? "✅ Configured" : "⚠️  Not configured"}`
+    );
+    console.log(
+      `   SendGrid Email: ${messagingConfig.sendgrid.configured ? "✅ Configured" : "⚠️  Not configured"}`
+    );
     const boberdooConfig = this.getBoberdooConfig();
-    console.log(`   Boberdoo Export: ${boberdooConfig.configured ? "✅ Configured" : "⚠️  Not configured"}`);
-    
+    console.log(
+      `   Boberdoo Export: ${boberdooConfig.configured ? "✅ Configured" : "⚠️  Not configured"}`
+    );
+
     console.log(`   Security: ${this.isSecure() ? "✅ Production ready" : "⚠️  Development mode"}`);
   }
 

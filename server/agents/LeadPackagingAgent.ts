@@ -2,13 +2,13 @@ import { Agent, tool } from "@openai/agents";
 import { storage } from "../storage";
 import { WebhookService } from "../services/WebhookService";
 import { boberdooService } from "../services/boberdoo-service";
-import { 
-  validateCompletePii, 
+import {
+  validateCompletePii,
   LeadPackageSchema,
   BoberdooSubmissionSchema,
   type LeadPackage,
   type BoberdooSubmission,
-  type VisitorPii 
+  type VisitorPii,
 } from "../../shared/validation/schemas";
 import config from "../config/environment";
 import { logger } from "../logger";
@@ -19,13 +19,13 @@ import type { InsertLead, Visitor, CreditCheckResult } from "@shared/schema";
 export class LeadPackagingAgent {
   private agent: Agent;
   private webhookService: WebhookService;
-  private logger = logger.child({ component: 'LeadPackagingAgent' });
+  private logger = logger.child({ component: "LeadPackagingAgent" });
   private boberdooConfig = config.getBoberdooConfig();
 
   constructor() {
     this.webhookService = new WebhookService();
-    this.logger.info('LeadPackagingAgent initialized', {
-      boberdooConfigured: this.boberdooConfig.configured
+    this.logger.info("LeadPackagingAgent initialized", {
+      boberdooConfigured: this.boberdooConfig.configured,
     });
 
     this.agent = new Agent({
@@ -66,7 +66,7 @@ export class LeadPackagingAgent {
           if (!visitor) {
             return {
               success: false,
-              error: "Visitor not found"
+              error: "Visitor not found",
             };
           }
 
@@ -84,47 +84,46 @@ export class LeadPackagingAgent {
             timeOnJobMonths: visitor.timeOnJobMonths,
             phoneNumber: visitor.phoneNumber,
             email: visitor.email,
-            emailHash: visitor.emailHash
+            emailHash: visitor.emailHash,
           };
 
           // Validate complete PII
           const validation = validateCompletePii(piiData);
-          
+
           if (!validation.isValid) {
-            this.logger.warn('Incomplete PII for visitor', {
+            this.logger.warn("Incomplete PII for visitor", {
               visitorId,
-              errors: validation.errors
+              errors: validation.errors,
             });
-            
+
             return {
               success: false,
               piiComplete: false,
               errors: validation.errors,
-              message: "Visitor PII is incomplete - cannot package lead"
+              message: "Visitor PII is incomplete - cannot package lead",
             };
           }
 
-          this.logger.info('PII validation successful', { visitorId });
-          
+          this.logger.info("PII validation successful", { visitorId });
+
           return {
             success: true,
             piiComplete: true,
             validatedPii: validation.data,
-            message: "Visitor has complete PII - ready for lead packaging"
+            message: "Visitor has complete PII - ready for lead packaging",
           };
-
         } catch (error) {
-          this.logger.error('PII validation error', {
+          this.logger.error("PII validation error", {
             visitorId: params.visitorId,
-            error: error instanceof Error ? error.message : 'Unknown error'
+            error: error instanceof Error ? error.message : "Unknown error",
           });
-          
+
           return {
             success: false,
-            error: error instanceof Error ? error.message : "Unknown error"
+            error: error instanceof Error ? error.message : "Unknown error",
           };
         }
-      }
+      },
     });
   }
 
@@ -166,7 +165,7 @@ export class LeadPackagingAgent {
             timeOnJobMonths: visitor.timeOnJobMonths,
             phoneNumber: visitor.phoneNumber,
             email: visitor.email,
-            emailHash: visitor.emailHash
+            emailHash: visitor.emailHash,
           };
 
           const piiValidation = validateCompletePii(piiData);
@@ -185,7 +184,7 @@ export class LeadPackagingAgent {
               returnTokenUsed: !!visitor.returnToken,
               adClickTs: visitor.adClickTs ? new Date(visitor.adClickTs) : undefined,
               formStartTs: visitor.formStartTs ? new Date(visitor.formStartTs) : undefined,
-              abandonmentStep: visitor.abandonmentStep || undefined
+              abandonmentStep: visitor.abandonmentStep || undefined,
             },
             creditCheck: {
               approved: creditResult?.approved || visitor.creditCheckStatus === "approved",
@@ -193,13 +192,13 @@ export class LeadPackagingAgent {
               approvedAmount: creditResult?.approvedAmount,
               interestRate: creditResult?.interestRate,
               denialReason: creditResult?.denialReason,
-              checkDate: creditResult?.checkDate || new Date()
+              checkDate: creditResult?.checkDate || new Date(),
             },
             metadata: {
               createdAt: new Date(),
               processedBy: "LeadPackagingAgent",
-              version: "1.0.0"
-            }
+              version: "1.0.0",
+            },
           };
 
           // Validate complete lead package
@@ -208,19 +207,19 @@ export class LeadPackagingAgent {
             throw new Error(`Invalid lead package: ${packageValidation.error.message}`);
           }
 
-          this.logger.info('Lead package assembled successfully', {
+          this.logger.info("Lead package assembled successfully", {
             leadId,
             visitorId,
             source,
             piiComplete: true,
-            creditApproved: leadPackage.creditCheck.approved
+            creditApproved: leadPackage.creditCheck.approved,
           });
 
           return {
             success: true,
             leadPackage: packageValidation.data,
             leadId,
-            message: "Lead package assembled and validated successfully"
+            message: "Lead package assembled and validated successfully",
           };
         } catch (error) {
           console.error("[LeadPackagingAgent] Error assembling lead:", error);
@@ -242,7 +241,7 @@ export class LeadPackagingAgent {
           const { leadPackage, visitorId } = params;
 
           if (!this.boberdooConfig.configured) {
-            throw new Error('Boberdoo service not configured');
+            throw new Error("Boberdoo service not configured");
           }
 
           // Create Boberdoo submission from lead package
@@ -251,7 +250,7 @@ export class LeadPackagingAgent {
             vendor_password: this.boberdooConfig.vendorPassword!,
             first_name: leadPackage.visitor.firstName,
             last_name: leadPackage.visitor.lastName,
-            email: leadPackage.visitor.email || '',
+            email: leadPackage.visitor.email || "",
             phone: leadPackage.visitor.phoneNumber,
             address: leadPackage.visitor.street,
             city: leadPackage.visitor.city,
@@ -264,7 +263,7 @@ export class LeadPackagingAgent {
             credit_score: leadPackage.creditCheck.creditScore,
             loan_amount: leadPackage.creditCheck.approvedAmount,
             source: leadPackage.engagement.source,
-            lead_id: leadPackage.leadId
+            lead_id: leadPackage.leadId,
           };
 
           // Validate Boberdoo submission
@@ -274,7 +273,9 @@ export class LeadPackagingAgent {
           }
 
           // Submit to Boberdoo with retry
-          const boberdooResult = await boberdooService.submitLeadWithRetry(submissionValidation.data);
+          const boberdooResult = await boberdooService.submitLeadWithRetry(
+            submissionValidation.data
+          );
 
           // Create lead record with Boberdoo status
           const leadData: InsertLead = {
@@ -307,15 +308,15 @@ export class LeadPackagingAgent {
                 boberdooStatus: boberdooResult.status,
                 price: boberdooResult.price,
                 buyerId: boberdooResult.buyerId,
-                submissionTime: new Date()
-              }
+                submissionTime: new Date(),
+              },
             });
 
-            this.logger.info('Lead submitted to Boberdoo successfully', {
+            this.logger.info("Lead submitted to Boberdoo successfully", {
               leadId: leadPackage.leadId,
               boberdooStatus: boberdooResult.status,
               price: boberdooResult.price,
-              buyerId: boberdooResult.buyerId
+              buyerId: boberdooResult.buyerId,
             });
 
             return {
@@ -323,7 +324,7 @@ export class LeadPackagingAgent {
               leadId: lead.id,
               boberdooResult,
               revenue: boberdooResult.price,
-              message: `Lead submitted to Boberdoo successfully - Status: ${boberdooResult.status}`
+              message: `Lead submitted to Boberdoo successfully - Status: ${boberdooResult.status}`,
             };
           } else {
             // Log failed submission
@@ -336,25 +337,24 @@ export class LeadPackagingAgent {
                 leadId: lead.id,
                 errorCode: boberdooResult.errorCode,
                 errorDetails: boberdooResult.errorDetails,
-                submissionTime: new Date()
-              }
+                submissionTime: new Date(),
+              },
             });
 
             throw new Error(`Boberdoo submission failed: ${boberdooResult.message}`);
           }
-
         } catch (error) {
-          this.logger.error('Boberdoo submission error', {
+          this.logger.error("Boberdoo submission error", {
             leadId: params.leadPackage.leadId,
-            error: error instanceof Error ? error.message : 'Unknown error'
+            error: error instanceof Error ? error.message : "Unknown error",
           });
-          
+
           return {
             success: false,
-            error: error instanceof Error ? error.message : "Unknown error"
+            error: error instanceof Error ? error.message : "Unknown error",
           };
         }
-      }
+      },
     });
   }
 
@@ -404,8 +404,8 @@ export class LeadPackagingAgent {
               },
             });
 
-            this.logger.info('Lead submitted to dealer CRM successfully', {
-              leadId: leadPackage.leadId
+            this.logger.info("Lead submitted to dealer CRM successfully", {
+              leadId: leadPackage.leadId,
             });
 
             return {
@@ -460,10 +460,10 @@ export class LeadPackagingAgent {
             },
           });
 
-          this.logger.warn('Lead submission failed, adding to DLQ', {
+          this.logger.warn("Lead submission failed, adding to DLQ", {
             leadId: lead.leadId,
             attemptCount,
-            error
+            error,
           });
 
           return {
@@ -498,22 +498,22 @@ export class LeadPackagingAgent {
     error?: string;
   }> {
     try {
-      this.logger.info('Starting lead packaging process', {
+      this.logger.info("Starting lead packaging process", {
         visitorId,
         source,
-        creditApproved: creditResult?.approved
+        creditApproved: creditResult?.approved,
       });
 
       // Step 1: Validate PII completeness
       const piiValidation = await this.validatePii(visitorId);
       if (!piiValidation.piiComplete) {
-        this.logger.warn('Cannot package lead - incomplete PII', {
+        this.logger.warn("Cannot package lead - incomplete PII", {
           visitorId,
-          errors: piiValidation.errors
+          errors: piiValidation.errors,
         });
         return {
           success: false,
-          error: "Incomplete PII - cannot package lead for submission"
+          error: "Incomplete PII - cannot package lead for submission",
         };
       }
 
@@ -529,12 +529,12 @@ export class LeadPackagingAgent {
       if (this.boberdooConfig.configured) {
         try {
           const boberdooResult = await this.submitToBoberdoo(leadPackage, visitorId);
-          
+
           if (boberdooResult.success) {
-            this.logger.info('Lead successfully monetized via Boberdoo', {
+            this.logger.info("Lead successfully monetized via Boberdoo", {
               leadId: leadPackageId,
               revenue: boberdooResult.revenue,
-              status: boberdooResult.boberdooResult?.status
+              status: boberdooResult.boberdooResult?.status,
             });
 
             return {
@@ -542,18 +542,18 @@ export class LeadPackagingAgent {
               leadId: boberdooResult.leadId,
               leadPackageId,
               revenue: boberdooResult.revenue,
-              boberdooStatus: boberdooResult.boberdooResult?.status
+              boberdooStatus: boberdooResult.boberdooResult?.status,
             };
           } else {
-            this.logger.warn('Boberdoo submission failed, falling back to dealer CRM', {
+            this.logger.warn("Boberdoo submission failed, falling back to dealer CRM", {
               leadId: leadPackageId,
-              error: boberdooResult.error
+              error: boberdooResult.error,
             });
           }
         } catch (error) {
-          this.logger.error('Boberdoo submission error, falling back to dealer CRM', {
+          this.logger.error("Boberdoo submission error, falling back to dealer CRM", {
             leadId: leadPackageId,
-            error: error instanceof Error ? error.message : 'Unknown error'
+            error: error instanceof Error ? error.message : "Unknown error",
           });
         }
       }
@@ -561,39 +561,38 @@ export class LeadPackagingAgent {
       // Step 4: Fallback to dealer CRM submission
       try {
         const dealerResult = await this.submitToDealerCrm(leadPackage, visitorId);
-        
+
         if (dealerResult.success) {
-          this.logger.info('Lead submitted to dealer CRM as fallback', {
-            leadId: leadPackageId
+          this.logger.info("Lead submitted to dealer CRM as fallback", {
+            leadId: leadPackageId,
           });
 
           return {
             success: true,
             leadId: dealerResult.leadId,
-            leadPackageId
+            leadPackageId,
           };
         } else {
           throw new Error(dealerResult.error || "Dealer CRM submission failed");
         }
       } catch (error) {
-        this.logger.error('All submission methods failed', {
+        this.logger.error("All submission methods failed", {
           leadId: leadPackageId,
-          error: error instanceof Error ? error.message : 'Unknown error'
+          error: error instanceof Error ? error.message : "Unknown error",
         });
-        
+
         throw error;
       }
-
     } catch (error) {
-      this.logger.error('Lead packaging and submission failed', {
+      this.logger.error("Lead packaging and submission failed", {
         visitorId,
         source,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : "Unknown error",
       });
-      
+
       return {
         success: false,
-        error: error instanceof Error ? error.message : "Unknown error"
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
@@ -604,7 +603,7 @@ export class LeadPackagingAgent {
   private async validatePii(visitorId: number) {
     const visitor = await storage.getVisitor(visitorId);
     if (!visitor) {
-      return { piiComplete: false, errors: ['Visitor not found'] };
+      return { piiComplete: false, errors: ["Visitor not found"] };
     }
 
     const piiData = {
@@ -620,14 +619,14 @@ export class LeadPackagingAgent {
       timeOnJobMonths: visitor.timeOnJobMonths,
       phoneNumber: visitor.phoneNumber,
       email: visitor.email,
-      emailHash: visitor.emailHash
+      emailHash: visitor.emailHash,
     };
 
     const validation = validateCompletePii(piiData);
     return {
       piiComplete: validation.isValid,
       errors: validation.isValid ? undefined : validation.errors,
-      validatedPii: validation.data
+      validatedPii: validation.data,
     };
   }
 
@@ -637,7 +636,7 @@ export class LeadPackagingAgent {
   private async assembleLead(visitorId: number, source: string, creditResult?: CreditCheckResult) {
     const visitor = await storage.getVisitor(visitorId);
     if (!visitor) {
-      return { success: false, error: 'Visitor not found' };
+      return { success: false, error: "Visitor not found" };
     }
 
     const emailCampaigns = await storage.getEmailCampaignsByVisitor(visitorId);
@@ -657,7 +656,7 @@ export class LeadPackagingAgent {
       timeOnJobMonths: visitor.timeOnJobMonths,
       phoneNumber: visitor.phoneNumber,
       email: visitor.email,
-      emailHash: visitor.emailHash
+      emailHash: visitor.emailHash,
     };
 
     const piiValidation = validateCompletePii(piiData);
@@ -675,7 +674,7 @@ export class LeadPackagingAgent {
         returnTokenUsed: !!visitor.returnToken,
         adClickTs: visitor.adClickTs ? new Date(visitor.adClickTs) : undefined,
         formStartTs: visitor.formStartTs ? new Date(visitor.formStartTs) : undefined,
-        abandonmentStep: visitor.abandonmentStep || undefined
+        abandonmentStep: visitor.abandonmentStep || undefined,
       },
       creditCheck: {
         approved: creditResult?.approved || visitor.creditCheckStatus === "approved",
@@ -683,13 +682,13 @@ export class LeadPackagingAgent {
         approvedAmount: creditResult?.approvedAmount,
         interestRate: creditResult?.interestRate,
         denialReason: creditResult?.denialReason,
-        checkDate: creditResult?.checkDate || new Date()
+        checkDate: creditResult?.checkDate || new Date(),
       },
       metadata: {
         createdAt: new Date(),
         processedBy: "LeadPackagingAgent",
-        version: "1.0.0"
-      }
+        version: "1.0.0",
+      },
     };
 
     const packageValidation = LeadPackageSchema.safeParse(leadPackage);
@@ -700,7 +699,7 @@ export class LeadPackagingAgent {
     return {
       success: true,
       leadPackage: packageValidation.data,
-      leadId
+      leadId,
     };
   }
 
@@ -709,7 +708,7 @@ export class LeadPackagingAgent {
    */
   private async submitToBoberdoo(leadPackage: LeadPackage, visitorId: number) {
     if (!this.boberdooConfig.configured) {
-      return { success: false, error: 'Boberdoo service not configured' };
+      return { success: false, error: "Boberdoo service not configured" };
     }
 
     const boberdooSubmission: BoberdooSubmission = {
@@ -717,7 +716,7 @@ export class LeadPackagingAgent {
       vendor_password: this.boberdooConfig.vendorPassword!,
       first_name: leadPackage.visitor.firstName,
       last_name: leadPackage.visitor.lastName,
-      email: leadPackage.visitor.email || '',
+      email: leadPackage.visitor.email || "",
       phone: leadPackage.visitor.phoneNumber,
       address: leadPackage.visitor.street,
       city: leadPackage.visitor.city,
@@ -730,12 +729,15 @@ export class LeadPackagingAgent {
       credit_score: leadPackage.creditCheck.creditScore,
       loan_amount: leadPackage.creditCheck.approvedAmount,
       source: leadPackage.engagement.source,
-      lead_id: leadPackage.leadId
+      lead_id: leadPackage.leadId,
     };
 
     const submissionValidation = BoberdooSubmissionSchema.safeParse(boberdooSubmission);
     if (!submissionValidation.success) {
-      return { success: false, error: `Invalid Boberdoo submission: ${submissionValidation.error.message}` };
+      return {
+        success: false,
+        error: `Invalid Boberdoo submission: ${submissionValidation.error.message}`,
+      };
     }
 
     const boberdooResult = await boberdooService.submitLeadWithRetry(submissionValidation.data);
@@ -769,15 +771,15 @@ export class LeadPackagingAgent {
           boberdooStatus: boberdooResult.status,
           price: boberdooResult.price,
           buyerId: boberdooResult.buyerId,
-          submissionTime: new Date()
-        }
+          submissionTime: new Date(),
+        },
       });
 
       return {
         success: true,
         leadId: lead.id,
         boberdooResult,
-        revenue: boberdooResult.price
+        revenue: boberdooResult.price,
       };
     } else {
       await storage.createAgentActivity({
@@ -789,8 +791,8 @@ export class LeadPackagingAgent {
           leadId: lead.id,
           errorCode: boberdooResult.errorCode,
           errorDetails: boberdooResult.errorDetails,
-          submissionTime: new Date()
-        }
+          submissionTime: new Date(),
+        },
       });
 
       return { success: false, error: boberdooResult.message };

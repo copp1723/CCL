@@ -1,15 +1,15 @@
-import cron from 'node-cron';
-import { outreachLogger, logBusinessEvent, logPerformance, logError } from '../logger';
-import { storage } from '../storage';
-import { twilioSms } from '../services/twilio-sms';
-import { RealtimeChatAgent } from '../agents/RealtimeChatAgent';
-import config from '../config/environment';
-import type { Visitor } from '../../shared/schema';
+import cron from "node-cron";
+import { outreachLogger, logBusinessEvent, logPerformance, logError } from "../logger";
+import { storage } from "../storage";
+import { twilioSms } from "../services/twilio-sms";
+import { RealtimeChatAgent } from "../agents/RealtimeChatAgent";
+import config from "../config/environment";
+import type { Visitor } from "../../shared/schema";
 
 export interface OutreachResult {
   success: boolean;
   visitorId: number;
-  channel: 'sms' | 'email';
+  channel: "sms" | "email";
   messageId?: string;
   error?: string;
 }
@@ -34,43 +34,46 @@ export class OutreachOrchestratorService {
 
   async initialize(): Promise<void> {
     // Run outreach campaigns every 5 minutes
-    const cronExpression = config.isDevelopment() 
-      ? '*/1 * * * *'  // Every 1 minute in dev for testing
-      : '*/5 * * * *';  // Every 5 minutes in production
+    const cronExpression = config.isDevelopment()
+      ? "*/1 * * * *" // Every 1 minute in dev for testing
+      : "*/5 * * * *"; // Every 5 minutes in production
 
     this.cronJob = cron.schedule(cronExpression, () => this.processOutreachQueue(), {
-      scheduled: false // Don't start immediately
+      scheduled: false, // Don't start immediately
     });
 
-    outreachLogger.info({ 
-      cronExpression 
-    }, 'Outreach orchestrator service initialized');
+    outreachLogger.info(
+      {
+        cronExpression,
+      },
+      "Outreach orchestrator service initialized"
+    );
   }
 
   async start(): Promise<void> {
     if (this.cronJob) {
       this.cronJob.start();
-      outreachLogger.info('Outreach orchestrator cron job started');
+      outreachLogger.info("Outreach orchestrator cron job started");
     }
   }
 
   async stop(): Promise<void> {
     if (this.cronJob) {
       this.cronJob.stop();
-      outreachLogger.info('Outreach orchestrator cron job stopped');
+      outreachLogger.info("Outreach orchestrator cron job stopped");
     }
   }
 
   async processOutreachQueue(): Promise<OutreachCampaignResult> {
     if (this.isRunning) {
-      outreachLogger.warn('Outreach processing already running, skipping...');
+      outreachLogger.warn("Outreach processing already running, skipping...");
       return {
         success: false,
         processed: 0,
         sent: 0,
         failed: 0,
         results: [],
-        processingTime: 0
+        processingTime: 0,
       };
     }
 
@@ -82,14 +85,17 @@ export class OutreachOrchestratorService {
     const results: OutreachResult[] = [];
 
     try {
-      outreachLogger.info('Starting outreach campaign processing');
+      outreachLogger.info("Starting outreach campaign processing");
 
       // Get visitors who are flagged for outreach but haven't been contacted yet
       const pendingOutreach = await this.getPendingOutreachVisitors();
-      
-      outreachLogger.info({ 
-        count: pendingOutreach.length 
-      }, 'Found visitors pending outreach');
+
+      outreachLogger.info(
+        {
+          count: pendingOutreach.length,
+        },
+        "Found visitors pending outreach"
+      );
 
       processed = pendingOutreach.length;
 
@@ -98,7 +104,7 @@ export class OutreachOrchestratorService {
         try {
           const result = await this.processVisitorOutreach(visitor);
           results.push(result);
-          
+
           if (result.success) {
             sent++;
           } else {
@@ -107,19 +113,21 @@ export class OutreachOrchestratorService {
 
           // Small delay between messages to avoid rate limits
           await new Promise(resolve => setTimeout(resolve, 100));
-
         } catch (error) {
           failed++;
-          outreachLogger.error({ 
-            visitorId: visitor.id, 
-            error 
-          }, 'Failed to process visitor outreach');
-          
+          outreachLogger.error(
+            {
+              visitorId: visitor.id,
+              error,
+            },
+            "Failed to process visitor outreach"
+          );
+
           results.push({
             success: false,
             visitorId: visitor.id,
-            channel: 'sms', // Default
-            error: error instanceof Error ? error.message : 'Unknown error'
+            channel: "sms", // Default
+            error: error instanceof Error ? error.message : "Unknown error",
           });
         }
       }
@@ -127,27 +135,30 @@ export class OutreachOrchestratorService {
       const processingTime = Date.now() - startTime;
 
       // Log campaign results
-      logBusinessEvent('outreach_campaign_completed', {
+      logBusinessEvent("outreach_campaign_completed", {
         processed,
         sent,
         failed,
         processingTime,
-        successRate: processed > 0 ? (sent / processed) * 100 : 0
+        successRate: processed > 0 ? (sent / processed) * 100 : 0,
       });
 
-      logPerformance('outreach_campaign', processingTime, {
-        processed,
-        sent,
-        failed
-      });
-
-      outreachLogger.info({ 
+      logPerformance("outreach_campaign", processingTime, {
         processed,
         sent,
         failed,
-        processingTime,
-        successRate: processed > 0 ? ((sent / processed) * 100).toFixed(2) + '%' : '0%'
-      }, 'Outreach campaign completed successfully');
+      });
+
+      outreachLogger.info(
+        {
+          processed,
+          sent,
+          failed,
+          processingTime,
+          successRate: processed > 0 ? ((sent / processed) * 100).toFixed(2) + "%" : "0%",
+        },
+        "Outreach campaign completed successfully"
+      );
 
       return {
         success: true,
@@ -155,13 +166,12 @@ export class OutreachOrchestratorService {
         sent,
         failed,
         results,
-        processingTime
+        processingTime,
       };
-
     } catch (error) {
       const processingTime = Date.now() - startTime;
-      logError(error as Error, { processingTime }, 'Outreach campaign failed');
-      
+      logError(error as Error, { processingTime }, "Outreach campaign failed");
+
       return {
         success: false,
         processed,
@@ -181,7 +191,7 @@ export class OutreachOrchestratorService {
     // 2. Have contact information (phone or email)
     // 3. Haven't been contacted yet or need follow-up
     // 4. Return token hasn't expired
-    
+
     const abandonedVisitors = await storage.getAbandonedVisitors(0); // Get all abandoned
     const pendingOutreach: Visitor[] = [];
 
@@ -212,8 +222,9 @@ export class OutreachOrchestratorService {
   private shouldSendFollowup(visitor: Visitor, recentOutreach: any[]): boolean {
     // Simple follow-up logic - in production this would be more sophisticated
     const lastAttempt = recentOutreach[0];
-    const hoursSinceLastAttempt = (Date.now() - new Date(lastAttempt.sentAt).getTime()) / (1000 * 60 * 60);
-    
+    const hoursSinceLastAttempt =
+      (Date.now() - new Date(lastAttempt.sentAt).getTime()) / (1000 * 60 * 60);
+
     // Send follow-up based on abandonment step and time elapsed
     switch (visitor.abandonmentStep) {
       case 1:
@@ -229,40 +240,45 @@ export class OutreachOrchestratorService {
 
   private async processVisitorOutreach(visitor: Visitor): Promise<OutreachResult> {
     try {
-      outreachLogger.info({ 
-        visitorId: visitor.id,
-        abandonmentStep: visitor.abandonmentStep,
-        hasPhone: !!visitor.phoneNumber,
-        hasEmail: !!visitor.email || !!visitor.emailHash
-      }, 'Processing visitor outreach');
+      outreachLogger.info(
+        {
+          visitorId: visitor.id,
+          abandonmentStep: visitor.abandonmentStep,
+          hasPhone: !!visitor.phoneNumber,
+          hasEmail: !!visitor.email || !!visitor.emailHash,
+        },
+        "Processing visitor outreach"
+      );
 
       // Determine preferred channel (prioritize SMS for better response rates)
-      const channel = visitor.phoneNumber ? 'sms' : 'email';
-      
-      if (channel === 'sms' && visitor.phoneNumber) {
+      const channel = visitor.phoneNumber ? "sms" : "email";
+
+      if (channel === "sms" && visitor.phoneNumber) {
         return await this.sendSmsOutreach(visitor);
-      } else if (channel === 'email' && (visitor.email || visitor.emailHash)) {
+      } else if (channel === "email" && (visitor.email || visitor.emailHash)) {
         return await this.sendEmailOutreach(visitor);
       } else {
         return {
           success: false,
           visitorId: visitor.id,
-          channel: 'sms',
-          error: 'No valid contact method available'
+          channel: "sms",
+          error: "No valid contact method available",
         };
       }
-
     } catch (error) {
-      outreachLogger.error({ 
-        visitorId: visitor.id, 
-        error 
-      }, 'Failed to process visitor outreach');
-      
+      outreachLogger.error(
+        {
+          visitorId: visitor.id,
+          error,
+        },
+        "Failed to process visitor outreach"
+      );
+
       return {
         success: false,
         visitorId: visitor.id,
-        channel: 'sms', // Default
-        error: error instanceof Error ? error.message : 'Unknown error'
+        channel: "sms", // Default
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
@@ -270,72 +286,71 @@ export class OutreachOrchestratorService {
   private async sendSmsOutreach(visitor: Visitor): Promise<OutreachResult> {
     try {
       // Use Twilio SMS service to send recovery message
-      const smsResult = await twilioSms.sendRecoveryMessage(
-        visitor, 
-        visitor.abandonmentStep || 1
-      );
+      const smsResult = await twilioSms.sendRecoveryMessage(visitor, visitor.abandonmentStep || 1);
 
       if (smsResult.success) {
         // Create chat session for potential continuation
         await this.createChatSessionForVisitor(visitor);
-        
+
         // Log successful outreach
         await storage.createAgentActivity({
-          agentName: 'OutreachOrchestrator',
-          action: 'sms_sent',
+          agentName: "OutreachOrchestrator",
+          action: "sms_sent",
           details: `SMS outreach sent to visitor ${visitor.id} at abandonment step ${visitor.abandonmentStep}`,
           visitorId: visitor.id,
-          status: 'success',
+          status: "success",
           metadata: {
-            channel: 'sms',
+            channel: "sms",
             messageId: smsResult.messageId,
-            abandonmentStep: visitor.abandonmentStep
-          }
+            abandonmentStep: visitor.abandonmentStep,
+          },
         });
       }
 
       return {
         success: smsResult.success,
         visitorId: visitor.id,
-        channel: 'sms',
+        channel: "sms",
         messageId: smsResult.messageId,
-        error: smsResult.error
+        error: smsResult.error,
       };
-
     } catch (error) {
       return {
         success: false,
         visitorId: visitor.id,
-        channel: 'sms',
-        error: error instanceof Error ? error.message : 'SMS sending failed'
+        channel: "sms",
+        error: error instanceof Error ? error.message : "SMS sending failed",
       };
     }
   }
 
   private async sendEmailOutreach(visitor: Visitor): Promise<OutreachResult> {
     // Placeholder for email outreach - would integrate with SendGrid
-    outreachLogger.info({ 
-      visitorId: visitor.id 
-    }, 'Email outreach not yet implemented, logging intent');
+    outreachLogger.info(
+      {
+        visitorId: visitor.id,
+      },
+      "Email outreach not yet implemented, logging intent"
+    );
 
     // Simulate email sending for now
     await storage.createAgentActivity({
-      agentName: 'OutreachOrchestrator',
-      action: 'email_simulated',
+      agentName: "OutreachOrchestrator",
+      action: "email_simulated",
       details: `Email outreach simulated for visitor ${visitor.id}`,
       visitorId: visitor.id,
-      status: 'success',
+      status: "success",
       metadata: {
-        channel: 'email',
+        channel: "email",
         abandonmentStep: visitor.abandonmentStep,
-        note: 'Email service not yet implemented'
-      }
+        note: "Email service not yet implemented",
+      },
     });
 
     return {
       success: true,
       visitorId: visitor.id,
-      channel: 'email',
+      channel: "email",
       messageId: `email_sim_${Date.now()}`,
     };
   }
@@ -344,37 +359,45 @@ export class OutreachOrchestratorService {
     try {
       // Create a chat session so when the visitor returns, they can continue
       const sessionId = `recovery_${visitor.id}_${Date.now()}`;
-      
+
       await storage.createChatSession({
         sessionId,
         visitorId: visitor.id,
         isActive: true,
-        agentType: 'recovery_chat',
-        status: 'active',
-        messages: []
+        agentType: "recovery_chat",
+        status: "active",
+        messages: [],
       });
 
-      outreachLogger.debug({ 
-        visitorId: visitor.id, 
-        sessionId 
-      }, 'Created chat session for visitor recovery');
-
+      outreachLogger.debug(
+        {
+          visitorId: visitor.id,
+          sessionId,
+        },
+        "Created chat session for visitor recovery"
+      );
     } catch (error) {
-      outreachLogger.error({ 
-        visitorId: visitor.id, 
-        error 
-      }, 'Failed to create chat session for visitor');
+      outreachLogger.error(
+        {
+          visitorId: visitor.id,
+          error,
+        },
+        "Failed to create chat session for visitor"
+      );
     }
   }
 
   // Manual trigger for immediate outreach processing
   async processOutreachNow(): Promise<OutreachCampaignResult> {
-    outreachLogger.info('Manual outreach processing triggered');
+    outreachLogger.info("Manual outreach processing triggered");
     return await this.processOutreachQueue();
   }
 
   // Send specific outreach to a visitor
-  async sendSpecificOutreach(visitorId: number, channel: 'sms' | 'email' = 'sms'): Promise<OutreachResult> {
+  async sendSpecificOutreach(
+    visitorId: number,
+    channel: "sms" | "email" = "sms"
+  ): Promise<OutreachResult> {
     try {
       const visitor = await storage.getVisitor(visitorId);
       if (!visitor) {
@@ -382,7 +405,7 @@ export class OutreachOrchestratorService {
           success: false,
           visitorId,
           channel,
-          error: 'Visitor not found'
+          error: "Visitor not found",
         };
       }
 
@@ -392,7 +415,7 @@ export class OutreachOrchestratorService {
         success: false,
         visitorId,
         channel,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
@@ -408,24 +431,24 @@ export class OutreachOrchestratorService {
       // This would be more sophisticated in production
       const today = new Date();
       today.setHours(0, 0, 0, 0);
-      
+
       // Simplified stats - in production you'd use proper aggregation queries
       return {
         totalSent: 0, // Would query from outreach_attempts table
         sentToday: 0, // Would query today's outreach_attempts
         responseRate: 0, // Would calculate based on chat sessions created after outreach
         channelBreakdown: [
-          { channel: 'sms', count: 0 },
-          { channel: 'email', count: 0 }
-        ]
+          { channel: "sms", count: 0 },
+          { channel: "email", count: 0 },
+        ],
       };
     } catch (error) {
-      outreachLogger.error({ error }, 'Failed to get outreach stats');
+      outreachLogger.error({ error }, "Failed to get outreach stats");
       return {
         totalSent: 0,
         sentToday: 0,
         responseRate: 0,
-        channelBreakdown: []
+        channelBreakdown: [],
       };
     }
   }
@@ -435,15 +458,15 @@ export class OutreachOrchestratorService {
     try {
       // Check if messaging services are available
       const twilioHealth = await twilioSms.healthCheck();
-      
+
       return {
         healthy: twilioHealth.healthy,
-        error: twilioHealth.error
+        error: twilioHealth.error,
       };
     } catch (error) {
-      return { 
-        healthy: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+      return {
+        healthy: false,
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
@@ -457,7 +480,9 @@ export class OutreachOrchestratorService {
   getNextRunTime(): Date | null {
     if (this.cronJob) {
       const now = new Date();
-      const nextRun = new Date(now.getTime() + (config.isDevelopment() ? 1 * 60 * 1000 : 5 * 60 * 1000));
+      const nextRun = new Date(
+        now.getTime() + (config.isDevelopment() ? 1 * 60 * 1000 : 5 * 60 * 1000)
+      );
       return nextRun;
     }
     return null;

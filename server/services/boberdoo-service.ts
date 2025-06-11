@@ -1,12 +1,12 @@
-import axios, { AxiosResponse } from 'axios';
-import { BoberdooSubmission, BoberdooSubmissionSchema } from '../../shared/validation/schemas';
-import config from '../config/environment';
-import { logger } from '../logger';
+import axios, { AxiosResponse } from "axios";
+import { BoberdooSubmission, BoberdooSubmissionSchema } from "../../shared/validation/schemas";
+import config from "../config/environment";
+import { logger } from "../logger";
 
 interface BoberdooResponse {
   success: boolean;
   leadId?: string;
-  status?: 'accepted' | 'rejected' | 'pending';
+  status?: "accepted" | "rejected" | "pending";
   price?: number;
   buyerId?: string;
   message?: string;
@@ -34,14 +34,14 @@ interface ServiceInfo {
 
 class BoberdooService {
   private config = config.getBoberdooConfig();
-  private logger = logger.child({ component: 'BoberdooService' });
-  
+  private logger = logger.child({ component: "BoberdooService" });
+
   // Performance metrics
   private submissionCount = 0;
   private successCount = 0;
   private failureCount = 0;
   private lastSuccessfulSubmission?: Date;
-  
+
   // Queue for failed submissions (simple in-memory for MVP)
   private deadLetterQueue: Array<{
     submission: BoberdooSubmission;
@@ -51,10 +51,10 @@ class BoberdooService {
   }> = [];
 
   constructor() {
-    this.logger.info('Boberdoo service initialized', {
+    this.logger.info("Boberdoo service initialized", {
       configured: this.config.configured,
       url: this.config.url,
-      vendorId: this.config.vendorId
+      vendorId: this.config.vendorId,
     });
   }
 
@@ -63,15 +63,15 @@ class BoberdooService {
    */
   async submitLead(submission: BoberdooSubmission): Promise<BoberdooResponse> {
     if (!this.config.configured) {
-      throw new Error('Boberdoo service not configured');
+      throw new Error("Boberdoo service not configured");
     }
 
     // Validate submission data
     const validationResult = BoberdooSubmissionSchema.safeParse(submission);
     if (!validationResult.success) {
-      this.logger.warn('Invalid submission data', {
+      this.logger.warn("Invalid submission data", {
         leadId: submission.lead_id,
-        errors: validationResult.error.flatten()
+        errors: validationResult.error.flatten(),
       });
       throw new Error(`Invalid submission data: ${validationResult.error.message}`);
     }
@@ -80,45 +80,44 @@ class BoberdooService {
     this.submissionCount++;
 
     try {
-      this.logger.info('Submitting lead to Boberdoo', {
+      this.logger.info("Submitting lead to Boberdoo", {
         leadId: submission.lead_id,
         vendorId: submission.vendor_id,
-        source: submission.source
+        source: submission.source,
       });
 
       const response = await this.makeHttpRequest(validationResult.data);
       const result = this.parseResponse(response, submission.lead_id);
-      
+
       if (result.success) {
         this.successCount++;
         this.lastSuccessfulSubmission = new Date();
-        this.logger.info('Lead submitted successfully', {
+        this.logger.info("Lead submitted successfully", {
           leadId: submission.lead_id,
           status: result.status,
           price: result.price,
           buyerId: result.buyerId,
-          responseTime: Date.now() - startTime
+          responseTime: Date.now() - startTime,
         });
       } else {
         this.failureCount++;
-        this.logger.warn('Lead submission failed', {
+        this.logger.warn("Lead submission failed", {
           leadId: submission.lead_id,
           errorCode: result.errorCode,
           message: result.message,
-          responseTime: Date.now() - startTime
+          responseTime: Date.now() - startTime,
         });
       }
 
       return result;
-
     } catch (error) {
       this.failureCount++;
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
-      this.logger.error('Lead submission error', {
+      const errorMessage = error instanceof Error ? error.message : "Unknown error";
+
+      this.logger.error("Lead submission error", {
         leadId: submission.lead_id,
         error: errorMessage,
-        responseTime: Date.now() - startTime
+        responseTime: Date.now() - startTime,
       });
 
       // Add to dead letter queue for retry
@@ -140,33 +139,32 @@ class BoberdooService {
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
         const result = await this.submitLead(submission);
-        
-        if (result.success || result.status === 'rejected') {
+
+        if (result.success || result.status === "rejected") {
           // Don't retry on rejection - it's a valid response
           return result;
         }
-        
+
         // If not successful but not rejected, retry
         if (attempt < maxAttempts) {
           const delay = this.calculateBackoffDelay(attempt);
           this.logger.info(`Retrying lead submission after ${delay}ms`, {
             leadId: submission.lead_id,
             attempt,
-            maxAttempts
+            maxAttempts,
           });
           await this.sleep(delay);
         }
-
       } catch (error) {
-        lastError = error instanceof Error ? error : new Error('Unknown error');
-        
+        lastError = error instanceof Error ? error : new Error("Unknown error");
+
         if (attempt < maxAttempts) {
           const delay = this.calculateBackoffDelay(attempt);
           this.logger.warn(`Lead submission failed, retrying in ${delay}ms`, {
             leadId: submission.lead_id,
             attempt,
             maxAttempts,
-            error: lastError.message
+            error: lastError.message,
           });
           await this.sleep(delay);
         }
@@ -178,7 +176,7 @@ class BoberdooService {
       throw lastError;
     }
 
-    throw new Error('Lead submission failed after all retry attempts');
+    throw new Error("Lead submission failed after all retry attempts");
   }
 
   /**
@@ -188,20 +186,22 @@ class BoberdooService {
     return await axios.post(this.config.url!, submission, {
       timeout: this.config.timeoutMs,
       headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-        'User-Agent': 'CCL-MVP-Pipeline/1.0.0',
-        'Accept': 'application/json'
+        "Content-Type": "application/x-www-form-urlencoded",
+        "User-Agent": "CCL-MVP-Pipeline/1.0.0",
+        Accept: "application/json",
       },
       // Boberdoo typically expects form-encoded data
-      transformRequest: [data => {
-        const params = new URLSearchParams();
-        Object.entries(data).forEach(([key, value]) => {
-          if (value !== undefined && value !== null) {
-            params.append(key, String(value));
-          }
-        });
-        return params.toString();
-      }]
+      transformRequest: [
+        data => {
+          const params = new URLSearchParams();
+          Object.entries(data).forEach(([key, value]) => {
+            if (value !== undefined && value !== null) {
+              params.append(key, String(value));
+            }
+          });
+          return params.toString();
+        },
+      ],
     });
   }
 
@@ -215,10 +215,10 @@ class BoberdooService {
       // Handle successful responses
       if (response.status === 200) {
         // Boberdoo typically returns different formats
-        if (typeof data === 'string') {
+        if (typeof data === "string") {
           // Parse text responses (e.g., "SUCCESS:12345:ACCEPTED:25.00")
           return this.parseTextResponse(data, leadId);
-        } else if (typeof data === 'object') {
+        } else if (typeof data === "object") {
           // Parse JSON responses
           return this.parseJsonResponse(data, leadId);
         }
@@ -229,21 +229,20 @@ class BoberdooService {
         success: false,
         errorCode: `HTTP_${response.status}`,
         message: `HTTP ${response.status}: ${response.statusText}`,
-        errorDetails: JSON.stringify(data)
+        errorDetails: JSON.stringify(data),
       };
-
     } catch (error) {
-      this.logger.error('Failed to parse Boberdoo response', {
+      this.logger.error("Failed to parse Boberdoo response", {
         leadId,
-        error: error instanceof Error ? error.message : 'Unknown error',
-        responseData: response.data
+        error: error instanceof Error ? error.message : "Unknown error",
+        responseData: response.data,
       });
 
       return {
         success: false,
-        errorCode: 'PARSE_ERROR',
-        message: 'Failed to parse response from Boberdoo',
-        errorDetails: error instanceof Error ? error.message : 'Unknown error'
+        errorCode: "PARSE_ERROR",
+        message: "Failed to parse response from Boberdoo",
+        errorDetails: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
@@ -252,31 +251,31 @@ class BoberdooService {
    * Parse text-based response from Boberdoo
    */
   private parseTextResponse(text: string, leadId: string): BoberdooResponse {
-    const parts = text.split(':');
-    
-    if (parts[0] === 'SUCCESS' && parts.length >= 3) {
+    const parts = text.split(":");
+
+    if (parts[0] === "SUCCESS" && parts.length >= 3) {
       return {
         success: true,
         leadId: parts[1],
-        status: parts[2].toLowerCase() as 'accepted' | 'rejected' | 'pending',
+        status: parts[2].toLowerCase() as "accepted" | "rejected" | "pending",
         price: parts[3] ? parseFloat(parts[3]) : undefined,
-        buyerId: parts[4] || undefined
+        buyerId: parts[4] || undefined,
       };
     }
 
-    if (parts[0] === 'ERROR') {
+    if (parts[0] === "ERROR") {
       return {
         success: false,
-        errorCode: parts[1] || 'UNKNOWN_ERROR',
-        message: parts[2] || 'Unknown error from Boberdoo'
+        errorCode: parts[1] || "UNKNOWN_ERROR",
+        message: parts[2] || "Unknown error from Boberdoo",
       };
     }
 
     // Handle other text responses
     return {
       success: false,
-      errorCode: 'UNKNOWN_RESPONSE',
-      message: `Unexpected response format: ${text}`
+      errorCode: "UNKNOWN_RESPONSE",
+      message: `Unexpected response format: ${text}`,
     };
   }
 
@@ -284,22 +283,22 @@ class BoberdooService {
    * Parse JSON response from Boberdoo
    */
   private parseJsonResponse(data: any, leadId: string): BoberdooResponse {
-    if (data.status === 'success' || data.success === true) {
+    if (data.status === "success" || data.success === true) {
       return {
         success: true,
         leadId: data.lead_id || data.leadId || leadId,
-        status: data.lead_status || data.status || 'pending',
+        status: data.lead_status || data.status || "pending",
         price: data.price ? parseFloat(data.price) : undefined,
         buyerId: data.buyer_id || data.buyerId,
-        message: data.message
+        message: data.message,
       };
     }
 
     return {
       success: false,
-      errorCode: data.error_code || data.errorCode || 'API_ERROR',
-      message: data.message || data.error_message || 'Unknown error',
-      errorDetails: JSON.stringify(data)
+      errorCode: data.error_code || data.errorCode || "API_ERROR",
+      message: data.message || data.error_message || "Unknown error",
+      errorDetails: JSON.stringify(data),
     };
   }
 
@@ -320,7 +319,7 @@ class BoberdooService {
         submission,
         attempts: 1,
         lastAttempt: new Date(),
-        errors: [error]
+        errors: [error],
       });
     }
 
@@ -339,8 +338,7 @@ class BoberdooService {
       attempts: entry.attempts,
       lastAttempt: entry.lastAttempt,
       errors: entry.errors,
-      canRetry: entry.attempts < 5 && 
-        (Date.now() - entry.lastAttempt.getTime()) > 300000 // 5 minutes
+      canRetry: entry.attempts < 5 && Date.now() - entry.lastAttempt.getTime() > 300000, // 5 minutes
     }));
   }
 
@@ -348,30 +346,28 @@ class BoberdooService {
    * Retry failed submission from dead letter queue
    */
   async retryFromDeadLetterQueue(leadId: string): Promise<BoberdooResponse> {
-    const entryIndex = this.deadLetterQueue.findIndex(
-      entry => entry.submission.lead_id === leadId
-    );
+    const entryIndex = this.deadLetterQueue.findIndex(entry => entry.submission.lead_id === leadId);
 
     if (entryIndex === -1) {
       throw new Error(`Lead ${leadId} not found in dead letter queue`);
     }
 
     const entry = this.deadLetterQueue[entryIndex];
-    
+
     try {
       const result = await this.submitLead(entry.submission);
-      
+
       if (result.success) {
         // Remove from DLQ on success
         this.deadLetterQueue.splice(entryIndex, 1);
       }
-      
+
       return result;
     } catch (error) {
       // Update DLQ entry with new error
       entry.attempts++;
       entry.lastAttempt = new Date();
-      entry.errors.push(error instanceof Error ? error.message : 'Unknown error');
+      entry.errors.push(error instanceof Error ? error.message : "Unknown error");
       throw error;
     }
   }
@@ -383,7 +379,7 @@ class BoberdooService {
     const baseDelay = 1000; // 1 second
     const maxDelay = 30000; // 30 seconds
     const delay = Math.min(baseDelay * Math.pow(2, attempt - 1), maxDelay);
-    
+
     // Add jitter to prevent thundering herd
     const jitter = Math.random() * 0.1 * delay;
     return Math.round(delay + jitter);
@@ -404,17 +400,17 @@ class BoberdooService {
       return {
         healthy: false,
         configured: false,
-        error: 'Boberdoo service not configured'
+        error: "Boberdoo service not configured",
       };
     }
 
     try {
       const startTime = Date.now();
-      
+
       // Make a test connection (without submitting data)
       const testResponse = await axios.get(this.config.url!, {
         timeout: Math.min(this.config.timeoutMs, 5000), // Shorter timeout for health check
-        validateStatus: () => true // Don't throw on 4xx/5xx
+        validateStatus: () => true, // Don't throw on 4xx/5xx
       });
 
       const responseTime = Date.now() - startTime;
@@ -426,14 +422,13 @@ class BoberdooService {
         healthy,
         configured: true,
         lastSuccessfulSubmission: this.lastSuccessfulSubmission,
-        responseTime
+        responseTime,
       };
-
     } catch (error) {
       return {
         healthy: false,
         configured: true,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : "Unknown error",
       };
     }
   }
@@ -443,13 +438,13 @@ class BoberdooService {
    */
   getServiceInfo(): ServiceInfo {
     return {
-      url: this.config.url || '',
-      vendorId: this.config.vendorId || '',
+      url: this.config.url || "",
+      vendorId: this.config.vendorId || "",
       timeoutMs: this.config.timeoutMs,
       configured: this.config.configured,
       submissionCount: this.submissionCount,
       successCount: this.successCount,
-      failureCount: this.failureCount
+      failureCount: this.failureCount,
     };
   }
 
@@ -457,9 +452,8 @@ class BoberdooService {
    * Get service statistics
    */
   getStats() {
-    const successRate = this.submissionCount > 0 
-      ? (this.successCount / this.submissionCount * 100) 
-      : 0;
+    const successRate =
+      this.submissionCount > 0 ? (this.successCount / this.submissionCount) * 100 : 0;
 
     return {
       submissionCount: this.submissionCount,
@@ -468,7 +462,7 @@ class BoberdooService {
       successRate: parseFloat(successRate.toFixed(2)),
       deadLetterQueueSize: this.deadLetterQueue.length,
       lastSuccessfulSubmission: this.lastSuccessfulSubmission,
-      configured: this.config.configured
+      configured: this.config.configured,
     };
   }
 

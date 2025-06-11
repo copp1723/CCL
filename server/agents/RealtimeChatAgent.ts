@@ -23,7 +23,7 @@ export interface ChatMessage {
 
 export class RealtimeChatAgent {
   private agent: Agent;
-  private logger = logger.child({ component: 'RealtimeChatAgent' });
+  private logger = logger.child({ component: "RealtimeChatAgent" });
 
   constructor() {
     this.agent = new Agent({
@@ -52,7 +52,7 @@ export class RealtimeChatAgent {
           if (!visitor) {
             return {
               success: false,
-              error: "Visitor not found"
+              error: "Visitor not found",
             };
           }
 
@@ -70,17 +70,17 @@ export class RealtimeChatAgent {
             timeOnJobMonths: visitor.timeOnJobMonths,
             phoneNumber: visitor.phoneNumber,
             email: visitor.email,
-            emailHash: visitor.emailHash
+            emailHash: visitor.emailHash,
           };
 
           // Check completeness
           const validation = validatePartialPii(piiData);
           const completeValidation = validateCompletePii(piiData);
 
-          this.logger.info('PII completeness check', {
+          this.logger.info("PII completeness check", {
             visitorId,
             piiComplete: completeValidation.isValid,
-            missingFields: validation.missingFields
+            missingFields: validation.missingFields,
           });
 
           return {
@@ -88,23 +88,22 @@ export class RealtimeChatAgent {
             piiComplete: completeValidation.isValid,
             missingFields: validation.missingFields || [],
             currentPii: piiData,
-            message: completeValidation.isValid 
-              ? "Customer has complete PII - ready for lead packaging" 
-              : `Missing fields: ${validation.missingFields?.join(', ')}`
+            message: completeValidation.isValid
+              ? "Customer has complete PII - ready for lead packaging"
+              : `Missing fields: ${validation.missingFields?.join(", ")}`,
           };
-
         } catch (error) {
-          this.logger.error('PII completeness check error', {
+          this.logger.error("PII completeness check error", {
             visitorId: params.visitorId,
-            error: error instanceof Error ? error.message : 'Unknown error'
+            error: error instanceof Error ? error.message : "Unknown error",
           });
-          
+
           return {
             success: false,
-            error: error instanceof Error ? error.message : "Unknown error"
+            error: error instanceof Error ? error.message : "Unknown error",
           };
         }
-      }
+      },
     });
   }
 
@@ -136,7 +135,7 @@ export class RealtimeChatAgent {
           if (!validation.isValid) {
             return {
               success: false,
-              error: `Invalid PII data: ${JSON.stringify(validation.errors)}`
+              error: `Invalid PII data: ${JSON.stringify(validation.errors)}`,
             };
           }
 
@@ -146,7 +145,7 @@ export class RealtimeChatAgent {
           // Check if PII is now complete
           const updatedVisitor = await storage.getVisitor(visitorId);
           if (!updatedVisitor) {
-            throw new Error('Failed to retrieve updated visitor');
+            throw new Error("Failed to retrieve updated visitor");
           }
 
           const completePiiData = {
@@ -162,39 +161,40 @@ export class RealtimeChatAgent {
             timeOnJobMonths: updatedVisitor.timeOnJobMonths,
             phoneNumber: updatedVisitor.phoneNumber,
             email: updatedVisitor.email,
-            emailHash: updatedVisitor.emailHash
+            emailHash: updatedVisitor.emailHash,
           };
 
           const completeValidation = validateCompletePii(completePiiData);
 
-          this.logger.info('PII collected and updated', {
+          this.logger.info("PII collected and updated", {
             visitorId,
             fieldsUpdated: Object.keys(piiData),
-            piiComplete: completeValidation.isValid
+            piiComplete: completeValidation.isValid,
           });
 
           return {
             success: true,
             piiComplete: completeValidation.isValid,
             updatedFields: Object.keys(piiData),
-            missingFields: completeValidation.isValid ? [] : validatePartialPii(completePiiData).missingFields || [],
-            message: completeValidation.isValid 
+            missingFields: completeValidation.isValid
+              ? []
+              : validatePartialPii(completePiiData).missingFields || [],
+            message: completeValidation.isValid
               ? "PII collection complete - ready for lead packaging!"
-              : "PII updated successfully - still collecting additional information"
+              : "PII updated successfully - still collecting additional information",
           };
-
         } catch (error) {
-          this.logger.error('PII collection error', {
+          this.logger.error("PII collection error", {
             visitorId: params.visitorId,
-            error: error instanceof Error ? error.message : 'Unknown error'
+            error: error instanceof Error ? error.message : "Unknown error",
           });
-          
+
           return {
             success: false,
-            error: error instanceof Error ? error.message : "Unknown error"
+            error: error instanceof Error ? error.message : "Unknown error",
           };
         }
-      }
+      },
     });
   }
 
@@ -204,14 +204,14 @@ export class RealtimeChatAgent {
       description: "Trigger lead packaging when PII collection is complete",
       execute: async (params: { visitorId: number; source?: string }) => {
         try {
-          const { visitorId, source = 'chat_pii_complete' } = params;
+          const { visitorId, source = "chat_pii_complete" } = params;
 
           // Verify PII is complete before triggering
           const visitor = await storage.getVisitor(visitorId);
           if (!visitor) {
             return {
               success: false,
-              error: "Visitor not found"
+              error: "Visitor not found",
             };
           }
 
@@ -228,7 +228,7 @@ export class RealtimeChatAgent {
             timeOnJobMonths: visitor.timeOnJobMonths,
             phoneNumber: visitor.phoneNumber,
             email: visitor.email,
-            emailHash: visitor.emailHash
+            emailHash: visitor.emailHash,
           };
 
           const validation = validateCompletePii(piiData);
@@ -236,7 +236,7 @@ export class RealtimeChatAgent {
             return {
               success: false,
               piiComplete: false,
-              error: "PII not complete - cannot trigger lead packaging"
+              error: "PII not complete - cannot trigger lead packaging",
             };
           }
 
@@ -249,42 +249,42 @@ export class RealtimeChatAgent {
             metadata: {
               source,
               piiComplete: true,
-              triggeredAt: new Date()
-            }
+              triggeredAt: new Date(),
+            },
           });
 
-          this.logger.info('Lead packaging triggered by chat agent', {
+          this.logger.info("Lead packaging triggered by chat agent", {
             visitorId,
             source,
-            piiComplete: true
+            piiComplete: true,
           });
 
           return {
             success: true,
             piiComplete: true,
             leadPackagingTriggered: true,
-            message: "PII collection complete - lead packaging has been triggered!"
+            message: "PII collection complete - lead packaging has been triggered!",
           };
-
         } catch (error) {
-          this.logger.error('Lead packaging trigger error', {
+          this.logger.error("Lead packaging trigger error", {
             visitorId: params.visitorId,
-            error: error instanceof Error ? error.message : 'Unknown error'
+            error: error instanceof Error ? error.message : "Unknown error",
           });
-          
+
           return {
             success: false,
-            error: error instanceof Error ? error.message : "Unknown error"
+            error: error instanceof Error ? error.message : "Unknown error",
           };
         }
-      }
+      },
     });
   }
 
   private createHandleUserMessageTool() {
     return tool({
       name: "handle_user_message",
-      description: "Process and respond to user messages with Cathy's empathetic personality and PII collection",
+      description:
+        "Process and respond to user messages with Cathy's empathetic personality and PII collection",
       execute: async (params: { sessionId: string; message: string; visitorId?: number }) => {
         try {
           const { sessionId, message, visitorId } = params;
@@ -326,14 +326,17 @@ export class RealtimeChatAgent {
             // Collect PII and update visitor
             const collectResult = await this.collectPii(visitorId, piiExtracted);
             piiCollected = collectResult.success;
-            
+
             if (collectResult.piiComplete) {
               // Trigger lead packaging
-              const triggerResult = await this.triggerLeadPackaging(visitorId, 'chat_conversation');
+              const triggerResult = await this.triggerLeadPackaging(visitorId, "chat_conversation");
               leadPackagingTriggered = triggerResult.success;
               response = this.generatePiiCompleteResponse(collectResult.updatedFields || []);
             } else {
-              response = this.generatePiiCollectionResponse(piiExtracted, collectResult.missingFields || []);
+              response = this.generatePiiCollectionResponse(
+                piiExtracted,
+                collectResult.missingFields || []
+              );
             }
           } else if (isFirstMessage) {
             response = this.generateWelcomeResponse(message);
@@ -353,7 +356,7 @@ export class RealtimeChatAgent {
         } catch (error) {
           this.logger.error("Error handling user message", {
             sessionId: params.sessionId,
-            error: error instanceof Error ? error.message : 'Unknown error'
+            error: error instanceof Error ? error.message : "Unknown error",
           });
           return {
             success: false,
@@ -378,7 +381,7 @@ export class RealtimeChatAgent {
       /my name is ([a-z]+)\\s+([a-z]+)/i,
       /i'm ([a-z]+)\\s+([a-z]+)/i,
       /i am ([a-z]+)\\s+([a-z]+)/i,
-      /call me ([a-z]+)/i
+      /call me ([a-z]+)/i,
     ];
 
     for (const pattern of namePatterns) {
@@ -405,7 +408,7 @@ export class RealtimeChatAgent {
     const addressPatterns = [
       /i live at ([^,]+),\\s*([^,]+),\\s*([A-Z]{2})\\s*(\\d{5})/i,
       /my address is ([^,]+),\\s*([^,]+),\\s*([A-Z]{2})\\s*(\\d{5})/i,
-      /address: ([^,]+),\\s*([^,]+),\\s*([A-Z]{2})\\s*(\\d{5})/i
+      /address: ([^,]+),\\s*([^,]+),\\s*([A-Z]{2})\\s*(\\d{5})/i,
     ];
 
     for (const pattern of addressPatterns) {
@@ -434,7 +437,7 @@ export class RealtimeChatAgent {
       /my employer is ([^,\\.]+)/i,
       /work for ([^,\\.]+)/i,
       /employed at ([^,\\.]+)/i,
-      /company is ([^,\\.]+)/i
+      /company is ([^,\\.]+)/i,
     ];
 
     for (const pattern of employerPatterns) {
@@ -451,7 +454,7 @@ export class RealtimeChatAgent {
       /i am a ([^,\\.]+)/i,
       /job title is ([^,\\.]+)/i,
       /i work as a ([^,\\.]+)/i,
-      /my position is ([^,\\.]+)/i
+      /my position is ([^,\\.]+)/i,
     ];
 
     for (const pattern of jobTitlePatterns) {
@@ -468,14 +471,15 @@ export class RealtimeChatAgent {
       /income is \\$([\\d,]+)/i,
       /salary is \\$([\\d,]+)/i,
       /earn \\$([\\d,]+)/i,
-      /\\$([\\d,]+)\\s*(?:per year|annually)/i
+      /\\$([\\d,]+)\\s*(?:per year|annually)/i,
     ];
 
     for (const pattern of incomePatterns) {
       const match = message.match(pattern);
       if (match) {
-        const income = parseInt(match[1].replace(/,/g, ''));
-        if (income > 10000 && income < 1000000) { // Reasonable range
+        const income = parseInt(match[1].replace(/,/g, ""));
+        if (income > 10000 && income < 1000000) {
+          // Reasonable range
           extracted.annualIncome = income;
         }
         break;
@@ -487,14 +491,14 @@ export class RealtimeChatAgent {
       /been there for (\\d+)\\s*years?/i,
       /worked there for (\\d+)\\s*years?/i,
       /(\\d+)\\s*years at/i,
-      /been employed for (\\d+)\\s*months?/i
+      /been employed for (\\d+)\\s*months?/i,
     ];
 
     for (const pattern of timePatterns) {
       const match = message.match(pattern);
       if (match) {
         const time = parseInt(match[1]);
-        if (pattern.source.includes('year')) {
+        if (pattern.source.includes("year")) {
           extracted.timeOnJobMonths = time * 12;
         } else {
           extracted.timeOnJobMonths = time;
@@ -509,7 +513,11 @@ export class RealtimeChatAgent {
   /**
    * Generate PII-guided response based on missing information
    */
-  private async generateContextualResponse(message: string, conversationHistory: ChatMessage[], visitorId?: number): Promise<string> {
+  private async generateContextualResponse(
+    message: string,
+    conversationHistory: ChatMessage[],
+    visitorId?: number
+  ): Promise<string> {
     const lowerMsg = message.toLowerCase();
 
     // If we have a visitor ID, check for PII gaps and prompt accordingly
@@ -531,7 +539,7 @@ export class RealtimeChatAgent {
             timeOnJobMonths: visitor.timeOnJobMonths,
             phoneNumber: visitor.phoneNumber,
             email: visitor.email,
-            emailHash: visitor.emailHash
+            emailHash: visitor.emailHash,
           };
 
           const validation = validatePartialPii(piiData);
@@ -543,7 +551,7 @@ export class RealtimeChatAgent {
           }
         }
       } catch (error) {
-        this.logger.error('Error checking PII for contextual response', { visitorId, error });
+        this.logger.error("Error checking PII for contextual response", { visitorId, error });
       }
     }
 
@@ -555,7 +563,11 @@ export class RealtimeChatAgent {
       );
     }
 
-    if (lowerMsg.includes("worried") || lowerMsg.includes("nervous") || lowerMsg.includes("scared")) {
+    if (
+      lowerMsg.includes("worried") ||
+      lowerMsg.includes("nervous") ||
+      lowerMsg.includes("scared")
+    ) {
       return formatResponseByTone(
         "negative",
         "Those feelings are completely normal, and I appreciate you sharing that with me. Many of my customers felt exactly the same way when they first reached out. The good news? You've already taken the hardest step by starting this conversation. I'm going to walk you through everything step by step, and there are no surprises or pressure here. What's your biggest worry right now?"
@@ -580,42 +592,49 @@ export class RealtimeChatAgent {
    */
   private generateMissingPiiPrompt(missingFields: string[], userMessage: string): string {
     const lowerMsg = userMessage.toLowerCase();
-    
+
     // Prioritize fields based on conversation context
     let priorityField = missingFields[0];
-    
+
     // If user mentions specific topics, prioritize related fields
-    if (lowerMsg.includes('work') || lowerMsg.includes('job') || lowerMsg.includes('employ')) {
-      const workFields = missingFields.filter(f => ['employer', 'jobTitle', 'annualIncome', 'timeOnJobMonths'].includes(f));
+    if (lowerMsg.includes("work") || lowerMsg.includes("job") || lowerMsg.includes("employ")) {
+      const workFields = missingFields.filter(f =>
+        ["employer", "jobTitle", "annualIncome", "timeOnJobMonths"].includes(f)
+      );
       if (workFields.length > 0) priorityField = workFields[0];
     }
-    
-    if (lowerMsg.includes('address') || lowerMsg.includes('live') || lowerMsg.includes('zip')) {
-      const addressFields = missingFields.filter(f => ['street', 'city', 'state', 'zip'].includes(f));
+
+    if (lowerMsg.includes("address") || lowerMsg.includes("live") || lowerMsg.includes("zip")) {
+      const addressFields = missingFields.filter(f =>
+        ["street", "city", "state", "zip"].includes(f)
+      );
       if (addressFields.length > 0) priorityField = addressFields[0];
     }
 
     const fieldPrompts = {
       firstName: "I'd love to personalize this for you! What's your first name?",
       lastName: "And what's your last name?",
-      street: "To get you the best rates, I'll need your street address. What's your current address?",
+      street:
+        "To get you the best rates, I'll need your street address. What's your current address?",
       city: "What city do you live in?",
       state: "Which state are you in?",
       zip: "And what's your ZIP code?",
-      employer: "For the loan application, I'll need to know where you work. What's your current employer?",
+      employer:
+        "For the loan application, I'll need to know where you work. What's your current employer?",
       jobTitle: "What's your job title or position?",
       annualIncome: "What's your annual income? This helps me find the best loan options for you.",
       timeOnJobMonths: "How long have you been working at your current job?",
-      email: "I'd like to send you some information - what's your email address?"
+      email: "I'd like to send you some information - what's your email address?",
     };
 
-    const prompt = fieldPrompts[priorityField as keyof typeof fieldPrompts] || 
+    const prompt =
+      fieldPrompts[priorityField as keyof typeof fieldPrompts] ||
       "I just need a bit more information to help you get the best loan terms.";
 
     // Add context about why we need the information
     const context = this.getPiiContextExplanation(priorityField);
-    
-    return formatResponseByTone('progress', `${prompt} ${context}`);
+
+    return formatResponseByTone("progress", `${prompt} ${context}`);
   }
 
   /**
@@ -625,19 +644,27 @@ export class RealtimeChatAgent {
     const explanations = {
       firstName: "This helps me give you a more personal experience!",
       lastName: "I want to make sure I have your complete name for the application.",
-      street: "Lenders need your complete address to verify your identity and determine local regulations.",
+      street:
+        "Lenders need your complete address to verify your identity and determine local regulations.",
       city: "This helps me find lenders that work in your area.",
-      state: "Different states have different lending regulations, so this helps me find the right options.",
+      state:
+        "Different states have different lending regulations, so this helps me find the right options.",
       zip: "Your ZIP code helps me find local dealerships and the best rates in your area.",
-      employer: "Employment verification is required for auto loans - this shows lenders you have steady income.",
+      employer:
+        "Employment verification is required for auto loans - this shows lenders you have steady income.",
       jobTitle: "Your job title helps lenders understand your income stability.",
-      annualIncome: "This is probably the most important factor in determining your loan amount and interest rate.",
-      timeOnJobMonths: "Lenders like to see employment stability - longer tenure often means better rates!",
-      email: "I'll use this to send you your pre-approval letter and keep you updated on your application."
+      annualIncome:
+        "This is probably the most important factor in determining your loan amount and interest rate.",
+      timeOnJobMonths:
+        "Lenders like to see employment stability - longer tenure often means better rates!",
+      email:
+        "I'll use this to send you your pre-approval letter and keep you updated on your application.",
     };
 
-    return explanations[field as keyof typeof explanations] || 
-      "This information helps me get you pre-approved with the best possible terms.";
+    return (
+      explanations[field as keyof typeof explanations] ||
+      "This information helps me get you pre-approved with the best possible terms."
+    );
   }
 
   /**
@@ -646,38 +673,39 @@ export class RealtimeChatAgent {
   private generatePiiCollectionResponse(extractedPii: any, stillMissingFields: string[]): string {
     const collectedFields = Object.keys(extractedPii);
     let response = "Perfect! ";
-    
-    if (collectedFields.includes('firstName') && collectedFields.includes('lastName')) {
+
+    if (collectedFields.includes("firstName") && collectedFields.includes("lastName")) {
       response += `Thank you, ${extractedPii.firstName}! `;
     }
-    
-    if (collectedFields.includes('employer')) {
+
+    if (collectedFields.includes("employer")) {
       response += `Great to know you work at ${extractedPii.employer}. `;
     }
-    
-    if (collectedFields.includes('annualIncome')) {
+
+    if (collectedFields.includes("annualIncome")) {
       response += `With your income level, you should have some excellent financing options! `;
     }
 
     if (stillMissingFields.length > 0) {
       const nextField = stillMissingFields[0];
-      response += this.generateMissingPiiPrompt([nextField], '');
+      response += this.generateMissingPiiPrompt([nextField], "");
     } else {
       response += "I have everything I need now! Let me get your financing options ready.";
     }
 
-    return formatResponseByTone('progress', response);
+    return formatResponseByTone("progress", response);
   }
 
   /**
    * Generate response when PII collection is complete
    */
   private generatePiiCompleteResponse(updatedFields: string[]): string {
-    return formatResponseByTone('positive', 
+    return formatResponseByTone(
+      "positive",
       "Excellent! I now have all the information I need to get you pre-approved. " +
-      "You're going to love how quickly this works - I'm processing your application right now and " +
-      "should have your financing options ready in just a moment. " +
-      "This is the exciting part where we turn your car dreams into reality!"
+        "You're going to love how quickly this works - I'm processing your application right now and " +
+        "should have your financing options ready in just a moment. " +
+        "This is the exciting part where we turn your car dreams into reality!"
     );
   }
 
@@ -688,15 +716,15 @@ export class RealtimeChatAgent {
     try {
       const validation = validatePartialPii(piiData);
       if (!validation.isValid) {
-        return { success: false, error: 'Invalid PII data' };
+        return { success: false, error: "Invalid PII data" };
       }
 
       await storage.updateVisitor(visitorId, validation.data);
-      
+
       // Check completeness
       const updatedVisitor = await storage.getVisitor(visitorId);
       if (!updatedVisitor) {
-        return { success: false, error: 'Failed to retrieve updated visitor' };
+        return { success: false, error: "Failed to retrieve updated visitor" };
       }
 
       const completePiiData = {
@@ -712,7 +740,7 @@ export class RealtimeChatAgent {
         timeOnJobMonths: updatedVisitor.timeOnJobMonths,
         phoneNumber: updatedVisitor.phoneNumber,
         email: updatedVisitor.email,
-        emailHash: updatedVisitor.emailHash
+        emailHash: updatedVisitor.emailHash,
       };
 
       const completeValidation = validateCompletePii(completePiiData);
@@ -722,12 +750,11 @@ export class RealtimeChatAgent {
         success: true,
         piiComplete: completeValidation.isValid,
         updatedFields: Object.keys(piiData),
-        missingFields: partialValidation.missingFields || []
+        missingFields: partialValidation.missingFields || [],
       };
-
     } catch (error) {
-      this.logger.error('PII collection helper error', { visitorId, error });
-      return { success: false, error: 'Failed to collect PII' };
+      this.logger.error("PII collection helper error", { visitorId, error });
+      return { success: false, error: "Failed to collect PII" };
     }
   }
 
@@ -741,14 +768,14 @@ export class RealtimeChatAgent {
         metadata: {
           source,
           piiComplete: true,
-          triggeredAt: new Date()
-        }
+          triggeredAt: new Date(),
+        },
       });
 
-      this.logger.info('Lead packaging triggered', { visitorId, source });
+      this.logger.info("Lead packaging triggered", { visitorId, source });
       return { success: true };
     } catch (error) {
-      this.logger.error('Lead packaging trigger error', { visitorId, error });
+      this.logger.error("Lead packaging trigger error", { visitorId, error });
       return { success: false };
     }
   }
@@ -841,10 +868,10 @@ export class RealtimeChatAgent {
             },
           });
 
-          this.logger.info('Credit check handoff completed', {
+          this.logger.info("Credit check handoff completed", {
             sessionId,
             phoneNumber: this.formatPhoneNumber(phoneNumber),
-            visitorId
+            visitorId,
           });
 
           return {
@@ -856,7 +883,7 @@ export class RealtimeChatAgent {
         } catch (error) {
           this.logger.error("Error during credit check handoff", {
             sessionId: params.sessionId,
-            error: error instanceof Error ? error.message : 'Unknown error'
+            error: error instanceof Error ? error.message : "Unknown error",
           });
           return {
             success: false,
@@ -924,7 +951,7 @@ export class RealtimeChatAgent {
           this.logger.error("Error recovering application", {
             returnToken,
             emailHash,
-            error: error instanceof Error ? error.message : 'Unknown error'
+            error: error instanceof Error ? error.message : "Unknown error",
           });
           return {
             success: false,
@@ -1022,14 +1049,17 @@ export class RealtimeChatAgent {
         // Collect PII and update visitor
         const collectResult = await this.collectPii(visitorId, piiExtracted);
         piiCollected = collectResult.success;
-        
+
         if (collectResult.piiComplete) {
           // Trigger lead packaging
-          const triggerResult = await this.triggerLeadPackaging(visitorId, 'chat_conversation');
+          const triggerResult = await this.triggerLeadPackaging(visitorId, "chat_conversation");
           leadPackagingTriggered = triggerResult.success;
           response = this.generatePiiCompleteResponse(collectResult.updatedFields || []);
         } else {
-          response = this.generatePiiCollectionResponse(piiExtracted, collectResult.missingFields || []);
+          response = this.generatePiiCollectionResponse(
+            piiExtracted,
+            collectResult.missingFields || []
+          );
         }
       } else if (isFirstMessage) {
         response = this.generateWelcomeResponse(message);
@@ -1052,12 +1082,12 @@ export class RealtimeChatAgent {
         updatedAt: new Date(),
       });
 
-      this.logger.info('Chat message processed', {
+      this.logger.info("Chat message processed", {
         sessionId,
         visitorId,
         piiCollected,
         leadPackagingTriggered,
-        shouldHandoff
+        shouldHandoff,
       });
 
       return {
@@ -1071,7 +1101,7 @@ export class RealtimeChatAgent {
     } catch (error) {
       this.logger.error("Error handling chat message", {
         sessionId,
-        error: error instanceof Error ? error.message : 'Unknown error'
+        error: error instanceof Error ? error.message : "Unknown error",
       });
       return {
         success: false,

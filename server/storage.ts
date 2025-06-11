@@ -36,7 +36,12 @@ import { db } from "./db-postgres";
 import { eq, desc, count, and, isNull, lt, sql } from "drizzle-orm";
 import { dbOptimizer } from "./services/performance-optimizer";
 import { LeadData, Activity, Agent, SystemStats } from "./types/common.js";
-import { validatePartialPii, validateCompletePii, type PartialVisitorPii, type VisitorPii } from "../shared/validation/schemas";
+import {
+  validatePartialPii,
+  validateCompletePii,
+  type PartialVisitorPii,
+  type VisitorPii,
+} from "../shared/validation/schemas";
 import { logger } from "./logger";
 import crypto from "crypto";
 
@@ -340,14 +345,20 @@ class DatabaseStorage implements StorageInterface {
     try {
       // Check if visitor already exists by emailHash or sessionId
       let existingVisitor: Visitor | undefined;
-      
+
       if (data.emailHash) {
-        const visitors = await db.select().from(visitors).where(eq(visitors.emailHash, data.emailHash));
+        const visitors = await db
+          .select()
+          .from(visitors)
+          .where(eq(visitors.emailHash, data.emailHash));
         existingVisitor = visitors[0];
       }
-      
+
       if (!existingVisitor && data.sessionId) {
-        const visitors = await db.select().from(visitors).where(eq(visitors.sessionId, data.sessionId));
+        const visitors = await db
+          .select()
+          .from(visitors)
+          .where(eq(visitors.sessionId, data.sessionId));
         existingVisitor = visitors[0];
       }
 
@@ -365,8 +376,11 @@ class DatabaseStorage implements StorageInterface {
         };
 
         await db.update(visitors).set(updateData).where(eq(visitors.id, existingVisitor.id));
-        
-        const [updatedVisitor] = await db.select().from(visitors).where(eq(visitors.id, existingVisitor.id));
+
+        const [updatedVisitor] = await db
+          .select()
+          .from(visitors)
+          .where(eq(visitors.id, existingVisitor.id));
         return updatedVisitor;
       } else {
         // Create new visitor
@@ -389,7 +403,7 @@ class DatabaseStorage implements StorageInterface {
         return newVisitor;
       }
     } catch (error) {
-      logger.error({ error, data }, 'Failed to upsert visitor from ingest');
+      logger.error({ error, data }, "Failed to upsert visitor from ingest");
       throw error;
     }
   }
@@ -407,27 +421,37 @@ class DatabaseStorage implements StorageInterface {
   // Abandonment Detection Methods
   async getAbandonedVisitors(thresholdMinutes: number = 15): Promise<Visitor[]> {
     const thresholdTime = new Date(Date.now() - thresholdMinutes * 60 * 1000);
-    
-    return await db.select().from(visitors).where(
-      and(
-        lt(visitors.adClickTs, thresholdTime),
-        isNull(visitors.formSubmitTs),
-        eq(visitors.abandonmentDetected, false)
-      )
-    );
+
+    return await db
+      .select()
+      .from(visitors)
+      .where(
+        and(
+          lt(visitors.adClickTs, thresholdTime),
+          isNull(visitors.formSubmitTs),
+          eq(visitors.abandonmentDetected, false)
+        )
+      );
   }
 
-  async markVisitorAbandoned(visitorId: number, abandonmentStep: number = 1, returnTokenExpiryHours: number = 48): Promise<void> {
+  async markVisitorAbandoned(
+    visitorId: number,
+    abandonmentStep: number = 1,
+    returnTokenExpiryHours: number = 48
+  ): Promise<void> {
     const returnToken = crypto.randomUUID();
     const returnTokenExpiry = new Date(Date.now() + returnTokenExpiryHours * 60 * 60 * 1000);
 
-    await db.update(visitors).set({
-      abandonmentDetected: true,
-      abandonmentStep,
-      returnToken,
-      returnTokenExpiry,
-      lastActivity: new Date()
-    }).where(eq(visitors.id, visitorId));
+    await db
+      .update(visitors)
+      .set({
+        abandonmentDetected: true,
+        abandonmentStep,
+        returnToken,
+        returnTokenExpiry,
+        lastActivity: new Date(),
+      })
+      .where(eq(visitors.id, visitorId));
   }
 
   async getVisitorByReturnToken(returnToken: string): Promise<Visitor | null> {
@@ -489,19 +513,28 @@ class DatabaseStorage implements StorageInterface {
   }
 
   async getOutreachAttemptsByVisitor(visitorId: number): Promise<OutreachAttempt[]> {
-    return await db.select().from(outreachAttempts)
+    return await db
+      .select()
+      .from(outreachAttempts)
       .where(eq(outreachAttempts.visitorId, visitorId))
       .orderBy(desc(outreachAttempts.sentAt));
   }
 
   async getOutreachAttemptsByExternalId(externalMessageId: string): Promise<OutreachAttempt[]> {
-    return await db.select().from(outreachAttempts)
+    return await db
+      .select()
+      .from(outreachAttempts)
       .where(eq(outreachAttempts.externalMessageId, externalMessageId));
   }
 
-  async getRecentOutreachAttempts(visitorId: number, hoursBack: number = 24): Promise<OutreachAttempt[]> {
+  async getRecentOutreachAttempts(
+    visitorId: number,
+    hoursBack: number = 24
+  ): Promise<OutreachAttempt[]> {
     const cutoffTime = new Date(Date.now() - hoursBack * 60 * 60 * 1000);
-    return await db.select().from(outreachAttempts)
+    return await db
+      .select()
+      .from(outreachAttempts)
       .where(
         and(
           eq(outreachAttempts.visitorId, visitorId),
@@ -522,21 +555,29 @@ class DatabaseStorage implements StorageInterface {
   }
 
   async getChatSessionBySessionId(sessionId: string): Promise<ChatSession | null> {
-    const sessions = await db.select().from(chatSessions).where(eq(chatSessions.sessionId, sessionId));
+    const sessions = await db
+      .select()
+      .from(chatSessions)
+      .where(eq(chatSessions.sessionId, sessionId));
     return sessions[0] || null;
   }
 
   async getChatSessionsByVisitor(visitorId: number): Promise<ChatSession[]> {
-    return await db.select().from(chatSessions)
+    return await db
+      .select()
+      .from(chatSessions)
       .where(eq(chatSessions.visitorId, visitorId))
       .orderBy(desc(chatSessions.createdAt));
   }
 
   async updateChatSession(id: number, updates: Partial<InsertChatSession>): Promise<void> {
-    await db.update(chatSessions).set({
-      ...updates,
-      updatedAt: new Date()
-    }).where(eq(chatSessions.id, id));
+    await db
+      .update(chatSessions)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(eq(chatSessions.id, id));
   }
 
   // Lead Management Methods
@@ -570,7 +611,9 @@ class DatabaseStorage implements StorageInterface {
   }
 
   async getEmailCampaignsByVisitor(visitorId: number): Promise<EmailCampaign[]> {
-    return await db.select().from(emailCampaigns)
+    return await db
+      .select()
+      .from(emailCampaigns)
       .where(eq(emailCampaigns.visitorId, visitorId))
       .orderBy(desc(emailCampaigns.createdAt));
   }
@@ -582,7 +625,9 @@ class DatabaseStorage implements StorageInterface {
   }
 
   async getAgentActivitiesByType(agentType: string, limit: number = 50): Promise<AgentActivity[]> {
-    return await db.select().from(agentActivity)
+    return await db
+      .select()
+      .from(agentActivity)
       .where(eq(agentActivity.agentName, agentType))
       .orderBy(desc(agentActivity.createdAt))
       .limit(limit);
@@ -599,17 +644,25 @@ class DatabaseStorage implements StorageInterface {
   }> {
     try {
       const [totalVisitorsResult] = await db.select({ count: count() }).from(visitors);
-      const [abandonedResult] = await db.select({ count: count() }).from(visitors)
+      const [abandonedResult] = await db
+        .select({ count: count() })
+        .from(visitors)
         .where(eq(visitors.abandonmentDetected, true));
       const [contactedResult] = await db.select({ count: count() }).from(outreachAttempts);
-      const [piiCompleteResult] = await db.select({ count: count() }).from(visitors)
+      const [piiCompleteResult] = await db
+        .select({ count: count() })
+        .from(visitors)
         .where(eq(visitors.piiComplete, true));
-      const [submittedResult] = await db.select({ count: count() }).from(leads)
-        .where(eq(leads.status, 'submitted'));
-      
+      const [submittedResult] = await db
+        .select({ count: count() })
+        .from(leads)
+        .where(eq(leads.status, "submitted"));
+
       // For Boberdoo accepted leads, we'd check the systemLeads table
-      const [acceptedResult] = await db.select({ count: count() }).from(systemLeads)
-        .where(eq(systemLeads.boberdooStatus, 'accepted'));
+      const [acceptedResult] = await db
+        .select({ count: count() })
+        .from(systemLeads)
+        .where(eq(systemLeads.boberdooStatus, "accepted"));
 
       return {
         totalVisitors: totalVisitorsResult.count,
@@ -620,7 +673,7 @@ class DatabaseStorage implements StorageInterface {
         accepted: acceptedResult.count,
       };
     } catch (error) {
-      logger.error({ error }, 'Failed to get lead metrics');
+      logger.error({ error }, "Failed to get lead metrics");
       return {
         totalVisitors: 0,
         abandoned: 0,
@@ -632,20 +685,22 @@ class DatabaseStorage implements StorageInterface {
     }
   }
 
-  async getConversionFunnelData(): Promise<{
-    stage: string;
-    count: number;
-    conversionRate?: number;
-  }[]> {
+  async getConversionFunnelData(): Promise<
+    {
+      stage: string;
+      count: number;
+      conversionRate?: number;
+    }[]
+  > {
     const metrics = await this.getLeadMetrics();
-    
+
     const funnel = [
-      { stage: 'Visitors', count: metrics.totalVisitors },
-      { stage: 'Abandoned', count: metrics.abandoned },
-      { stage: 'Contacted', count: metrics.contacted },
-      { stage: 'PII Complete', count: metrics.piiComplete },
-      { stage: 'Submitted', count: metrics.submitted },
-      { stage: 'Accepted', count: metrics.accepted },
+      { stage: "Visitors", count: metrics.totalVisitors },
+      { stage: "Abandoned", count: metrics.abandoned },
+      { stage: "Contacted", count: metrics.contacted },
+      { stage: "PII Complete", count: metrics.piiComplete },
+      { stage: "Submitted", count: metrics.submitted },
+      { stage: "Accepted", count: metrics.accepted },
     ];
 
     // Calculate conversion rates
@@ -665,9 +720,9 @@ class DatabaseStorage implements StorageInterface {
       await db.select({ count: count() }).from(visitors);
       return { healthy: true };
     } catch (error) {
-      return { 
-        healthy: false, 
-        error: error instanceof Error ? error.message : 'Unknown database error' 
+      return {
+        healthy: false,
+        error: error instanceof Error ? error.message : "Unknown database error",
       };
     }
   }

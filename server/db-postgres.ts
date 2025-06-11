@@ -12,19 +12,19 @@ let db: ReturnType<typeof drizzle>;
 
 try {
   // Standard PostgreSQL configuration for Render
-  pool = new Pool({ 
+  pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     // Render PostgreSQL requires SSL in production
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
     // Connection pool settings optimized for Render
     max: 20,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: parseInt(process.env.DB_CONNECTION_TIMEOUT_MS || "5000", 10),
   });
-  
+
   // Use standard PostgreSQL driver, not Neon
   db = drizzle(pool, { schema });
-  
+
   console.log("✅ PostgreSQL database configuration successful");
 } catch (error) {
   console.error("❌ PostgreSQL database configuration failed:", error);

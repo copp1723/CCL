@@ -15,18 +15,18 @@ import promptTestingRoutes from "./routes/prompt-testing";
 import { mailgunService } from "./services/mailgun-service";
 
 // Import MVP Automation Services
-import { enhancedRequestLogger, logger } from './logger';
-import config from './config/environment';
-import { sftpIngestor } from './services/sftp-ingestor';
-import { abandonmentDetector } from './jobs/abandonment-detector';
-import { outreachOrchestrator } from './jobs/outreach-orchestrator';
-import { twilioSms } from './services/twilio-sms';
-import { boberdooService } from './services/boberdoo-service';
-import twilioWebhookRoutes from './routes/twilio-webhooks';
-import dashboardRoutes from './routes/dashboard';
+import { enhancedRequestLogger, logger } from "./logger";
+import config from "./config/environment";
+import { sftpIngestor } from "./services/sftp-ingestor";
+import { abandonmentDetector } from "./jobs/abandonment-detector";
+import { outreachOrchestrator } from "./jobs/outreach-orchestrator";
+import { twilioSms } from "./services/twilio-sms";
+import { boberdooService } from "./services/boberdoo-service";
+import twilioWebhookRoutes from "./routes/twilio-webhooks";
+import dashboardRoutes from "./routes/dashboard";
 
 // Initialize configuration and logging
-logger.info('Starting CCL Agent System with MVP Automation Pipeline');
+logger.info("Starting CCL Agent System with MVP Automation Pipeline");
 
 // Start background workers
 campaignSender.start();
@@ -34,29 +34,29 @@ campaignSender.start();
 // Initialize MVP automation services
 async function initializeMvpServices() {
   try {
-    logger.info('Initializing MVP automation services...');
-    
+    logger.info("Initializing MVP automation services...");
+
     // Initialize SFTP ingestion service
     await sftpIngestor.initialize();
-    
+
     // Initialize abandonment detection service
     await abandonmentDetector.initialize();
-    
+
     // Start services if configured
     const sftpConfig = config.getSftpConfig();
     if (sftpConfig.configured) {
       await sftpIngestor.start();
-      logger.info('SFTP ingestion service started');
+      logger.info("SFTP ingestion service started");
     } else {
-      logger.warn('SFTP not configured - ingestion service not started');
+      logger.warn("SFTP not configured - ingestion service not started");
     }
-    
+
     await abandonmentDetector.start();
-    logger.info('Abandonment detection service started');
-    
-    logger.info('MVP automation services initialized successfully');
+    logger.info("Abandonment detection service started");
+
+    logger.info("MVP automation services initialized successfully");
   } catch (error) {
-    logger.error({ error }, 'Failed to initialize MVP automation services');
+    logger.error({ error }, "Failed to initialize MVP automation services");
     // Don't exit - continue with basic functionality
   }
 }
@@ -71,14 +71,14 @@ const upload = multer({ storage: multer.memoryStorage() });
 // Manual SFTP ingestion trigger (protected)
 app.post("/api/mvp/sftp/ingest", apiKeyAuth, async (req: Request, res: Response) => {
   try {
-    logger.info('Manual SFTP ingestion triggered via API');
+    logger.info("Manual SFTP ingestion triggered via API");
     const result = await sftpIngestor.ingestDailyFiles();
     res.json({ success: true, data: result });
   } catch (error) {
-    logger.error({ error }, 'Manual SFTP ingestion failed');
-    res.status(500).json({ 
-      success: false, 
-      error: error instanceof Error ? error.message : 'SFTP ingestion failed' 
+    logger.error({ error }, "Manual SFTP ingestion failed");
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "SFTP ingestion failed",
     });
   }
 });
@@ -86,14 +86,14 @@ app.post("/api/mvp/sftp/ingest", apiKeyAuth, async (req: Request, res: Response)
 // Manual abandonment detection trigger (protected)
 app.post("/api/mvp/abandonment/detect", apiKeyAuth, async (req: Request, res: Response) => {
   try {
-    logger.info('Manual abandonment detection triggered via API');
+    logger.info("Manual abandonment detection triggered via API");
     const result = await abandonmentDetector.detectAbandonedNow();
     res.json({ success: true, data: result });
   } catch (error) {
-    logger.error({ error }, 'Manual abandonment detection failed');
-    res.status(500).json({ 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Abandonment detection failed' 
+    logger.error({ error }, "Manual abandonment detection failed");
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Abandonment detection failed",
     });
   }
 });
@@ -101,14 +101,14 @@ app.post("/api/mvp/abandonment/detect", apiKeyAuth, async (req: Request, res: Re
 // Manual outreach campaign trigger (protected)
 app.post("/api/mvp/outreach/process", apiKeyAuth, async (req: Request, res: Response) => {
   try {
-    logger.info('Manual outreach campaign triggered via API');
+    logger.info("Manual outreach campaign triggered via API");
     const result = await outreachOrchestrator.processOutreachNow();
     res.json({ success: true, data: result });
   } catch (error) {
-    logger.error({ error }, 'Manual outreach campaign failed');
-    res.status(500).json({ 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Outreach campaign failed' 
+    logger.error({ error }, "Manual outreach campaign failed");
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Outreach campaign failed",
     });
   }
 });
@@ -117,20 +117,20 @@ app.post("/api/mvp/outreach/process", apiKeyAuth, async (req: Request, res: Resp
 app.post("/api/mvp/outreach/visitor/:id", apiKeyAuth, async (req: Request, res: Response) => {
   try {
     const visitorId = parseInt(req.params.id);
-    const { channel = 'sms' } = req.body;
-    
+    const { channel = "sms" } = req.body;
+
     if (isNaN(visitorId)) {
       return res.status(400).json({ success: false, error: "Invalid visitor ID" });
     }
-    
-    logger.info({ visitorId, channel }, 'Manual outreach to specific visitor triggered via API');
+
+    logger.info({ visitorId, channel }, "Manual outreach to specific visitor triggered via API");
     const result = await outreachOrchestrator.sendSpecificOutreach(visitorId, channel);
     res.json({ success: true, data: result });
   } catch (error) {
-    logger.error({ error, visitorId: req.params.id }, 'Manual specific outreach failed');
-    res.status(500).json({ 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Specific outreach failed' 
+    logger.error({ error, visitorId: req.params.id }, "Manual specific outreach failed");
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Specific outreach failed",
     });
   }
 });
@@ -141,7 +141,7 @@ app.get("/api/mvp/outreach/stats", apiKeyAuth, async (req: Request, res: Respons
     const stats = await outreachOrchestrator.getOutreachStats();
     res.json({ success: true, data: stats });
   } catch (error) {
-    logger.error({ error }, 'Failed to get outreach stats');
+    logger.error({ error }, "Failed to get outreach stats");
     res.status(500).json({ success: false, error: "Failed to fetch outreach stats" });
   }
 });
@@ -152,7 +152,7 @@ app.get("/api/mvp/analytics/funnel", apiKeyAuth, async (req: Request, res: Respo
     const funnelData = await storage.getConversionFunnelData();
     res.json({ success: true, data: funnelData });
   } catch (error) {
-    logger.error({ error }, 'Failed to get conversion funnel data');
+    logger.error({ error }, "Failed to get conversion funnel data");
     res.status(500).json({ success: false, error: "Failed to fetch funnel data" });
   }
 });
@@ -163,7 +163,7 @@ app.get("/api/mvp/analytics/metrics", apiKeyAuth, async (req: Request, res: Resp
     const metrics = await storage.getLeadMetrics();
     res.json({ success: true, data: metrics });
   } catch (error) {
-    logger.error({ error }, 'Failed to get lead metrics');
+    logger.error({ error }, "Failed to get lead metrics");
     res.status(500).json({ success: false, error: "Failed to fetch metrics" });
   }
 });
@@ -174,7 +174,7 @@ app.get("/api/mvp/abandonment/stats", apiKeyAuth, async (req: Request, res: Resp
     const stats = await abandonmentDetector.getAbandonmentStats();
     res.json({ success: true, data: stats });
   } catch (error) {
-    logger.error({ error }, 'Failed to get abandonment stats');
+    logger.error({ error }, "Failed to get abandonment stats");
     res.status(500).json({ success: false, error: "Failed to fetch abandonment stats" });
   }
 });
@@ -186,26 +186,26 @@ app.get("/api/mvp/visitors/:id", apiKeyAuth, async (req: Request, res: Response)
     if (isNaN(visitorId)) {
       return res.status(400).json({ success: false, error: "Invalid visitor ID" });
     }
-    
+
     const visitor = await storage.getVisitor(visitorId);
     if (!visitor) {
       return res.status(404).json({ success: false, error: "Visitor not found" });
     }
-    
+
     // Get related data
     const outreachAttempts = await storage.getOutreachAttemptsByVisitor(visitorId);
     const chatSessions = await storage.getChatSessionsByVisitor(visitorId);
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       data: {
         visitor,
         outreachAttempts,
-        chatSessions
-      }
+        chatSessions,
+      },
     });
   } catch (error) {
-    logger.error({ error, visitorId: req.params.id }, 'Failed to get visitor details');
+    logger.error({ error, visitorId: req.params.id }, "Failed to get visitor details");
     res.status(500).json({ success: false, error: "Failed to fetch visitor" });
   }
 });
@@ -217,14 +217,14 @@ app.put("/api/mvp/visitors/:id/pii", apiKeyAuth, async (req: Request, res: Respo
     if (isNaN(visitorId)) {
       return res.status(400).json({ success: false, error: "Invalid visitor ID" });
     }
-    
+
     await storage.updateVisitorPii(visitorId, req.body);
     res.json({ success: true, message: "PII updated successfully" });
   } catch (error) {
-    logger.error({ error, visitorId: req.params.id }, 'Failed to update visitor PII');
-    res.status(500).json({ 
-      success: false, 
-      error: error instanceof Error ? error.message : 'Failed to update PII' 
+    logger.error({ error, visitorId: req.params.id }, "Failed to update visitor PII");
+    res.status(500).json({
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to update PII",
     });
   }
 });
@@ -388,16 +388,18 @@ app.get("/health", async (req: Request, res: Response) => {
       services: healthChecks,
       mvpAutomation: {
         sftpConfigured: config.getSftpConfig().configured,
-        messagingConfigured: config.getMessagingConfig().twilio.configured || config.getMessagingConfig().sendgrid.configured,
-        boberdooConfigured: config.getBoberdooConfig().configured
-      }
+        messagingConfigured:
+          config.getMessagingConfig().twilio.configured ||
+          config.getMessagingConfig().sendgrid.configured,
+        boberdooConfigured: config.getBoberdooConfig().configured,
+      },
     });
   } catch (error) {
-    logger.error({ error }, 'Health check failed');
+    logger.error({ error }, "Health check failed");
     res.status(503).json({
       status: "unhealthy",
       timestamp: new Date().toISOString(),
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : "Unknown error",
     });
   }
 });
@@ -407,14 +409,14 @@ app.get("/api/system/stats", apiKeyAuth, async (req: Request, res: Response) => 
   try {
     // Use the improved storageService for stats
     const stats = await storageService.getStats();
-    
+
     // Add MVP automation metrics
     const leadMetrics = await storage.getLeadMetrics();
     const conversionFunnel = await storage.getConversionFunnelData();
     const abandonmentStats = await abandonmentDetector.getAbandonmentStats();
-    
-    res.json({ 
-      success: true, 
+
+    res.json({
+      success: true,
       data: {
         ...stats,
         mvpAutomation: {
@@ -424,18 +426,18 @@ app.get("/api/system/stats", apiKeyAuth, async (req: Request, res: Response) => 
           services: {
             sftp: {
               configured: config.getSftpConfig().configured,
-              running: !abandonmentDetector.isCurrentlyRunning() // Simplified check
+              running: !abandonmentDetector.isCurrentlyRunning(), // Simplified check
             },
             abandonmentDetector: {
               running: abandonmentDetector.isCurrentlyRunning(),
-              nextRun: abandonmentDetector.getNextRunTime()
-            }
-          }
-        }
-      }
+              nextRun: abandonmentDetector.getNextRunTime(),
+            },
+          },
+        },
+      },
     });
   } catch (error) {
-    logger.error({ error }, 'Failed to fetch system stats');
+    logger.error({ error }, "Failed to fetch system stats");
     res.status(500).json({ success: false, error: "Failed to fetch stats" });
   }
 });
@@ -657,32 +659,37 @@ wss.on("connection", (ws: WebSocket) => {
       const message = JSON.parse(data.toString());
 
       if (message.type === "chat") {
-        let response = "Hi! I'm Cathy from Complete Car Loans. How can I help with your auto financing today?";
+        let response =
+          "Hi! I'm Cathy from Complete Car Loans. How can I help with your auto financing today?";
 
         // Use OpenRouter for WebSocket chat too
         if (process.env.OPENROUTER_API_KEY) {
           try {
-            const openRouterResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-                "Content-Type": "application/json",
-                "HTTP-Referer": process.env.FRONTEND_URL || "http://localhost:5173",
-                "X-Title": "CCL Agent System WebSocket",
-              },
-              body: JSON.stringify({
-                model: "anthropic/claude-3.5-sonnet",
-                messages: [
-                  {
-                    role: "system",
-                    content: "You are Cathy from Complete Car Loans. Keep responses under 50 words. Be warm, helpful, and focus on auto financing assistance.",
-                  },
-                  { role: "user", content: message.content },
-                ],
-                max_tokens: 150,
-                temperature: 0.7,
-              }),
-            });
+            const openRouterResponse = await fetch(
+              "https://openrouter.ai/api/v1/chat/completions",
+              {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                  "Content-Type": "application/json",
+                  "HTTP-Referer": process.env.FRONTEND_URL || "http://localhost:5173",
+                  "X-Title": "CCL Agent System WebSocket",
+                },
+                body: JSON.stringify({
+                  model: "anthropic/claude-3.5-sonnet",
+                  messages: [
+                    {
+                      role: "system",
+                      content:
+                        "You are Cathy from Complete Car Loans. Keep responses under 50 words. Be warm, helpful, and focus on auto financing assistance.",
+                    },
+                    { role: "user", content: message.content },
+                  ],
+                  max_tokens: 150,
+                  temperature: 0.7,
+                }),
+              }
+            );
 
             if (openRouterResponse.ok) {
               const data = await openRouterResponse.json();
@@ -736,46 +743,51 @@ if (process.env.NODE_ENV !== "production") {
 
 const PORT = parseInt(process.env.PORT || "5000", 10);
 
-<<<<<<< HEAD
 // Initialize MVP services before starting server
-initializeMvpServices().then(() => {
-  server.listen(PORT, "0.0.0.0", () => {
-    logger.info({
-      port: PORT,
-      environment: process.env.NODE_ENV,
-      sftpConfigured: config.getSftpConfig().configured,
-      messagingConfigured: config.getMessagingConfig().twilio.configured || config.getMessagingConfig().sendgrid.configured,
-      boberdooConfigured: config.getBoberdooConfig().configured
-    }, 'CCL Agent System with MVP Automation Pipeline started successfully');
-    
-    console.log(`CCL Agent System running on port ${PORT}`);
-    console.log(`Environment: ${process.env.NODE_ENV}`);
-    console.log(`Health check: http://0.0.0.0:${PORT}/health`);
-    console.log(`WebSocket available at ws://localhost:${PORT}/ws/chat`);
-    console.log(`MVP API endpoints available at /api/mvp/*`);
+initializeMvpServices()
+  .then(() => {
+    server.listen(PORT, "0.0.0.0", () => {
+      logger.info(
+        {
+          port: PORT,
+          environment: process.env.NODE_ENV,
+          sftpConfigured: config.getSftpConfig().configured,
+          messagingConfigured:
+            config.getMessagingConfig().twilio.configured ||
+            config.getMessagingConfig().sendgrid.configured,
+          boberdooConfigured: config.getBoberdooConfig().configured,
+        },
+        "CCL Agent System with MVP Automation Pipeline started successfully"
+      );
+
+      console.log(`CCL Agent System running on port ${PORT}`);
+      console.log(`Environment: ${process.env.NODE_ENV}`);
+      console.log(`Health check: http://0.0.0.0:${PORT}/health`);
+      console.log(`WebSocket available at ws://localhost:${PORT}/ws/chat`);
+      console.log(`Mailgun configured: ${mailgunService.getStatus().configured}`);
+      console.log(`OpenRouter configured: ${!!process.env.OPENROUTER_API_KEY}`);
+      console.log(`MVP API endpoints available at /api/mvp/*`);
+    });
+  })
+  .catch(error => {
+    logger.error({ error }, "Failed to start server");
+    process.exit(1);
   });
-    console.log(`Mailgun configured: ${mailgunService.getStatus().configured}`);
-    console.log(`OpenRouter configured: ${!!process.env.OPENROUTER_API_KEY}`);
-  });
-}).catch((error) => {
-  logger.error({ error }, 'Failed to start server');
-  process.exit(1);
-});
 
 // Graceful shutdown
 process.on("SIGTERM", async () => {
   logger.info("SIGTERM received, shutting down gracefully");
-  
+
   // Stop MVP automation services
   try {
     await sftpIngestor.stop();
     await abandonmentDetector.stop();
     await outreachOrchestrator.stop();
-    logger.info('MVP automation services stopped');
+    logger.info("MVP automation services stopped");
   } catch (error) {
-    logger.error({ error }, 'Error stopping MVP automation services');
+    logger.error({ error }, "Error stopping MVP automation services");
   }
-  
+
   server.close(() => {
     logger.info("Server closed");
     process.exit(0);
@@ -784,17 +796,17 @@ process.on("SIGTERM", async () => {
 
 process.on("SIGINT", async () => {
   logger.info("SIGINT received, shutting down gracefully");
-  
+
   // Stop MVP automation services
   try {
     await sftpIngestor.stop();
     await abandonmentDetector.stop();
     await outreachOrchestrator.stop();
-    logger.info('MVP automation services stopped');
+    logger.info("MVP automation services stopped");
   } catch (error) {
-    logger.error({ error }, 'Error stopping MVP automation services');
+    logger.error({ error }, "Error stopping MVP automation services");
   }
-  
+
   server.close(() => {
     logger.info("Server closed");
     process.exit(0);

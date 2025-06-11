@@ -127,7 +127,7 @@ export default function CampaignsPage() {
   const [open, setOpen] = React.useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   const {
     data: campaigns,
     isLoading,
@@ -139,7 +139,7 @@ export default function CampaignsPage() {
 
   const startCampaignMutation = useMutation({
     mutationFn: startCampaign,
-    onSuccess: (data) => {
+    onSuccess: data => {
       queryClient.invalidateQueries({ queryKey: ["campaigns"] });
       toast({
         title: "Success",

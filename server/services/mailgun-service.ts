@@ -1,12 +1,12 @@
-import formData from 'form-data';
-import Mailgun from 'mailgun.js';
+import formData from "form-data";
+import Mailgun from "mailgun.js";
 
 const mailgun = new Mailgun(formData);
 
 // Initialize Mailgun client
 const mg = mailgun.client({
-  username: 'api',
-  key: process.env.MAILGUN_API_KEY || '',
+  username: "api",
+  key: process.env.MAILGUN_API_KEY || "",
 });
 
 export interface EmailData {
@@ -28,7 +28,7 @@ export class MailgunService {
   private defaultFrom: string;
 
   constructor() {
-    this.domain = process.env.MAILGUN_DOMAIN || 'mail.onerylie.com';
+    this.domain = process.env.MAILGUN_DOMAIN || "mail.onerylie.com";
     this.defaultFrom = `Cathy <cathy@${this.domain}>`;
   }
 
@@ -57,7 +57,9 @@ export class MailgunService {
   /**
    * Send bulk emails (for campaigns)
    */
-  async sendBulkEmails(emails: EmailData[]): Promise<{ sent: number; failed: number; errors: any[] }> {
+  async sendBulkEmails(
+    emails: EmailData[]
+  ): Promise<{ sent: number; failed: number; errors: any[] }> {
     let sent = 0;
     let failed = 0;
     const errors: any[] = [];
@@ -98,13 +100,13 @@ export class MailgunService {
    */
   private processTemplate(template: string, variables: Record<string, any>): string {
     let processed = template;
-    
+
     // Replace common variables
     if (variables.firstName) {
       processed = processed.replace(/\{\{firstName\}\}/g, variables.firstName);
       processed = processed.replace(/\{\{first_name\}\}/g, variables.firstName);
     }
-    
+
     if (variables.lastName) {
       processed = processed.replace(/\{\{lastName\}\}/g, variables.lastName);
       processed = processed.replace(/\{\{last_name\}\}/g, variables.lastName);
@@ -116,8 +118,8 @@ export class MailgunService {
 
     // Replace any other custom variables
     Object.entries(variables).forEach(([key, value]) => {
-      const regex = new RegExp(`\\{\\{${key}\\}\\}`, 'g');
-      processed = processed.replace(regex, String(value || ''));
+      const regex = new RegExp(`\\{\\{${key}\\}\\}`, "g");
+      processed = processed.replace(regex, String(value || ""));
     });
 
     return processed;
@@ -127,7 +129,10 @@ export class MailgunService {
    * Strip HTML tags for plain text version
    */
   private stripHtml(html: string): string {
-    return html.replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+    return html
+      .replace(/<[^>]*>/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 
   /**
