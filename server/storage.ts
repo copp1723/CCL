@@ -52,6 +52,11 @@ export interface StorageInterface {
     id: string,
     updates: { phoneNumber?: string; email?: string; metadata?: any }
   ): Promise<void>;
+  getVisitorById(id: string): Promise<any | null>;
+  createReturnToken(data: {
+    visitorId: number;
+    expiresAt: Date;
+  }): Promise<{ id: number; returnToken: string }>;
 
   // Stats
   getStats(): Promise<SystemStats>;
@@ -295,6 +300,26 @@ class DatabaseStorage implements StorageInterface {
   ): Promise<void> {
     // Visitor update logic would go here when needed
     console.log(`Visitor ${id} updated:`, updates);
+  }
+
+  async getVisitorById(id: string): Promise<any | null> {
+    const [visitor] = await db.select().from(visitors).where(eq(visitors.sessionId, id)).limit(1);
+
+    return visitor || null;
+  }
+
+  async createReturnToken(data: {
+    visitorId: number;
+    expiresAt: Date;
+  }): Promise<{ id: number; returnToken: string }> {
+    const returnToken = randomUUID();
+
+    // In a real implementation, this would store in a return_tokens table
+    // For now, we'll return a mock response
+    return {
+      id: Date.now(),
+      returnToken,
+    };
   }
 }
 

@@ -53,7 +53,7 @@ const createCampaign = async (data: any) => {
 const uploadCSV = async (file: File) => {
   const formData = new FormData();
   formData.append("csvFile", file);
-  
+
   const res = await fetch("/api/bulk-email/send", {
     method: "POST",
     body: formData,
@@ -95,7 +95,7 @@ export default function UnifiedCampaignsPage() {
 
   const uploadCSVMutation = useMutation({
     mutationFn: uploadCSV,
-    onSuccess: (data) => {
+    onSuccess: data => {
       toast({
         title: "CSV uploaded",
         description: `Successfully processed ${data.data?.processed || 0} leads`,
@@ -106,10 +106,18 @@ export default function UnifiedCampaignsPage() {
 
   // Campaign stats
   const activeCampaigns = campaigns.filter((c: any) => c.status === "active").length;
-  const totalRecipients = campaigns.reduce((sum: number, c: any) => sum + (c.totalRecipients || 0), 0);
-  const avgOpenRate = campaigns.length > 0 
-    ? (campaigns.reduce((sum: number, c: any) => sum + (c.openRate || 0), 0) / campaigns.length * 100).toFixed(1)
-    : 0;
+  const totalRecipients = campaigns.reduce(
+    (sum: number, c: any) => sum + (c.totalRecipients || 0),
+    0
+  );
+  const avgOpenRate =
+    campaigns.length > 0
+      ? (
+          (campaigns.reduce((sum: number, c: any) => sum + (c.openRate || 0), 0) /
+            campaigns.length) *
+          100
+        ).toFixed(1)
+      : 0;
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
@@ -145,15 +153,18 @@ export default function UnifiedCampaignsPage() {
                 Set up a new email campaign with AI-powered content
               </DialogDescription>
             </DialogHeader>
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              const formData = new FormData(e.currentTarget);
-              createCampaignMutation.mutate({
-                name: formData.get("name"),
-                goal_prompt: formData.get("goal_prompt"),
-                type: formData.get("type"),
-              });
-            }} className="space-y-4">
+            <form
+              onSubmit={e => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                createCampaignMutation.mutate({
+                  name: formData.get("name"),
+                  goal_prompt: formData.get("goal_prompt"),
+                  type: formData.get("type"),
+                });
+              }}
+              className="space-y-4"
+            >
               <div>
                 <Label htmlFor="name">Campaign Name</Label>
                 <Input id="name" name="name" required />
@@ -173,14 +184,16 @@ export default function UnifiedCampaignsPage() {
               </div>
               <div>
                 <Label htmlFor="goal_prompt">AI Goal Prompt</Label>
-                <Textarea 
-                  id="goal_prompt" 
+                <Textarea
+                  id="goal_prompt"
                   name="goal_prompt"
                   placeholder="E.g., Get customers excited about their auto financing options"
-                  required 
+                  required
                 />
               </div>
-              <Button type="submit" className="w-full">Create Campaign</Button>
+              <Button type="submit" className="w-full">
+                Create Campaign
+              </Button>
             </form>
           </DialogContent>
         </Dialog>
@@ -250,7 +263,9 @@ export default function UnifiedCampaignsPage() {
               <CardContent className="flex flex-col items-center justify-center py-10">
                 <Mail className="h-10 w-10 text-muted-foreground mb-4" />
                 <h3 className="text-lg font-medium">No campaigns yet</h3>
-                <p className="text-sm text-muted-foreground mb-4">Create your first campaign to get started</p>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Create your first campaign to get started
+                </p>
                 <Button onClick={() => setCreateDialogOpen(true)}>
                   <PlusCircle className="mr-2 h-4 w-4" />
                   Create Campaign
@@ -321,7 +336,9 @@ export default function UnifiedCampaignsPage() {
                     step={1}
                     className="flex-1"
                   />
-                  <span className="w-12 text-right">{settings?.data?.timing?.step1Delay || 24}h</span>
+                  <span className="w-12 text-right">
+                    {settings?.data?.timing?.step1Delay || 24}h
+                  </span>
                 </div>
               </div>
               <div>
@@ -333,7 +350,9 @@ export default function UnifiedCampaignsPage() {
                     step={1}
                     className="flex-1"
                   />
-                  <span className="w-12 text-right">{settings?.data?.timing?.step2Delay || 72}h</span>
+                  <span className="w-12 text-right">
+                    {settings?.data?.timing?.step2Delay || 72}h
+                  </span>
                 </div>
               </div>
               <div>
@@ -345,13 +364,17 @@ export default function UnifiedCampaignsPage() {
                     step={1}
                     className="flex-1"
                   />
-                  <span className="w-12 text-right">{settings?.data?.timing?.step3Delay || 168}h</span>
+                  <span className="w-12 text-right">
+                    {settings?.data?.timing?.step3Delay || 168}h
+                  </span>
                 </div>
               </div>
               <div className="flex items-center justify-between">
                 <div>
                   <Label>Auto-start sequences</Label>
-                  <p className="text-sm text-muted-foreground">Automatically begin sequences when leads are added</p>
+                  <p className="text-sm text-muted-foreground">
+                    Automatically begin sequences when leads are added
+                  </p>
                 </div>
                 <Switch defaultChecked />
               </div>
@@ -363,7 +386,9 @@ export default function UnifiedCampaignsPage() {
           <Card>
             <CardHeader>
               <CardTitle>Import Leads via CSV</CardTitle>
-              <CardDescription>Upload a CSV file to import leads and start campaigns</CardDescription>
+              <CardDescription>
+                Upload a CSV file to import leads and start campaigns
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -380,15 +405,17 @@ export default function UnifiedCampaignsPage() {
                     CSV should include: email, firstname, lastname, phone (optional)
                   </p>
                 </div>
-                
+
                 {selectedFile && (
                   <div className="p-4 border rounded-lg bg-muted/50">
                     <p className="text-sm font-medium">Selected file: {selectedFile.name}</p>
-                    <p className="text-xs text-muted-foreground">Size: {(selectedFile.size / 1024).toFixed(1)} KB</p>
+                    <p className="text-xs text-muted-foreground">
+                      Size: {(selectedFile.size / 1024).toFixed(1)} KB
+                    </p>
                   </div>
                 )}
 
-                <Button 
+                <Button
                   onClick={handleCSVUpload}
                   disabled={!selectedFile || uploadCSVMutation.isPending}
                   className="w-full"

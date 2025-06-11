@@ -196,8 +196,8 @@ function AddTemplateForm({
             </FormItem>
           )}
         />
-        <Button type="submit" disabled={mutation.isLoading}>
-          {mutation.isLoading ? "Adding..." : "Add Template"}
+        <Button type="submit" disabled={mutation.isPending}>
+          {mutation.isPending ? "Adding..." : "Add Template"}
         </Button>
       </form>
     </Form>
@@ -259,8 +259,8 @@ function EditCampaignForm({
             </FormItem>
           )}
         />
-        <Button type="submit" disabled={mutation.isLoading}>
-          {mutation.isLoading ? "Saving..." : "Save Changes"}
+        <Button type="submit" disabled={mutation.isPending}>
+          {mutation.isPending ? "Saving..." : "Save Changes"}
         </Button>
       </form>
     </Form>
@@ -268,8 +268,8 @@ function EditCampaignForm({
 }
 
 export default function CampaignDetailPage() {
-  const params = useParams();
-  const campaignId = params.id;
+  const params = useParams<{ id: string }>();
+  const campaignId = params.id || "";
   const [open, setOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState(false);
@@ -280,7 +280,7 @@ export default function CampaignDetailPage() {
 
   const {
     data: campaign,
-    isLoading: campaignLoading,
+    isPending: campaignLoading,
     error: campaignError,
   } = useQuery({
     queryKey: ["campaign", campaignId],
@@ -289,19 +289,19 @@ export default function CampaignDetailPage() {
   });
   const {
     data: templates,
-    isLoading: templatesLoading,
+    isPending: templatesLoading,
     error: templatesError,
   } = useQuery({
     queryKey: ["templates", campaignId],
     queryFn: () => fetchTemplatesForCampaign(campaignId!),
     enabled: !!campaignId,
   });
-  const { data: allLeads, isLoading: allLeadsLoading } = useQuery({
+  const { data: allLeads, isPending: allLeadsLoading } = useQuery({
     queryKey: ["allLeads", campaignId],
     queryFn: () => fetchAllLeads(campaignId!),
     enabled: !!campaignId,
   });
-  const { data: enrolledLeads, isLoading: enrolledLeadsLoading } = useQuery({
+  const { data: enrolledLeads, isPending: enrolledLeadsLoading } = useQuery({
     queryKey: ["enrolledLeads", campaignId],
     queryFn: () => fetchEnrolledLeads(campaignId!),
     enabled: !!campaignId,
@@ -504,10 +504,10 @@ export default function CampaignDetailPage() {
                 )}
                 <Button
                   className="mt-2"
-                  disabled={selectedLeadIds.length === 0 || mutationEnroll.isLoading}
+                  disabled={selectedLeadIds.length === 0 || mutationEnroll.isPending}
                   onClick={() => mutationEnroll.mutate(selectedLeadIds)}
                 >
-                  {mutationEnroll.isLoading ? "Enrolling..." : "Enroll Selected"}
+                  {mutationEnroll.isPending ? "Enrolling..." : "Enroll Selected"}
                 </Button>
               </div>
             </DialogContent>

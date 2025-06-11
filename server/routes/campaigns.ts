@@ -70,7 +70,7 @@ router.get("/:campaignId/leads/enrolled", async (req, res) => {
 router.post("/:campaignId/enroll-leads", async (req, res) => {
   const { campaignId } = req.params;
   const { leadIds } = req.body;
-  
+
   try {
     if (!leadIds || !Array.isArray(leadIds) || leadIds.length === 0) {
       return res.status(400).json({ error: "Please provide an array of lead IDs to enroll." });
@@ -87,10 +87,10 @@ router.post("/:campaignId/enroll-leads", async (req, res) => {
       }
     }
 
-    res.status(200).json({ 
-      success: true, 
+    res.status(200).json({
+      success: true,
       enrolled: enrolled.length,
-      message: `Successfully enrolled ${enrolled.length} leads in campaign`
+      message: `Successfully enrolled ${enrolled.length} leads in campaign`,
     });
   } catch (error) {
     console.error("Failed to enroll leads:", error);
@@ -115,17 +115,17 @@ router.put("/:campaignId/start", async (req, res) => {
 
     // Check if Mailgun is configured
     if (!mailgunService.isConfigured()) {
-      return res.status(500).json({ 
-        error: "Email service not configured. Please check Mailgun settings." 
+      return res.status(500).json({
+        error: "Email service not configured. Please check Mailgun settings.",
       });
     }
 
     // Get enrolled leads for this campaign
     const leads = await storageService.getEnrolledLeads(campaignId);
-    
+
     if (leads.length === 0) {
-      return res.status(400).json({ 
-        error: "No leads enrolled in this campaign. Please enroll leads before starting." 
+      return res.status(400).json({
+        error: "No leads enrolled in this campaign. Please enroll leads before starting.",
       });
     }
 
@@ -143,7 +143,7 @@ router.put("/:campaignId/start", async (req, res) => {
 
     // Send emails to all enrolled leads
     console.log(`Starting email campaign "${campaign.name}" for ${leads.length} leads...`);
-    
+
     const emailResults = await mailgunService.sendCampaignEmails(leads, emailTemplate);
 
     // Log the activity with detailed results
@@ -151,13 +151,13 @@ router.put("/:campaignId/start", async (req, res) => {
       "campaign_started",
       `Campaign "${campaign.name}" started - Sent: ${emailResults.sent}, Failed: ${emailResults.failed}`,
       "campaign-management",
-      { 
-        campaignId, 
+      {
+        campaignId,
         campaignName: campaign.name,
         totalLeads: leads.length,
         emailsSent: emailResults.sent,
         emailsFailed: emailResults.failed,
-        errors: emailResults.errors
+        errors: emailResults.errors,
       }
     );
 
@@ -174,10 +174,9 @@ router.put("/:campaignId/start", async (req, res) => {
       emailResults,
       message: `Campaign started successfully. Sent ${emailResults.sent} emails to ${leads.length} leads.`,
     });
-
   } catch (error) {
     console.error(`Failed to start campaign ${campaignId}:`, error);
-    
+
     // Try to revert campaign status if email sending failed
     try {
       await storageService.updateCampaign(campaignId, { status: "draft" });
@@ -185,8 +184,8 @@ router.put("/:campaignId/start", async (req, res) => {
       console.error("Failed to revert campaign status:", revertError);
     }
 
-    res.status(500).json({ 
-      error: "Failed to start campaign. Please check your email configuration and try again." 
+    res.status(500).json({
+      error: "Failed to start campaign. Please check your email configuration and try again.",
     });
   }
 });
@@ -207,8 +206,8 @@ router.post("/:campaignId/test-email", async (req, res) => {
     }
 
     if (!mailgunService.isConfigured()) {
-      return res.status(500).json({ 
-        error: "Email service not configured. Please check Mailgun settings." 
+      return res.status(500).json({
+        error: "Email service not configured. Please check Mailgun settings.",
       });
     }
 
@@ -234,7 +233,6 @@ router.post("/:campaignId/test-email", async (req, res) => {
       success: true,
       message: `Test email sent successfully to ${testEmail}`,
     });
-
   } catch (error) {
     console.error(`Failed to send test email for campaign ${campaignId}:`, error);
     res.status(500).json({ error: "Failed to send test email." });

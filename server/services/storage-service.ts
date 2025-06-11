@@ -402,7 +402,7 @@ class StorageService {
         .join(", ");
 
       let query = `UPDATE visitors SET ${setClause}`;
-      let values = [
+      const values = [
         id,
         ...Object.keys(updates)
           .filter(key => key !== "metadata")

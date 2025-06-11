@@ -1,1 +1,452 @@
-import { useState } from \"react\";\nimport { useQuery, useMutation, useQueryClient } from \"@tanstack/react-query\";\nimport { Card, CardContent, CardDescription, CardHeader, CardTitle } from \"@/components/ui/card\";\nimport { Button } from \"@/components/ui/button\";\nimport { Input } from \"@/components/ui/input\";\nimport { Label } from \"@/components/ui/label\";\nimport { Textarea } from \"@/components/ui/textarea\";\nimport { Badge } from \"@/components/ui/badge\";\nimport { Tabs, TabsContent, TabsList, TabsTrigger } from \"@/components/ui/tabs\";\nimport { useToast } from \"@/hooks/use-toast\";\nimport { apiRequest } from \"@/lib/queryClient\";\nimport { Upload, FileText, Mail, Database, Plus, Trash2, ArrowRight, CheckCircle } from \"lucide-react\";\n\ninterface Lead {\n  email: string;\n  firstName: string;\n  lastName: string;\n  vehicleInterest: string;\n  phoneNumber?: string;\n  notes?: string;\n}\n\ninterface UploadResult {\n  processed: number;\n  campaignId: string;\n  leads: any[];\n  fileName: string;\n}\n\nexport default function DataIngestion() {\n  const { toast } = useToast();\n  const queryClient = useQueryClient();\n  const [csvFile, setCsvFile] = useState<File | null>(null);\n  const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);\n  const [manualLeads, setManualLeads] = useState<Lead[]>([\n    { email: \"\", firstName: \"\", lastName: \"\", vehicleInterest: \"\", phoneNumber: \"\", notes: \"\" },\n  ]);\n\n  // Fetch leads data for stats\n  const { data: leadsData } = useQuery({\n    queryKey: [\"/api/leads\"],\n  });\n\n  // Fetch campaigns data\n  const { data: campaignsData } = useQuery({\n    queryKey: [\"/api/campaigns\"],\n  });\n\n  // CSV upload mutation using working bulk email endpoint\n  const csvUploadMutation = useMutation({\n    mutationFn: (file: File) => {\n      const formData = new FormData();\n      formData.append(\"csvFile\", file);\n      formData.append(\"campaignName\", `CSV Upload ${new Date().toISOString().split(\"T\")[0]}`);\n      formData.append(\"scheduleType\", \"immediate\");\n\n      return fetch(\"/api/bulk-email/send\", {\n        method: \"POST\",\n        body: formData,\n      }).then(response => {\n        if (!response.ok) {\n          throw new Error(\"Upload failed\");\n        }\n        return response.json();\n      });\n    },\n    onSuccess: (data: any) => {\n      queryClient.invalidateQueries({ queryKey: [\"/api/leads\"] });\n      queryClient.invalidateQueries({ queryKey: [\"/api/campaigns\"] });\n      \n      setUploadResult(data.data);\n      \n      toast({\n        title: \"CSV Upload Complete! 🎉\",\n        description: `Processed ${data.data?.processed || 0} leads and prepared for campaigns`,\n      });\n      setCsvFile(null);\n    },\n    onError: (error: any) => {\n      toast({\n        title: \"Upload Error\",\n        description: error.message || \"Failed to upload CSV file\",\n        variant: \"destructive\",\n      });\n    },\n  });\n\n  // Manual lead processing\n  const manualUploadMutation = useMutation({\n    mutationFn: (leads: Lead[]) => {\n      return Promise.all(\n        leads.map(lead =>\n          apiRequest(\"/api/leads\", {\n            method: \"POST\",\n            data: {\n              email: lead.email,\n              phoneNumber: lead.phoneNumber,\n              status: \"new\",\n              leadData: {\n                firstName: lead.firstName,\n                lastName: lead.lastName,\n                vehicleInterest: lead.vehicleInterest,\n                notes: lead.notes,\n                source: \"manual_entry\"\n              }\n            },\n          })\n        )\n      );\n    },\n    onSuccess: (data: any) => {\n      queryClient.invalidateQueries({ queryKey: [\"/api/leads\"] });\n      toast({\n        title: \"Manual Upload Complete\",\n        description: `Processed ${data.length} leads successfully`,\n      });\n      setManualLeads([\n        { email: \"\", firstName: \"\", lastName: \"\", vehicleInterest: \"\", phoneNumber: \"\", notes: \"\" },\n      ]);\n    },\n    onError: (error: any) => {\n      toast({\n        title: \"Upload Error\",\n        description: error.message || \"Failed to upload leads\",\n        variant: \"destructive\",\n      });\n    },\n  });\n\n  const handleCsvUpload = () => {\n    if (!csvFile) {\n      toast({\n        title: \"Error\",\n        description: \"Please select a CSV file\",\n        variant: \"destructive\",\n      });\n      return;\n    }\n    setUploadResult(null);\n    csvUploadMutation.mutate(csvFile);\n  };\n\n  const handleManualUpload = () => {\n    const validLeads = manualLeads.filter(lead => lead.email && lead.firstName && lead.lastName);\n    if (validLeads.length === 0) {\n      toast({\n        title: \"Error\",\n        description:\n          \"Please provide at least one complete lead (email, first name, last name required)\",\n        variant: \"destructive\",\n      });\n      return;\n    }\n    manualUploadMutation.mutate(validLeads);\n  };\n\n  const addManualLead = () => {\n    setManualLeads([\n      ...manualLeads,\n      { email: \"\", firstName: \"\", lastName: \"\", vehicleInterest: \"\", phoneNumber: \"\", notes: \"\" },\n    ]);\n  };\n\n  const removeManualLead = (index: number) => {\n    setManualLeads(manualLeads.filter((_, i) => i !== index));\n  };\n\n  const updateManualLead = (index: number, field: keyof Lead, value: string) => {\n    const updated = [...manualLeads];\n    updated[index] = { ...updated[index], [field]: value };\n    setManualLeads(updated);\n  };\n\n  const totalLeads = Array.isArray(leadsData) ? leadsData.length : 0;\n  const totalCampaigns = Array.isArray(campaignsData) ? campaignsData.length : 0;\n\n  return (\n    <div className=\"space-y-6\">\n      <div>\n        <h1 className=\"text-3xl font-bold tracking-tight\">Data Ingestion</h1>\n        <p className=\"text-muted-foreground\">Upload lead data and prepare for campaign usage</p>\n      </div>\n\n      {/* Success Result */}\n      {uploadResult && (\n        <Card className=\"border-green-200 bg-green-50\">\n          <CardHeader>\n            <CardTitle className=\"flex items-center gap-2 text-green-800\">\n              <CheckCircle className=\"h-5 w-5\" />\n              Upload Successful!\n            </CardTitle>\n          </CardHeader>\n          <CardContent className=\"space-y-4\">\n            <div className=\"grid grid-cols-2 md:grid-cols-4 gap-4 text-sm\">\n              <div>\n                <p className=\"font-medium\">Leads Processed</p>\n                <p className=\"text-2xl font-bold text-green-600\">{uploadResult.processed}</p>\n              </div>\n              <div>\n                <p className=\"font-medium\">File Name</p>\n                <p className=\"text-green-700\">{uploadResult.fileName}</p>\n              </div>\n              <div>\n                <p className=\"font-medium\">Campaign ID</p>\n                <p className=\"text-green-700 font-mono text-xs\">{uploadResult.campaignId}</p>\n              </div>\n              <div className=\"flex items-center\">\n                <Button \n                  variant=\"outline\" \n                  size=\"sm\" \n                  onClick={() => window.location.href = '/campaigns'}\n                  className=\"w-full\"\n                >\n                  View Campaigns <ArrowRight className=\"h-4 w-4 ml-2\" />\n                </Button>\n              </div>\n            </div>\n            <div className=\"bg-white p-3 rounded border\">\n              <p className=\"text-sm text-gray-600\">\n                <strong>Next Steps:</strong> Your leads are now ready for campaign use! \n                Go to Campaigns to create targeted email sequences or set up automated follow-ups.\n              </p>\n            </div>\n          </CardContent>\n        </Card>\n      )}\n\n      {/* Stats Cards */}\n      <div className=\"grid gap-4 md:grid-cols-4\">\n        <Card>\n          <CardHeader className=\"flex flex-row items-center justify-between space-y-0 pb-2\">\n            <CardTitle className=\"text-sm font-medium\">Total Leads</CardTitle>\n            <Database className=\"h-4 w-4 text-muted-foreground\" />\n          </CardHeader>\n          <CardContent>\n            <div className=\"text-2xl font-bold\">{totalLeads}</div>\n            <p className=\"text-xs text-muted-foreground\">Ready for campaigns</p>\n          </CardContent>\n        </Card>\n        <Card>\n          <CardHeader className=\"flex flex-row items-center justify-between space-y-0 pb-2\">\n            <CardTitle className=\"text-sm font-medium\">Upload Status</CardTitle>\n            <Upload className=\"h-4 w-4 text-muted-foreground\" />\n          </CardHeader>\n          <CardContent>\n            <div className=\"text-2xl font-bold\">\n              {csvUploadMutation.isPending || manualUploadMutation.isPending\n                ? \"Processing\"\n                : \"Ready\"}\n            </div>\n            <p className=\"text-xs text-muted-foreground\">\n              {csvUploadMutation.isPending ? \"Uploading...\" : \"Select file to upload\"}\n            </p>\n          </CardContent>\n        </Card>\n        <Card>\n          <CardHeader className=\"flex flex-row items-center justify-between space-y-0 pb-2\">\n            <CardTitle className=\"text-sm font-medium\">Active Campaigns</CardTitle>\n            <Mail className=\"h-4 w-4 text-muted-foreground\" />\n          </CardHeader>\n          <CardContent>\n            <div className=\"text-2xl font-bold\">{totalCampaigns}</div>\n            <p className=\"text-xs text-muted-foreground\">Email campaigns</p>\n          </CardContent>\n        </Card>\n        <Card>\n          <CardHeader className=\"flex flex-row items-center justify-between space-y-0 pb-2\">\n            <CardTitle className=\"text-sm font-medium\">Last Upload</CardTitle>\n            <FileText className=\"h-4 w-4 text-muted-foreground\" />\n          </CardHeader>\n          <CardContent>\n            <div className=\"text-2xl font-bold\">{csvFile ? \"Ready\" : \"None\"}</div>\n            <p className=\"text-xs text-muted-foreground\">\n              {csvFile ? csvFile.name : \"No file selected\"}\n            </p>\n          </CardContent>\n        </Card>\n      </div>\n\n      <Tabs defaultValue=\"csv\" className=\"space-y-4\">\n        <TabsList>\n          <TabsTrigger value=\"csv\">CSV Upload</TabsTrigger>\n          <TabsTrigger value=\"manual\">Manual Entry</TabsTrigger>\n        </TabsList>\n\n        <TabsContent value=\"csv\" className=\"space-y-4\">\n          <Card>\n            <CardHeader>\n              <CardTitle>CSV File Upload</CardTitle>\n              <CardDescription>\n                Upload a CSV file with lead data. Expected columns: email, firstName, lastName,\n                phone, vehicleInterest, creditScore. \n                <strong className=\"text-green-600\"> Data will be automatically prepared for campaign use!</strong>\n              </CardDescription>\n            </CardHeader>\n            <CardContent className=\"space-y-4\">\n              <div className=\"grid w-full max-w-sm items-center gap-1.5\">\n                <Label htmlFor=\"csvFile\">CSV File</Label>\n                <Input\n                  id=\"csvFile\"\n                  type=\"file\"\n                  accept=\".csv\"\n                  onChange={e => setCsvFile(e.target.files?.[0] || null)}\n                />\n              </div>\n\n              {csvFile && (\n                <div className=\"rounded-lg border p-4 bg-blue-50\">\n                  <h4 className=\"font-medium flex items-center gap-2\">\n                    <FileText className=\"h-4 w-4\" />\n                    Selected File:\n                  </h4>\n                  <p className=\"text-sm text-muted-foreground\">{csvFile.name}</p>\n                  <p className=\"text-sm text-muted-foreground\">\n                    Size: {(csvFile.size / 1024).toFixed(2)} KB\n                  </p>\n                  <div className=\"mt-2 p-2 bg-white rounded border-l-4 border-blue-400\">\n                    <p className=\"text-xs text-blue-600\">\n                      💡 <strong>Tip:</strong> After upload, leads will be automatically tagged and ready for campaign targeting!\n                    </p>\n                  </div>\n                </div>\n              )}\n\n              <Button\n                onClick={handleCsvUpload}\n                disabled={!csvFile || csvUploadMutation.isPending}\n                className=\"w-full\"\n                size=\"lg\"\n              >\n                {csvUploadMutation.isPending ? \"Processing & Preparing for Campaigns...\" : \"Upload CSV & Prepare for Campaigns\"}\n              </Button>\n            </CardContent>\n          </Card>\n        </TabsContent>\n\n        <TabsContent value=\"manual\" className=\"space-y-4\">\n          <Card>\n            <CardHeader>\n              <CardTitle>Manual Lead Entry</CardTitle>\n              <CardDescription>Enter lead information manually - will be added to your lead database</CardDescription>\n            </CardHeader>\n            <CardContent className=\"space-y-4\">\n              {manualLeads.map((lead, index) => (\n                <div key={index} className=\"rounded-lg border p-4 space-y-4\">\n                  <div className=\"flex justify-between items-center\">\n                    <h4 className=\"font-medium\">Lead {index + 1}</h4>\n                    {manualLeads.length > 1 && (\n                      <Button variant=\"outline\" size=\"sm\" onClick={() => removeManualLead(index)}>\n                        <Trash2 className=\"h-4 w-4\" />\n                      </Button>\n                    )}\n                  </div>\n\n                  <div className=\"grid grid-cols-2 gap-4\">\n                    <div>\n                      <Label htmlFor={`email-${index}`}>Email *</Label>\n                      <Input\n                        id={`email-${index}`}\n                        type=\"email\"\n                        value={lead.email}\n                        onChange={e => updateManualLead(index, \"email\", e.target.value)}\n                        placeholder=\"john@example.com\"\n                      />\n                    </div>\n                    <div>\n                      <Label htmlFor={`firstName-${index}`}>First Name *</Label>\n                      <Input\n                        id={`firstName-${index}`}\n                        value={lead.firstName}\n                        onChange={e => updateManualLead(index, \"firstName\", e.target.value)}\n                        placeholder=\"John\"\n                      />\n                    </div>\n                    <div>\n                      <Label htmlFor={`lastName-${index}`}>Last Name *</Label>\n                      <Input\n                        id={`lastName-${index}`}\n                        value={lead.lastName}\n                        onChange={e => updateManualLead(index, \"lastName\", e.target.value)}\n                        placeholder=\"Doe\"\n                      />\n                    </div>\n                    <div>\n                      <Label htmlFor={`phoneNumber-${index}`}>Phone Number</Label>\n                      <Input\n                        id={`phoneNumber-${index}`}\n                        value={lead.phoneNumber || \"\"}\n                        onChange={e => updateManualLead(index, \"phoneNumber\", e.target.value)}\n                        placeholder=\"555-0123\"\n                      />\n                    </div>\n                    <div className=\"col-span-2\">\n                      <Label htmlFor={`vehicleInterest-${index}`}>Vehicle Interest</Label>\n                      <Input\n                        id={`vehicleInterest-${index}`}\n                        value={lead.vehicleInterest}\n                        onChange={e => updateManualLead(index, \"vehicleInterest\", e.target.value)}\n                        placeholder=\"Toyota Camry\"\n                      />\n                    </div>\n                    <div className=\"col-span-2\">\n                      <Label htmlFor={`notes-${index}`}>Notes</Label>\n                      <Textarea\n                        id={`notes-${index}`}\n                        value={lead.notes || \"\"}\n                        onChange={e => updateManualLead(index, \"notes\", e.target.value)}\n                        placeholder=\"Additional notes...\"\n                        rows={2}\n                      />\n                    </div>\n                  </div>\n                </div>\n              ))}\n\n              <div className=\"flex gap-2\">\n                <Button variant=\"outline\" onClick={addManualLead}>\n                  <Plus className=\"h-4 w-4 mr-2\" />\n                  Add Another Lead\n                </Button>\n                <Button\n                  onClick={handleManualUpload}\n                  disabled={manualUploadMutation.isPending}\n                  className=\"flex-1\"\n                >\n                  {manualUploadMutation.isPending ? \"Processing...\" : \"Upload Leads\"}\n                </Button>\n              </div>\n            </CardContent>\n          </Card>\n        </TabsContent>\n      </Tabs>\n    </div>\n  );\n}\n
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import {
+  Upload,
+  FileText,
+  Mail,
+  Database,
+  Plus,
+  Trash2,
+  ArrowRight,
+  CheckCircle,
+} from "lucide-react";
+
+interface Lead {
+  email: string;
+  firstName: string;
+  lastName: string;
+  vehicleInterest: string;
+  phoneNumber?: string;
+  notes?: string;
+}
+
+interface UploadResult {
+  processed: number;
+  campaignId: string;
+  leads: any[];
+  fileName: string;
+}
+
+export default function DataIngestion() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [csvFile, setCsvFile] = useState<File | null>(null);
+  const [uploadResult, setUploadResult] = useState<UploadResult | null>(null);
+  const [manualLeads, setManualLeads] = useState<Lead[]>([
+    { email: "", firstName: "", lastName: "", vehicleInterest: "", phoneNumber: "", notes: "" },
+  ]);
+
+  // Fetch leads data for stats
+  const { data: leadsData } = useQuery({
+    queryKey: ["/api/leads"],
+  });
+
+  // Fetch campaigns data
+  const { data: campaignsData } = useQuery({
+    queryKey: ["/api/campaigns"],
+  });
+
+  // CSV upload mutation using working bulk email endpoint
+  const csvUploadMutation = useMutation({
+    mutationFn: (file: File) => {
+      const formData = new FormData();
+      formData.append("csvFile", file);
+      formData.append("campaignName", `CSV Upload ${new Date().toISOString().split("T")[0]}`);
+      formData.append("scheduleType", "immediate");
+
+      return fetch("/api/bulk-email/send", {
+        method: "POST",
+        body: formData,
+      }).then(response => {
+        if (!response.ok) {
+          throw new Error("Upload failed");
+        }
+        return response.json();
+      });
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/campaigns"] });
+
+      setUploadResult(data.data);
+
+      toast({
+        title: "CSV Upload Complete! 🎉",
+        description: `Processed ${data.data?.processed || 0} leads and prepared for campaigns`,
+      });
+      setCsvFile(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Upload Error",
+        description: error.message || "Failed to upload CSV file",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Manual lead processing
+  const manualUploadMutation = useMutation({
+    mutationFn: (leads: Lead[]) => {
+      return Promise.all(
+        leads.map(lead =>
+          apiRequest("/api/leads", {
+            method: "POST",
+            data: {
+              email: lead.email,
+              phoneNumber: lead.phoneNumber,
+              status: "new",
+              leadData: {
+                firstName: lead.firstName,
+                lastName: lead.lastName,
+                vehicleInterest: lead.vehicleInterest,
+                notes: lead.notes,
+                source: "manual_entry",
+              },
+            },
+          })
+        )
+      );
+    },
+    onSuccess: (data: any) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/leads"] });
+      toast({
+        title: "Manual Upload Complete",
+        description: `Processed ${data.length} leads successfully`,
+      });
+      setManualLeads([
+        { email: "", firstName: "", lastName: "", vehicleInterest: "", phoneNumber: "", notes: "" },
+      ]);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Upload Error",
+        description: error.message || "Failed to upload leads",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleCsvUpload = () => {
+    if (!csvFile) {
+      toast({
+        title: "Error",
+        description: "Please select a CSV file",
+        variant: "destructive",
+      });
+      return;
+    }
+    setUploadResult(null);
+    csvUploadMutation.mutate(csvFile);
+  };
+
+  const handleManualUpload = () => {
+    const validLeads = manualLeads.filter(lead => lead.email && lead.firstName && lead.lastName);
+    if (validLeads.length === 0) {
+      toast({
+        title: "Error",
+        description:
+          "Please provide at least one complete lead (email, first name, last name required)",
+        variant: "destructive",
+      });
+      return;
+    }
+    manualUploadMutation.mutate(validLeads);
+  };
+
+  const addManualLead = () => {
+    setManualLeads([
+      ...manualLeads,
+      { email: "", firstName: "", lastName: "", vehicleInterest: "", phoneNumber: "", notes: "" },
+    ]);
+  };
+
+  const removeManualLead = (index: number) => {
+    setManualLeads(manualLeads.filter((_, i) => i !== index));
+  };
+
+  const updateManualLead = (index: number, field: keyof Lead, value: string) => {
+    const updated = [...manualLeads];
+    updated[index] = { ...updated[index], [field]: value };
+    setManualLeads(updated);
+  };
+
+  const totalLeads = Array.isArray(leadsData) ? leadsData.length : 0;
+  const totalCampaigns = Array.isArray(campaignsData) ? campaignsData.length : 0;
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold tracking-tight">Data Ingestion</h1>
+        <p className="text-muted-foreground">Upload lead data and prepare for campaign usage</p>
+      </div>
+
+      {/* Success Result */}
+      {uploadResult && (
+        <Card className="border-green-200 bg-green-50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-green-800">
+              <CheckCircle className="h-5 w-5" />
+              Upload Successful!
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+              <div>
+                <p className="font-medium">Leads Processed</p>
+                <p className="text-2xl font-bold text-green-600">{uploadResult.processed}</p>
+              </div>
+              <div>
+                <p className="font-medium">File Name</p>
+                <p className="text-green-700">{uploadResult.fileName}</p>
+              </div>
+              <div>
+                <p className="font-medium">Campaign ID</p>
+                <p className="text-green-700 font-mono text-xs">{uploadResult.campaignId}</p>
+              </div>
+              <div className="flex items-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => (window.location.href = "/campaigns")}
+                  className="w-full"
+                >
+                  View Campaigns <ArrowRight className="h-4 w-4 ml-2" />
+                </Button>
+              </div>
+            </div>
+            <div className="bg-white p-3 rounded border">
+              <p className="text-sm text-gray-600">
+                <strong>Next Steps:</strong> Your leads are now ready for campaign use! Go to
+                Campaigns to create targeted email sequences or set up automated follow-ups.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Stats Cards */}
+      <div className="grid gap-4 md:grid-cols-4">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Leads</CardTitle>
+            <Database className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalLeads}</div>
+            <p className="text-xs text-muted-foreground">Ready for campaigns</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Upload Status</CardTitle>
+            <Upload className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {csvUploadMutation.isPending || manualUploadMutation.isPending
+                ? "Processing"
+                : "Ready"}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {csvUploadMutation.isPending ? "Uploading..." : "Select file to upload"}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Campaigns</CardTitle>
+            <Mail className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{totalCampaigns}</div>
+            <p className="text-xs text-muted-foreground">Email campaigns</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Last Upload</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{csvFile ? "Ready" : "None"}</div>
+            <p className="text-xs text-muted-foreground">
+              {csvFile ? csvFile.name : "No file selected"}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Tabs defaultValue="csv" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="csv">CSV Upload</TabsTrigger>
+          <TabsTrigger value="manual">Manual Entry</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="csv" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>CSV File Upload</CardTitle>
+              <CardDescription>
+                Upload a CSV file with lead data. Expected columns: email, firstName, lastName,
+                phone, vehicleInterest, creditScore.
+                <strong className="text-green-600">
+                  {" "}
+                  Data will be automatically prepared for campaign use!
+                </strong>
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid w-full max-w-sm items-center gap-1.5">
+                <Label htmlFor="csvFile">CSV File</Label>
+                <Input
+                  id="csvFile"
+                  type="file"
+                  accept=".csv"
+                  onChange={e => setCsvFile(e.target.files?.[0] || null)}
+                />
+              </div>
+
+              {csvFile && (
+                <div className="rounded-lg border p-4 bg-blue-50">
+                  <h4 className="font-medium flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Selected File:
+                  </h4>
+                  <p className="text-sm text-muted-foreground">{csvFile.name}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Size: {(csvFile.size / 1024).toFixed(2)} KB
+                  </p>
+                  <div className="mt-2 p-2 bg-white rounded border-l-4 border-blue-400">
+                    <p className="text-xs text-blue-600">
+                      💡 <strong>Tip:</strong> After upload, leads will be automatically tagged and
+                      ready for campaign targeting!
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              <Button
+                onClick={handleCsvUpload}
+                disabled={!csvFile || csvUploadMutation.isPending}
+                className="w-full"
+                size="lg"
+              >
+                {csvUploadMutation.isPending
+                  ? "Processing & Preparing for Campaigns..."
+                  : "Upload CSV & Prepare for Campaigns"}
+              </Button>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="manual" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Manual Lead Entry</CardTitle>
+              <CardDescription>
+                Enter lead information manually - will be added to your lead database
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {manualLeads.map((lead, index) => (
+                <div key={index} className="rounded-lg border p-4 space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h4 className="font-medium">Lead {index + 1}</h4>
+                    {manualLeads.length > 1 && (
+                      <Button variant="outline" size="sm" onClick={() => removeManualLead(index)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor={`email-${index}`}>Email *</Label>
+                      <Input
+                        id={`email-${index}`}
+                        type="email"
+                        value={lead.email}
+                        onChange={e => updateManualLead(index, "email", e.target.value)}
+                        placeholder="john@example.com"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor={`firstName-${index}`}>First Name *</Label>
+                      <Input
+                        id={`firstName-${index}`}
+                        value={lead.firstName}
+                        onChange={e => updateManualLead(index, "firstName", e.target.value)}
+                        placeholder="John"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor={`lastName-${index}`}>Last Name *</Label>
+                      <Input
+                        id={`lastName-${index}`}
+                        value={lead.lastName}
+                        onChange={e => updateManualLead(index, "lastName", e.target.value)}
+                        placeholder="Doe"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor={`phoneNumber-${index}`}>Phone Number</Label>
+                      <Input
+                        id={`phoneNumber-${index}`}
+                        value={lead.phoneNumber || ""}
+                        onChange={e => updateManualLead(index, "phoneNumber", e.target.value)}
+                        placeholder="555-0123"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Label htmlFor={`vehicleInterest-${index}`}>Vehicle Interest</Label>
+                      <Input
+                        id={`vehicleInterest-${index}`}
+                        value={lead.vehicleInterest}
+                        onChange={e => updateManualLead(index, "vehicleInterest", e.target.value)}
+                        placeholder="Toyota Camry"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <Label htmlFor={`notes-${index}`}>Notes</Label>
+                      <Textarea
+                        id={`notes-${index}`}
+                        value={lead.notes || ""}
+                        onChange={e => updateManualLead(index, "notes", e.target.value)}
+                        placeholder="Additional notes..."
+                        rows={2}
+                      />
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={addManualLead}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Another Lead
+                </Button>
+                <Button
+                  onClick={handleManualUpload}
+                  disabled={manualUploadMutation.isPending}
+                  className="flex-1"
+                >
+                  {manualUploadMutation.isPending ? "Processing..." : "Upload Leads"}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}

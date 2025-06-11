@@ -58,12 +58,12 @@ export default function EmailCampaigns() {
   const [testEmail, setTestEmail] = useState("");
 
   // Fetch templates
-  const { data: templatesData, isLoading: templatesLoading } = useQuery({
+  const { data: templatesData, isPending: templatesLoading } = useQuery({
     queryKey: ["/api/email-campaigns/templates"],
   });
 
   // Fetch campaigns
-  const { data: campaignsData, isLoading: campaignsLoading } = useQuery({
+  const { data: campaignsData, isPending: campaignsLoading } = useQuery({
     queryKey: ["/api/email-campaigns/campaigns"],
   });
 

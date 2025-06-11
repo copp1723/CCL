@@ -1,6 +1,13 @@
-import { Agent } from "@openai/agents";
+// Remove dependency on @openai/agents package as it's not installed
 import { storage } from "../storage";
 import { createHash } from "crypto";
+
+// Define Agent interface locally since @openai/agents is not available
+interface Agent {
+  name: string;
+  instructions: string;
+  tools: any[];
+}
 
 export interface AgentConfig {
   name: string;
@@ -21,11 +28,12 @@ export abstract class BaseAgent {
 
   constructor(config: AgentConfig) {
     this.agentName = config.name;
-    this.agent = new Agent({
+    // Create a simple agent object instead of using the missing package
+    this.agent = {
       name: config.name,
       instructions: config.instructions,
       tools: config.tools,
-    });
+    };
   }
 
   protected async logActivity(

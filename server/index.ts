@@ -1,3 +1,4 @@
+import "./db-fix";
 import express, { Request, Response, NextFunction } from "express";
 import { createServer } from "http";
 import { WebSocketServer, WebSocket } from "ws";
@@ -43,7 +44,7 @@ app.use(
 app.use(requestLogger);
 app.use(apiRateLimiter);
 
-// Add the campaign, webhook, and prompt-testing routers
+// Add the campaign, webhook, and prompt-testing routes
 app.use("/api/campaigns", campaignRoutes);
 app.use("/api/webhooks", webhookRoutes);
 app.use("/api/test", promptTestingRoutes);
@@ -80,7 +81,7 @@ const sanitizeInput = (req: Request, res: Response, next: NextFunction) => {
     /on\w+\s*=/gi,
     /eval\s*\(/gi,
     /expression\s*\(/gi,
-    /\.\./g, // Path traversal
+    /\.\.\//g, // Path traversal
     /union\s+select/gi,
     /drop\s+table/gi,
     /insert\s+into/gi,
@@ -391,32 +392,37 @@ wss.on("connection", (ws: WebSocket) => {
       const message = JSON.parse(data.toString());
 
       if (message.type === "chat") {
-        let response = "Hi! I'm Cathy from Complete Car Loans. How can I help with your auto financing today?";
+        let response =
+          "Hi! I'm Cathy from Complete Car Loans. How can I help with your auto financing today?";
 
         // Use OpenRouter for WebSocket chat too
         if (process.env.OPENROUTER_API_KEY) {
           try {
-            const openRouterResponse = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-                "Content-Type": "application/json",
-                "HTTP-Referer": process.env.FRONTEND_URL || "http://localhost:5173",
-                "X-Title": "CCL Agent System WebSocket",
-              },
-              body: JSON.stringify({
-                model: "anthropic/claude-3.5-sonnet",
-                messages: [
-                  {
-                    role: "system",
-                    content: "You are Cathy from Complete Car Loans. Keep responses under 50 words. Be warm, helpful, and focus on auto financing assistance.",
-                  },
-                  { role: "user", content: message.content },
-                ],
-                max_tokens: 150,
-                temperature: 0.7,
-              }),
-            });
+            const openRouterResponse = await fetch(
+              "https://openrouter.ai/api/v1/chat/completions",
+              {
+                method: "POST",
+                headers: {
+                  Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+                  "Content-Type": "application/json",
+                  "HTTP-Referer": process.env.FRONTEND_URL || "http://localhost:5173",
+                  "X-Title": "CCL Agent System WebSocket",
+                },
+                body: JSON.stringify({
+                  model: "anthropic/claude-3.5-sonnet",
+                  messages: [
+                    {
+                      role: "system",
+                      content:
+                        "You are Cathy from Complete Car Loans. Keep responses under 50 words. Be warm, helpful, and focus on auto financing assistance.",
+                    },
+                    { role: "user", content: message.content },
+                  ],
+                  max_tokens: 150,
+                  temperature: 0.7,
+                }),
+              }
+            );
 
             if (openRouterResponse.ok) {
               const data = await openRouterResponse.json();

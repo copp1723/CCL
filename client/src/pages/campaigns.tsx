@@ -115,8 +115,8 @@ function CreateCampaignForm({ setOpen }: { setOpen: (open: boolean) => void }) {
             </FormItem>
           )}
         />
-        <Button type="submit" disabled={mutation.isLoading}>
-          {mutation.isLoading ? "Creating..." : "Create Campaign"}
+        <Button type="submit" disabled={mutation.isPending}>
+          {mutation.isPending ? "Creating..." : "Create Campaign"}
         </Button>
       </form>
     </Form>
@@ -127,10 +127,10 @@ export default function CampaignsPage() {
   const [open, setOpen] = React.useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   const {
     data: campaigns,
-    isLoading,
+    isPending,
     error,
   } = useQuery({
     queryKey: ["campaigns"],
@@ -139,7 +139,7 @@ export default function CampaignsPage() {
 
   const startCampaignMutation = useMutation({
     mutationFn: startCampaign,
-    onSuccess: (data) => {
+    onSuccess: data => {
       queryClient.invalidateQueries({ queryKey: ["campaigns"] });
       toast({
         title: "Success",
@@ -159,7 +159,7 @@ export default function CampaignsPage() {
     startCampaignMutation.mutate(campaignId);
   };
 
-  if (isLoading) return <div>Loading campaigns...</div>;
+  if (isPending) return <div>Loading campaigns...</div>;
   if (error) return <div>Error loading campaigns.</div>;
 
   return (

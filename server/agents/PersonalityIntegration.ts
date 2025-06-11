@@ -164,7 +164,7 @@ export function formatCathyResponse(
   const greeting = customerName ? `Hi ${customerName}, ` : "";
   const signature = "\n\nBest regards,\nCathy\nComplete Car Loans";
 
-  let response = formatResponseByTone(type, content);
+  const response = formatResponseByTone(type, content);
 
   return `${greeting}${response}${signature}`;
 }

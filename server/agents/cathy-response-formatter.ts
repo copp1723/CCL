@@ -76,7 +76,9 @@ export function generateNextStepGuidance(
   };
 
   return (
-    guidance[customerReadiness]?.[currentStep as keyof (typeof guidance)[customerReadiness]] ||
+    guidance[customerReadiness]?.[
+      currentStep as keyof (typeof guidance)[typeof customerReadiness]
+    ] ||
     "I'm here to help with whatever questions you have. What would be most helpful for you right now?"
   );
 }

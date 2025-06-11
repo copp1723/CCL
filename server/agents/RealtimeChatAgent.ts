@@ -1,4 +1,12 @@
-import { Agent, tool } from "@openai/agents";
+// Remove dependency on @openai/agents
+// import { Agent, tool } from "@openai/agents";
+
+// Define Agent interface locally
+interface Agent {
+  name: string;
+  instructions: string;
+  tools: any[];
+}
 import { storage } from "../storage";
 import type { InsertChatSession } from "@shared/schema";
 import {
@@ -23,76 +31,86 @@ export class RealtimeChatAgent {
   private agent: Agent;
 
   constructor() {
-    this.agent = new Agent({
+    this.agent = {
       name: `${CATHY_PERSONA_CONFIG.name} - ${CATHY_PERSONA_CONFIG.role}`,
       instructions: CATHY_SYSTEM_PROMPT,
       tools: [
-        this.createHandleUserMessageTool(),
-        this.createHandoffToCreditCheckTool(),
-        this.createRecoverAbandonedApplicationTool(),
+        {
+          name: "handle_user_message",
+          description: "Process and respond to user messages with Cathy's empathetic personality",
+          execute: async (params: any) => await this.handleUserMessage(params),
+        },
+        {
+          name: "handoff_to_credit_check",
+          description: "Hand off conversation to credit check process",
+          execute: async (params: any) => await this.handoffToCreditCheck(params),
+        },
+        {
+          name: "recover_abandoned_application",
+          description: "Recover abandoned application with personalized approach",
+          execute: async (params: any) => await this.recoverAbandonedApplication(params),
+        },
       ],
-    });
+    };
   }
 
-  private createHandleUserMessageTool() {
-    return tool({
-      name: "handle_user_message",
-      description: "Process and respond to user messages with Cathy's empathetic personality",
-      execute: async (params: { sessionId: string; message: string; visitorId?: number }) => {
-        try {
-          const { sessionId, message, visitorId } = params;
+  private async handleUserMessage(params: {
+    sessionId: string;
+    message: string;
+    visitorId?: number;
+  }) {
+    try {
+      const { sessionId, message, visitorId } = params;
 
-          // Get or create chat session
-          let chatSession = await storage.getChatSessionBySessionId(sessionId);
-          if (!chatSession) {
-            const newSession: InsertChatSession = {
-              sessionId,
-              visitorId: visitorId || null,
-              agentType: "realtime_chat",
-              status: "active",
-              messages: [],
-            };
-            chatSession = await storage.createChatSession(newSession);
-          }
+      // Get or create chat session
+      let chatSession = await storage.getVisitorById(sessionId);
+      if (!chatSession) {
+        const newSession: InsertChatSession = {
+          sessionId,
+          visitorId: visitorId || null,
+          agentType: "realtime_chat",
+          status: "active",
+          messages: [],
+        };
+        chatSession = await storage.createVisitor(newSession);
+      }
 
-          // Analyze conversation context
-          const messages = (chatSession.messages as ChatMessage[]) || [];
-          const isFirstMessage = messages.filter(m => m.type === "user").length === 0;
+      // Analyze conversation context
+      const messages = (chatSession.messages as ChatMessage[]) || [];
+      const isFirstMessage = messages.filter(m => m.type === "user").length === 0;
 
-          // Check for phone number
-          const phoneRegex = /(?:\+1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/;
-          const phoneMatch = message.match(phoneRegex);
+      // Check for phone number
+      const phoneRegex = /(?:\+1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/;
+      const phoneMatch = message.match(phoneRegex);
 
-          let response = "";
-          let shouldHandoff = false;
+      let response = "";
+      let shouldHandoff = false;
 
-          if (phoneMatch) {
-            response = this.generatePhoneNumberResponse();
-            shouldHandoff = true;
-          } else if (isFirstMessage) {
-            response = this.generateWelcomeResponse(message);
-          } else {
-            response = this.generateContextualResponse(message, messages);
-          }
+      if (phoneMatch) {
+        response = this.generatePhoneNumberResponse();
+        shouldHandoff = true;
+      } else if (isFirstMessage) {
+        response = this.generateWelcomeResponse(message);
+      } else {
+        response = this.generateContextualResponse(message, messages);
+      }
 
-          return {
-            success: true,
-            response,
-            shouldHandoff,
-            phoneNumber: phoneMatch ? phoneMatch[0] : null,
-            sessionId,
-          };
-        } catch (error) {
-          console.error("[RealtimeChatAgent] Error handling user message:", error);
-          return {
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error",
-            response:
-              "I'm so sorry, but I'm experiencing some technical difficulties right now. This is frustrating for both of us! Could you give me just a moment to get this sorted out?",
-          };
-        }
-      },
-    });
+      return {
+        success: true,
+        response,
+        shouldHandoff,
+        phoneNumber: phoneMatch ? phoneMatch[0] : null,
+        sessionId,
+      };
+    } catch (error) {
+      console.error("[RealtimeChatAgent] Error handling user message:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+        response:
+          "I'm so sorry, but I'm experiencing some technical difficulties right now. This is frustrating for both of us! Could you give me just a moment to get this sorted out?",
+      };
+    }
   }
 
   private generateWelcomeResponse(message: string): string {
@@ -209,125 +227,117 @@ export class RealtimeChatAgent {
     );
   }
 
-  private createHandoffToCreditCheckTool() {
-    return tool({
-      name: "handoff_to_credit_check",
-      description: "Hand off to credit check agent with warm transition",
-      execute: async (params: { sessionId: string; phoneNumber: string; visitorId?: number }) => {
-        try {
-          const { sessionId, phoneNumber, visitorId } = params;
+  private async handoffToCreditCheck(params: {
+    sessionId: string;
+    phoneNumber: string;
+    visitorId?: number;
+  }) {
+    try {
+      const { sessionId, phoneNumber, visitorId } = params;
 
-          // Update chat session status
-          const chatSession = await storage.getChatSessionBySessionId(sessionId);
-          if (chatSession) {
-            await storage.updateChatSession(chatSession.id, {
-              status: "completed",
-              agentType: "credit_check_handoff",
-            });
-          }
+      // Update chat session status
+      const chatSession = await storage.getVisitorById(sessionId);
+      if (chatSession) {
+        await storage.updateVisitor(chatSession.id, {
+          status: "completed",
+          agentType: "credit_check_handoff",
+        });
+      }
 
-          // Update visitor with phone number if we have visitor ID
-          if (visitorId) {
-            await storage.updateVisitor(visitorId, {
-              phoneNumber: this.formatPhoneNumber(phoneNumber),
-            });
-          }
+      // Update visitor with phone number if we have visitor ID
+      if (visitorId) {
+        await storage.updateVisitor(visitorId.toString(), {
+          phoneNumber: this.formatPhoneNumber(phoneNumber),
+        });
+      }
 
-          // Log handoff activity
-          await storage.createAgentActivity({
-            agentType: "realtime_chat",
-            action: "handoff_to_credit_check",
-            description: "Cathy successfully connected customer to credit check with warm handoff",
-            targetId: sessionId,
-            metadata: {
-              phoneNumber: this.formatPhoneNumber(phoneNumber),
-              visitorId,
-            },
-          });
-
-          console.log(`[RealtimeChatAgent] Cathy handed off session ${sessionId} to credit check`);
-
-          return {
-            success: true,
-            handoffComplete: true,
-            phoneNumber: this.formatPhoneNumber(phoneNumber),
-            message: "Warm handoff to credit check completed",
-          };
-        } catch (error) {
-          console.error("[RealtimeChatAgent] Error during handoff:", error);
-          return {
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error",
-          };
+      // Log handoff activity
+      await storage.createActivity(
+        "handoff_to_credit_check",
+        "Cathy successfully connected customer to credit check with warm handoff",
+        "realtime_chat",
+        {
+          targetId: sessionId,
+          phoneNumber: this.formatPhoneNumber(phoneNumber),
+          visitorId,
         }
-      },
-    });
+      );
+
+      console.log(`[RealtimeChatAgent] Cathy handed off session ${sessionId} to credit check`);
+
+      return {
+        success: true,
+        handoffComplete: true,
+        phoneNumber: this.formatPhoneNumber(phoneNumber),
+        message: "Warm handoff to credit check completed",
+      };
+    } catch (error) {
+      console.error("[RealtimeChatAgent] Error during handoff:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+      };
+    }
   }
 
-  private createRecoverAbandonedApplicationTool() {
-    return tool({
-      name: "recover_abandoned_application",
-      description: "Help recover an abandoned application with empathy and understanding",
-      execute: async (params: { returnToken?: string; emailHash?: string }) => {
-        try {
-          const { returnToken, emailHash } = params;
+  private async recoverAbandonedApplication(params: { returnToken?: string; emailHash?: string }) {
+    try {
+      const { returnToken, emailHash } = params;
 
-          let visitor = null;
+      let visitor = null;
 
-          if (returnToken) {
-            visitor = await storage.getVisitorByReturnToken(returnToken);
-          } else if (emailHash) {
-            visitor = await storage.getVisitorByEmailHash(emailHash);
-          }
+      if (returnToken) {
+        visitor = await storage.getVisitorById(returnToken);
+      } else if (emailHash) {
+        visitor = await storage.getVisitorById(emailHash);
+      }
 
-          if (!visitor) {
-            return {
-              success: false,
-              message:
-                "I'd love to help you find your application! Sometimes our system takes a moment to locate things. Could you provide your email address or phone number? I'll get you back on track right away.",
-            };
-          }
+      if (!visitor) {
+        return {
+          success: false,
+          message:
+            "I'd love to help you find your application! Sometimes our system takes a moment to locate things. Could you provide your email address or phone number? I'll get you back on track right away.",
+        };
+      }
 
-          // Check if return token is expired
-          if (returnToken && visitor.returnTokenExpiry && new Date() > visitor.returnTokenExpiry) {
-            return {
-              success: false,
-              message:
-                "I see your return link has expired for security reasons - that's actually a good thing because it means your information is protected! No worries at all though. I can help you pick up right where you left off. Could you provide your phone number so I can locate your information?",
-            };
-          }
+      // Check if return token is expired
+      if (returnToken && visitor.returnTokenExpiry && new Date() > visitor.returnTokenExpiry) {
+        return {
+          success: false,
+          message:
+            "I see your return link has expired for security reasons - that's actually a good thing because it means your information is protected! No worries at all though. I can help you pick up right where you left off. Could you provide your phone number so I can locate your information?",
+        };
+      }
 
-          const stepMessage = this.getEmpathethicRecoveryMessage(visitor.abandonmentStep || 1);
+      const stepMessage = this.getEmpathethicRecoveryMessage(visitor.abandonmentStep || 1);
 
-          // Log recovery activity
-          await storage.createAgentActivity({
-            agentType: "realtime_chat",
-            action: "application_recovery",
-            description: "Cathy provided empathetic application recovery assistance",
-            targetId: visitor.id.toString(),
-            metadata: {
-              abandonmentStep: visitor.abandonmentStep,
-              recoveryMethod: returnToken ? "return_token" : "email_hash",
-            },
-          });
+      // Log recovery activity
+      await storage.createAgentActivity({
+        agentType: "realtime_chat",
+        action: "application_recovery",
+        description: "Cathy provided empathetic application recovery assistance",
+        targetId: visitor.id.toString(),
+        metadata: {
+          abandonmentStep: visitor.abandonmentStep,
+          recoveryMethod: returnToken ? "return_token" : "email_hash",
+        },
+      });
 
-          return {
-            success: true,
-            visitor,
-            message: stepMessage,
-            abandonmentStep: visitor.abandonmentStep,
-          };
-        } catch (error) {
-          console.error("[RealtimeChatAgent] Error recovering application:", error);
-          return {
-            success: false,
-            error: error instanceof Error ? error.message : "Unknown error",
-            message:
-              "I'm having a little trouble accessing your information right now, but don't worry - this happens sometimes! Let me help you in a different way. I can get you set up fresh in just a couple of minutes, or if you prefer, I can connect you with one of our specialists. What would work better for you?",
-          };
-        }
-      },
-    });
+      return {
+        success: true,
+        visitor,
+        message: stepMessage,
+        abandonmentStep: visitor.abandonmentStep,
+      };
+    } catch (error) {
+      console.error("[RealtimeChatAgent] Error recovering application:", error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : "Unknown error",
+        message:
+          "I'm having a little trouble accessing your information right now, but don't worry - this happens sometimes! Let me help you in a different way. I can get you set up fresh in just a couple of minutes, or if you prefer, I can connect you with one of our specialists. What would work better for you?",
+      };
+    }
   }
 
   private formatPhoneNumber(phone: string): string {
@@ -363,7 +373,7 @@ export class RealtimeChatAgent {
   }> {
     try {
       // Get or create chat session
-      let chatSession = await storage.getChatSessionBySessionId(sessionId);
+      let chatSession = await storage.getVisitorById(sessionId);
       if (!chatSession) {
         const newSession: InsertChatSession = {
           sessionId,
@@ -372,7 +382,7 @@ export class RealtimeChatAgent {
           status: "active",
           messages: [],
         };
-        chatSession = await storage.createChatSession(newSession);
+        chatSession = await storage.createVisitor(newSession);
       }
 
       // Add user message to session
@@ -419,7 +429,7 @@ export class RealtimeChatAgent {
       currentMessages.push(agentMessage);
 
       // Update chat session
-      await storage.updateChatSession(chatSession.id, {
+      await storage.updateVisitor(chatSession.id, {
         messages: currentMessages,
         updatedAt: new Date(),
       });

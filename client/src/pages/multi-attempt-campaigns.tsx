@@ -54,7 +54,7 @@ export default function MultiAttemptCampaigns() {
   const queryClient = useQueryClient();
 
   // Fetch active schedules
-  const { data: schedulesData, isLoading: schedulesLoading } = useQuery({
+  const { data: schedulesData, isPending: schedulesLoading } = useQuery({
     queryKey: ["/api/email-campaigns/schedules"],
     refetchInterval: 30000, // Refresh every 30 seconds
   });
@@ -76,8 +76,8 @@ export default function MultiAttemptCampaigns() {
   });
 
   useEffect(() => {
-    if (schedulesData?.success) {
-      setSchedules(schedulesData.data);
+    if (schedulesData && (schedulesData as any).success) {
+      setSchedules((schedulesData as any).data);
     }
   }, [schedulesData]);
 
@@ -86,7 +86,7 @@ export default function MultiAttemptCampaigns() {
     mutationFn: async (scheduleData: any) => {
       return apiRequest("/api/email-campaigns/schedules", {
         method: "POST",
-        body: JSON.stringify(scheduleData),
+        data: scheduleData,
       });
     },
     onSuccess: () => {
@@ -115,7 +115,7 @@ export default function MultiAttemptCampaigns() {
     mutationFn: async ({ scheduleId, isActive }: { scheduleId: string; isActive: boolean }) => {
       return apiRequest(`/api/email-campaigns/schedules/${scheduleId}/toggle`, {
         method: "POST",
-        body: JSON.stringify({ isActive }),
+        data: { isActive },
       });
     },
     onSuccess: () => {
@@ -139,13 +139,13 @@ export default function MultiAttemptCampaigns() {
     mutationFn: async ({ scheduleId, leadIds }: { scheduleId: string; leadIds: string[] }) => {
       return apiRequest(`/api/email-campaigns/schedules/${scheduleId}/bulk-enroll`, {
         method: "POST",
-        body: JSON.stringify({ leadIds }),
+        data: { leadIds },
       });
     },
     onSuccess: (data: any) => {
       toast({
         title: "Enrollment Complete",
-        description: `${data.data.successCount} leads enrolled successfully`,
+        description: `${(data as any).data.successCount} leads enrolled successfully`,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/email-campaigns/schedules/upcoming"] });
     },
@@ -214,7 +214,7 @@ export default function MultiAttemptCampaigns() {
   };
 
   const enrollAllLeads = (scheduleId: string) => {
-    if (!leadsData?.data?.length) {
+    if (!(leadsData as any)?.data?.length) {
       toast({
         title: "No Leads",
         description: "No leads available for enrollment",
@@ -223,7 +223,7 @@ export default function MultiAttemptCampaigns() {
       return;
     }
 
-    const leadIds = leadsData.data.map((lead: any) => lead.id);
+    const leadIds = (leadsData as any).data.map((lead: any) => lead.id);
     bulkEnrollMutation.mutate({ scheduleId, leadIds });
   };
 
@@ -395,7 +395,7 @@ export default function MultiAttemptCampaigns() {
                             <SelectValue placeholder="Select template" />
                           </SelectTrigger>
                           <SelectContent>
-                            {templatesData?.data?.map((template: any) => (
+                            {(templatesData as any)?.data?.map((template: any) => (
                               <SelectItem key={template.id} value={template.id}>
                                 {template.name}
                               </SelectItem>
@@ -451,13 +451,13 @@ export default function MultiAttemptCampaigns() {
               <CardDescription>Email attempts scheduled for the next 24 hours</CardDescription>
             </CardHeader>
             <CardContent>
-              {upcomingData?.data?.attempts?.length === 0 ? (
+              {(upcomingData as any)?.data?.attempts?.length === 0 ? (
                 <div className="text-center text-muted-foreground py-8">
                   No email attempts scheduled for the next 24 hours
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {upcomingData?.data?.attempts?.map((attempt: any) => (
+                  {(upcomingData as any)?.data?.attempts?.map((attempt: any) => (
                     <div
                       key={attempt.id}
                       className="flex items-center justify-between p-4 border rounded-lg"

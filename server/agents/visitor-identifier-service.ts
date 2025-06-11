@@ -1,5 +1,6 @@
 import { BaseAgent, AgentResult } from "./base-agent";
-import { tool } from "@openai/agents";
+// Remove dependency on @openai/agents
+// import { tool } from "@openai/agents";
 import { storage } from "../storage";
 
 interface AbandonmentEvent {
