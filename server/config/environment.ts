@@ -17,6 +17,35 @@ const envSchema = z.object({
   MAILGUN_DOMAIN: z.string().default("mail.onerylie.com"),
   FLEXPATH_API_KEY: z.string().optional(),
 
+  // SFTP Configuration for Lead Ingestion
+  SFTP_HOST: z.string().optional(),
+  SFTP_PORT: z.string().default("22"),
+  SFTP_USER: z.string().optional(),
+  SFTP_PASSWORD: z.string().optional(),
+  SFTP_REMOTE_PATH: z.string().default("/inbound"),
+  SFTP_POLL_INTERVAL_MINUTES: z.string().transform(Number).default(15),
+
+  // Queue & Workers (Redis for BullMQ)
+  REDIS_URL: z.string().default("redis://localhost:6379"),
+  BULL_CONCURRENCY: z.string().transform(Number).default(5),
+
+  // Messaging Services for Outreach
+  TWILIO_ACCOUNT_SID: z.string().optional(),
+  TWILIO_AUTH_TOKEN: z.string().optional(),
+  OUTBOUND_PHONE_NUMBER: z.string().optional(),
+  SENDGRID_API_KEY: z.string().optional(),
+  OUTBOUND_EMAIL_FROM: z.string().email().default("noreply@completecarloans.com"),
+
+  // Lead Export & Monetization
+  BOBERDOO_URL: z.string().optional(),
+  BOBERDOO_VENDOR_ID: z.string().optional(),
+  BOBERDOO_VENDOR_PASSWORD: z.string().optional(),
+  BOBERDOO_TIMEOUT_MS: z.string().transform(Number).default(10000),
+
+  // Abandonment Detection
+  ABANDONMENT_THRESHOLD_MINUTES: z.string().transform(Number).default(15),
+  RETURN_TOKEN_EXPIRY_HOURS: z.string().transform(Number).default(48),
+
   // CORS
   CORS_ORIGIN: z.string().default("*"),
 
@@ -79,6 +108,17 @@ class ConfigManager {
     console.log(`   OpenAI: ${config.OPENAI_API_KEY ? "✅ Configured" : "⚠️  Not configured"}`);
     console.log(`   Mailgun: ${config.MAILGUN_API_KEY ? "✅ Configured" : "⚠️  Not configured"}`);
     console.log(`   FlexPath: ${config.FLEXPATH_API_KEY ? "✅ Configured" : "⚠️  Not configured"}`);
+    
+    // MVP Automation Pipeline Status
+    console.log("📋 MVP Automation Pipeline:");
+    const sftpConfig = this.getSftpConfig();
+    console.log(`   SFTP Ingestion: ${sftpConfig.configured ? "✅ Configured" : "⚠️  Not configured"}`);
+    const messagingConfig = this.getMessagingConfig();
+    console.log(`   Twilio SMS: ${messagingConfig.twilio.configured ? "✅ Configured" : "⚠️  Not configured"}`);
+    console.log(`   SendGrid Email: ${messagingConfig.sendgrid.configured ? "✅ Configured" : "⚠️  Not configured"}`);
+    const boberdooConfig = this.getBoberdooConfig();
+    console.log(`   Boberdoo Export: ${boberdooConfig.configured ? "✅ Configured" : "⚠️  Not configured"}`);
+    
     console.log(`   Security: ${this.isSecure() ? "✅ Production ready" : "⚠️  Development mode"}`);
   }
 
@@ -142,6 +182,59 @@ class ConfigManager {
         apiKey: this.config.FLEXPATH_API_KEY,
         configured: !!this.config.FLEXPATH_API_KEY,
       },
+    };
+  }
+
+  // MVP Automation Pipeline Configuration
+  getSftpConfig() {
+    return {
+      host: this.config.SFTP_HOST,
+      port: parseInt(this.config.SFTP_PORT),
+      user: this.config.SFTP_USER,
+      password: this.config.SFTP_PASSWORD,
+      remotePath: this.config.SFTP_REMOTE_PATH,
+      pollIntervalMinutes: this.config.SFTP_POLL_INTERVAL_MINUTES,
+      configured: !!(this.config.SFTP_HOST && this.config.SFTP_USER && this.config.SFTP_PASSWORD),
+    };
+  }
+
+  getQueueConfig() {
+    return {
+      redisUrl: this.config.REDIS_URL,
+      concurrency: this.config.BULL_CONCURRENCY,
+    };
+  }
+
+  getMessagingConfig() {
+    return {
+      twilio: {
+        accountSid: this.config.TWILIO_ACCOUNT_SID,
+        authToken: this.config.TWILIO_AUTH_TOKEN,
+        outboundNumber: this.config.OUTBOUND_PHONE_NUMBER,
+        configured: !!(this.config.TWILIO_ACCOUNT_SID && this.config.TWILIO_AUTH_TOKEN),
+      },
+      sendgrid: {
+        apiKey: this.config.SENDGRID_API_KEY,
+        fromEmail: this.config.OUTBOUND_EMAIL_FROM,
+        configured: !!this.config.SENDGRID_API_KEY,
+      },
+    };
+  }
+
+  getBoberdooConfig() {
+    return {
+      url: this.config.BOBERDOO_URL,
+      vendorId: this.config.BOBERDOO_VENDOR_ID,
+      vendorPassword: this.config.BOBERDOO_VENDOR_PASSWORD,
+      timeoutMs: this.config.BOBERDOO_TIMEOUT_MS,
+      configured: !!(this.config.BOBERDOO_URL && this.config.BOBERDOO_VENDOR_ID),
+    };
+  }
+
+  getAbandonmentConfig() {
+    return {
+      thresholdMinutes: this.config.ABANDONMENT_THRESHOLD_MINUTES,
+      returnTokenExpiryHours: this.config.RETURN_TOKEN_EXPIRY_HOURS,
     };
   }
 

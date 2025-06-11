@@ -5,17 +5,40 @@ import {
   systemActivities,
   systemAgents,
   visitors,
+  outreachAttempts,
+  ingestedFiles,
+  leads,
+  chatSessions,
+  emailCampaigns,
+  agentActivity,
   type SystemLead,
   type SystemActivity,
   type SystemAgent,
   type InsertSystemLead,
   type InsertSystemActivity,
   type InsertSystemAgent,
+  type InsertVisitor,
+  type Visitor,
+  type InsertOutreachAttempt,
+  type OutreachAttempt,
+  type InsertIngestedFile,
+  type IngestedFile,
+  type InsertLead,
+  type Lead,
+  type InsertChatSession,
+  type ChatSession,
+  type InsertEmailCampaign,
+  type EmailCampaign,
+  type InsertAgentActivity,
+  type AgentActivity,
 } from "../shared/schema";
 import { db } from "./db";
-import { eq, desc, count } from "drizzle-orm";
+import { eq, desc, count, and, isNull, lt, sql } from "drizzle-orm";
 import { dbOptimizer } from "./services/performance-optimizer";
 import { LeadData, Activity, Agent, SystemStats } from "./types/common.js";
+import { validatePartialPii, validateCompletePii, type PartialVisitorPii, type VisitorPii } from "../shared/validation/schemas";
+import { logger } from "./logger";
+import crypto from "crypto";
 
 export interface StorageInterface {
   // Leads
@@ -295,6 +318,358 @@ class DatabaseStorage implements StorageInterface {
   ): Promise<void> {
     // Visitor update logic would go here when needed
     console.log(`Visitor ${id} updated:`, updates);
+  }
+
+  // =============================================================================
+  // MVP AUTOMATION PIPELINE METHODS
+  // =============================================================================
+
+  // SFTP Ingestion Methods
+  async upsertVisitorFromIngest(data: {
+    emailHash?: string;
+    sessionId: string;
+    adClickTs?: Date | null;
+    formStartTs?: Date | null;
+    formSubmitTs?: Date | null;
+    phoneNumber?: string | null;
+    ipAddress?: string | null;
+    userAgent?: string | null;
+    ingestSource: string;
+    metadata?: any;
+  }): Promise<Visitor> {
+    try {
+      // Check if visitor already exists by emailHash or sessionId
+      let existingVisitor: Visitor | undefined;
+      
+      if (data.emailHash) {
+        const visitors = await db.select().from(visitors).where(eq(visitors.emailHash, data.emailHash));
+        existingVisitor = visitors[0];
+      }
+      
+      if (!existingVisitor && data.sessionId) {
+        const visitors = await db.select().from(visitors).where(eq(visitors.sessionId, data.sessionId));
+        existingVisitor = visitors[0];
+      }
+
+      if (existingVisitor) {
+        // Update existing visitor with new information
+        const updateData: Partial<InsertVisitor> = {
+          adClickTs: data.adClickTs || existingVisitor.adClickTs,
+          formStartTs: data.formStartTs || existingVisitor.formStartTs,
+          formSubmitTs: data.formSubmitTs || existingVisitor.formSubmitTs,
+          phoneNumber: data.phoneNumber || existingVisitor.phoneNumber,
+          ipAddress: data.ipAddress || existingVisitor.ipAddress,
+          userAgent: data.userAgent || existingVisitor.userAgent,
+          lastActivity: new Date(),
+          metadata: { ...(existingVisitor.metadata as any), ...(data.metadata || {}) },
+        };
+
+        await db.update(visitors).set(updateData).where(eq(visitors.id, existingVisitor.id));
+        
+        const [updatedVisitor] = await db.select().from(visitors).where(eq(visitors.id, existingVisitor.id));
+        return updatedVisitor;
+      } else {
+        // Create new visitor
+        const insertData: InsertVisitor = {
+          emailHash: data.emailHash || null,
+          sessionId: data.sessionId,
+          adClickTs: data.adClickTs || null,
+          formStartTs: data.formStartTs || null,
+          formSubmitTs: data.formSubmitTs || null,
+          phoneNumber: data.phoneNumber || null,
+          ipAddress: data.ipAddress || null,
+          userAgent: data.userAgent || null,
+          ingestSource: data.ingestSource,
+          metadata: data.metadata || null,
+          lastActivity: new Date(),
+          createdAt: new Date(),
+        };
+
+        const [newVisitor] = await db.insert(visitors).values(insertData).returning();
+        return newVisitor;
+      }
+    } catch (error) {
+      logger.error({ error, data }, 'Failed to upsert visitor from ingest');
+      throw error;
+    }
+  }
+
+  async getIngestedFile(fileName: string): Promise<IngestedFile | null> {
+    const files = await db.select().from(ingestedFiles).where(eq(ingestedFiles.fileName, fileName));
+    return files[0] || null;
+  }
+
+  async createIngestedFile(data: InsertIngestedFile): Promise<IngestedFile> {
+    const [file] = await db.insert(ingestedFiles).values(data).returning();
+    return file;
+  }
+
+  // Abandonment Detection Methods
+  async getAbandonedVisitors(thresholdMinutes: number = 15): Promise<Visitor[]> {
+    const thresholdTime = new Date(Date.now() - thresholdMinutes * 60 * 1000);
+    
+    return await db.select().from(visitors).where(
+      and(
+        lt(visitors.adClickTs, thresholdTime),
+        isNull(visitors.formSubmitTs),
+        eq(visitors.abandonmentDetected, false)
+      )
+    );
+  }
+
+  async markVisitorAbandoned(visitorId: number, abandonmentStep: number = 1, returnTokenExpiryHours: number = 48): Promise<void> {
+    const returnToken = crypto.randomUUID();
+    const returnTokenExpiry = new Date(Date.now() + returnTokenExpiryHours * 60 * 60 * 1000);
+
+    await db.update(visitors).set({
+      abandonmentDetected: true,
+      abandonmentStep,
+      returnToken,
+      returnTokenExpiry,
+      lastActivity: new Date()
+    }).where(eq(visitors.id, visitorId));
+  }
+
+  async getVisitorByReturnToken(returnToken: string): Promise<Visitor | null> {
+    const visitors = await db.select().from(visitors).where(eq(visitors.returnToken, returnToken));
+    return visitors[0] || null;
+  }
+
+  async getVisitorByEmailHash(emailHash: string): Promise<Visitor | null> {
+    const visitors = await db.select().from(visitors).where(eq(visitors.emailHash, emailHash));
+    return visitors[0] || null;
+  }
+
+  async getVisitor(id: number): Promise<Visitor | null> {
+    const visitors = await db.select().from(visitors).where(eq(visitors.id, id));
+    return visitors[0] || null;
+  }
+
+  // PII Collection Methods
+  async updateVisitorPii(visitorId: number, piiData: PartialVisitorPii): Promise<void> {
+    const validation = validatePartialPii(piiData);
+    if (!validation.isValid) {
+      throw new Error(`Invalid PII data: ${JSON.stringify(validation.errors)}`);
+    }
+
+    const updateData: Partial<InsertVisitor> = {
+      firstName: piiData.firstName,
+      lastName: piiData.lastName,
+      street: piiData.street,
+      city: piiData.city,
+      state: piiData.state,
+      zip: piiData.zip,
+      employer: piiData.employer,
+      jobTitle: piiData.jobTitle,
+      annualIncome: piiData.annualIncome,
+      timeOnJobMonths: piiData.timeOnJobMonths,
+      phoneNumber: piiData.phoneNumber,
+      email: piiData.email,
+      emailHash: piiData.emailHash,
+      lastActivity: new Date(),
+    };
+
+    // Check if PII is now complete
+    const completeValidation = validateCompletePii({ ...piiData });
+    if (completeValidation.isValid) {
+      updateData.piiComplete = true;
+    }
+
+    await db.update(visitors).set(updateData).where(eq(visitors.id, visitorId));
+  }
+
+  async getVisitorsWithCompletePii(): Promise<Visitor[]> {
+    return await db.select().from(visitors).where(eq(visitors.piiComplete, true));
+  }
+
+  // Outreach Methods
+  async createOutreachAttempt(data: InsertOutreachAttempt): Promise<OutreachAttempt> {
+    const [attempt] = await db.insert(outreachAttempts).values(data).returning();
+    return attempt;
+  }
+
+  async getOutreachAttemptsByVisitor(visitorId: number): Promise<OutreachAttempt[]> {
+    return await db.select().from(outreachAttempts)
+      .where(eq(outreachAttempts.visitorId, visitorId))
+      .orderBy(desc(outreachAttempts.sentAt));
+  }
+
+  async getOutreachAttemptsByExternalId(externalMessageId: string): Promise<OutreachAttempt[]> {
+    return await db.select().from(outreachAttempts)
+      .where(eq(outreachAttempts.externalMessageId, externalMessageId));
+  }
+
+  async getRecentOutreachAttempts(visitorId: number, hoursBack: number = 24): Promise<OutreachAttempt[]> {
+    const cutoffTime = new Date(Date.now() - hoursBack * 60 * 60 * 1000);
+    return await db.select().from(outreachAttempts)
+      .where(
+        and(
+          eq(outreachAttempts.visitorId, visitorId),
+          sql`${outreachAttempts.sentAt} >= ${cutoffTime}`
+        )
+      )
+      .orderBy(desc(outreachAttempts.sentAt));
+  }
+
+  async updateOutreachAttempt(id: number, updates: Partial<InsertOutreachAttempt>): Promise<void> {
+    await db.update(outreachAttempts).set(updates).where(eq(outreachAttempts.id, id));
+  }
+
+  // Chat Session Methods
+  async createChatSession(data: InsertChatSession): Promise<ChatSession> {
+    const [session] = await db.insert(chatSessions).values(data).returning();
+    return session;
+  }
+
+  async getChatSessionBySessionId(sessionId: string): Promise<ChatSession | null> {
+    const sessions = await db.select().from(chatSessions).where(eq(chatSessions.sessionId, sessionId));
+    return sessions[0] || null;
+  }
+
+  async getChatSessionsByVisitor(visitorId: number): Promise<ChatSession[]> {
+    return await db.select().from(chatSessions)
+      .where(eq(chatSessions.visitorId, visitorId))
+      .orderBy(desc(chatSessions.createdAt));
+  }
+
+  async updateChatSession(id: number, updates: Partial<InsertChatSession>): Promise<void> {
+    await db.update(chatSessions).set({
+      ...updates,
+      updatedAt: new Date()
+    }).where(eq(chatSessions.id, id));
+  }
+
+  // Lead Management Methods
+  async createLead(data: InsertLead): Promise<Lead> {
+    const [lead] = await db.insert(leads).values(data).returning();
+    return lead;
+  }
+
+  async getLead(id: number): Promise<Lead | null> {
+    const leadResults = await db.select().from(leads).where(eq(leads.id, id));
+    return leadResults[0] || null;
+  }
+
+  async getLeadByLeadId(leadId: string): Promise<Lead | null> {
+    const leadResults = await db.select().from(leads).where(eq(leads.leadId, leadId));
+    return leadResults[0] || null;
+  }
+
+  async updateLead(id: number, updates: Partial<InsertLead>): Promise<void> {
+    await db.update(leads).set(updates).where(eq(leads.id, id));
+  }
+
+  async getLeadsByStatus(status: string): Promise<Lead[]> {
+    return await db.select().from(leads).where(eq(leads.status, status));
+  }
+
+  // Email Campaign Methods
+  async createEmailCampaign(data: InsertEmailCampaign): Promise<EmailCampaign> {
+    const [campaign] = await db.insert(emailCampaigns).values(data).returning();
+    return campaign;
+  }
+
+  async getEmailCampaignsByVisitor(visitorId: number): Promise<EmailCampaign[]> {
+    return await db.select().from(emailCampaigns)
+      .where(eq(emailCampaigns.visitorId, visitorId))
+      .orderBy(desc(emailCampaigns.createdAt));
+  }
+
+  // Agent Activity Methods
+  async createAgentActivity(data: InsertAgentActivity): Promise<AgentActivity> {
+    const [activity] = await db.insert(agentActivity).values(data).returning();
+    return activity;
+  }
+
+  async getAgentActivitiesByType(agentType: string, limit: number = 50): Promise<AgentActivity[]> {
+    return await db.select().from(agentActivity)
+      .where(eq(agentActivity.agentName, agentType))
+      .orderBy(desc(agentActivity.createdAt))
+      .limit(limit);
+  }
+
+  // Analytics and Reporting Methods
+  async getLeadMetrics(): Promise<{
+    totalVisitors: number;
+    abandoned: number;
+    contacted: number;
+    piiComplete: number;
+    submitted: number;
+    accepted: number;
+  }> {
+    try {
+      const [totalVisitorsResult] = await db.select({ count: count() }).from(visitors);
+      const [abandonedResult] = await db.select({ count: count() }).from(visitors)
+        .where(eq(visitors.abandonmentDetected, true));
+      const [contactedResult] = await db.select({ count: count() }).from(outreachAttempts);
+      const [piiCompleteResult] = await db.select({ count: count() }).from(visitors)
+        .where(eq(visitors.piiComplete, true));
+      const [submittedResult] = await db.select({ count: count() }).from(leads)
+        .where(eq(leads.status, 'submitted'));
+      
+      // For Boberdoo accepted leads, we'd check the systemLeads table
+      const [acceptedResult] = await db.select({ count: count() }).from(systemLeads)
+        .where(eq(systemLeads.boberdooStatus, 'accepted'));
+
+      return {
+        totalVisitors: totalVisitorsResult.count,
+        abandoned: abandonedResult.count,
+        contacted: contactedResult.count,
+        piiComplete: piiCompleteResult.count,
+        submitted: submittedResult.count,
+        accepted: acceptedResult.count,
+      };
+    } catch (error) {
+      logger.error({ error }, 'Failed to get lead metrics');
+      return {
+        totalVisitors: 0,
+        abandoned: 0,
+        contacted: 0,
+        piiComplete: 0,
+        submitted: 0,
+        accepted: 0,
+      };
+    }
+  }
+
+  async getConversionFunnelData(): Promise<{
+    stage: string;
+    count: number;
+    conversionRate?: number;
+  }[]> {
+    const metrics = await this.getLeadMetrics();
+    
+    const funnel = [
+      { stage: 'Visitors', count: metrics.totalVisitors },
+      { stage: 'Abandoned', count: metrics.abandoned },
+      { stage: 'Contacted', count: metrics.contacted },
+      { stage: 'PII Complete', count: metrics.piiComplete },
+      { stage: 'Submitted', count: metrics.submitted },
+      { stage: 'Accepted', count: metrics.accepted },
+    ];
+
+    // Calculate conversion rates
+    for (let i = 1; i < funnel.length; i++) {
+      const previous = funnel[i - 1];
+      const current = funnel[i];
+      current.conversionRate = previous.count > 0 ? (current.count / previous.count) * 100 : 0;
+    }
+
+    return funnel;
+  }
+
+  // Health Check Methods
+  async healthCheck(): Promise<{ healthy: boolean; error?: string }> {
+    try {
+      // Simple query to test database connectivity
+      await db.select({ count: count() }).from(visitors);
+      return { healthy: true };
+    } catch (error) {
+      return { 
+        healthy: false, 
+        error: error instanceof Error ? error.message : 'Unknown database error' 
+      };
+    }
   }
 }
 
