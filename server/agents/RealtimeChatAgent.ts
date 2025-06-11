@@ -7,7 +7,14 @@ interface Agent {
   instructions: string;
   tools: any[];
 }
+
+// Define tool function
+function tool(definition: { name: string; description: string; execute: (params: any) => Promise<any> }) {
+  return definition;
+}
 import { storage } from "../storage";
+import { validatePartialPii, validateCompletePii } from "../../shared/validation/schemas";
+import { logger } from "../logger";
 import type { InsertChatSession } from "@shared/schema";
 import {
   CATHY_SYSTEM_PROMPT,
@@ -29,53 +36,280 @@ export interface ChatMessage {
 
 export class RealtimeChatAgent {
   private agent: Agent;
+  private logger = logger.child({ component: "RealtimeChatAgent" });
 
   constructor() {
     this.agent = {
       name: `${CATHY_PERSONA_CONFIG.name} - ${CATHY_PERSONA_CONFIG.role}`,
       instructions: CATHY_SYSTEM_PROMPT,
       tools: [
-        {
-          name: "handle_user_message",
-          description: "Process and respond to user messages with Cathy's empathetic personality",
-          execute: async (params: any) => await this.handleUserMessage(params),
-        },
-        {
-          name: "handoff_to_credit_check",
-          description: "Hand off conversation to credit check process",
-          execute: async (params: any) => await this.handoffToCreditCheck(params),
-        },
-        {
-          name: "recover_abandoned_application",
-          description: "Recover abandoned application with personalized approach",
-          execute: async (params: any) => await this.recoverAbandonedApplication(params),
-        },
+        this.createCheckPiiCompletenessTool(),
+        this.createCollectPiiTool(),
+        this.createTriggerLeadPackagingTool(),
+        this.createHandleUserMessageTool(),
+        this.createHandoffToCreditCheckTool(),
+        this.createRecoverAbandonedApplicationTool(),
       ],
     };
   }
 
-  private async handleUserMessage(params: {
-    sessionId: string;
-    message: string;
-    visitorId?: number;
-  }) {
-    try {
-      const { sessionId, message, visitorId } = params;
+  private createCheckPiiCompletenessTool() {
+    return tool({
+      name: "check_pii_completeness",
+      description: "Check if visitor has complete PII for lead packaging",
+      execute: async (params: { visitorId: number }) => {
+        try {
+          const { visitorId } = params;
 
-      // Get or create chat session
-      let chatSession = await storage.getVisitorById(sessionId);
-      if (!chatSession) {
-        const newSession: InsertChatSession = {
-          sessionId,
-          visitorId: visitorId || null,
-          agentType: "realtime_chat",
-          status: "active",
-          messages: [],
+          const visitor = await storage.getVisitor(visitorId);
+          if (!visitor) {
+            return {
+              success: false,
+              error: "Visitor not found",
+            };
+          }
+
+          // Extract current PII
+          const piiData = {
+            firstName: visitor.firstName,
+            lastName: visitor.lastName,
+            street: visitor.street,
+            city: visitor.city,
+            state: visitor.state,
+            zip: visitor.zip,
+            employer: visitor.employer,
+            jobTitle: visitor.jobTitle,
+            annualIncome: visitor.annualIncome,
+            timeOnJobMonths: visitor.timeOnJobMonths,
+            phoneNumber: visitor.phoneNumber,
+            email: visitor.email,
+            emailHash: visitor.emailHash,
+          };
+
+          // Check completeness
+          const validation = validatePartialPii(piiData);
+          const completeValidation = validateCompletePii(piiData);
+
+          this.logger.info("PII completeness check", {
+            visitorId,
+            piiComplete: completeValidation.isValid,
+            missingFields: validation.missingFields,
+          });
+
+          return {
+            success: true,
+            piiComplete: completeValidation.isValid,
+            missingFields: validation.missingFields || [],
+            currentPii: piiData,
+            message: completeValidation.isValid
+              ? "Customer has complete PII - ready for lead packaging"
+              : `Missing fields: ${validation.missingFields?.join(", ")}`,
+          };
+        } catch (error) {
+          this.logger.error("PII completeness check error", {
+            visitorId: params.visitorId,
+            error: error instanceof Error ? error.message : "Unknown error",
+          });
+
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error",
+          };
+        }
+      },
+    });
+  }
+
+  private createCollectPiiTool() {
+    return tool({
+      name: "collect_pii",
+      description: "Collect and update visitor PII information progressively",
+      execute: async (params: {
+        visitorId: number;
+        piiData: {
+          firstName?: string;
+          lastName?: string;
+          street?: string;
+          city?: string;
+          state?: string;
+          zip?: string;
+          employer?: string;
+          jobTitle?: string;
+          annualIncome?: number;
+          timeOnJobMonths?: number;
+          email?: string;
         };
-        chatSession = await storage.createVisitor(newSession);
-      }
+      }) => {
+        try {
+          const { visitorId, piiData } = params;
 
-      // Analyze conversation context
+          // Validate the incoming PII data
+          const validation = validatePartialPii(piiData);
+          if (!validation.isValid) {
+            return {
+              success: false,
+              error: `Invalid PII data: ${JSON.stringify(validation.errors)}`,
+            };
+          }
+
+          // Update visitor with new PII
+          await storage.updateVisitor(visitorId.toString(), validation.data);
+
+          // Check if PII is now complete
+          const updatedVisitor = await storage.getVisitor(visitorId.toString());
+          if (!updatedVisitor) {
+            throw new Error("Failed to retrieve updated visitor");
+          }
+
+          const completePiiData = {
+            firstName: updatedVisitor.firstName,
+            lastName: updatedVisitor.lastName,
+            street: updatedVisitor.street,
+            city: updatedVisitor.city,
+            state: updatedVisitor.state,
+            zip: updatedVisitor.zip,
+            employer: updatedVisitor.employer,
+            jobTitle: updatedVisitor.jobTitle,
+            annualIncome: updatedVisitor.annualIncome,
+            timeOnJobMonths: updatedVisitor.timeOnJobMonths,
+            phoneNumber: updatedVisitor.phoneNumber,
+            email: updatedVisitor.email,
+            emailHash: updatedVisitor.emailHash,
+          };
+
+          const completeValidation = validateCompletePii(completePiiData);
+
+          this.logger.info("PII collected and updated", {
+            visitorId,
+            fieldsUpdated: Object.keys(piiData),
+            piiComplete: completeValidation.isValid,
+          });
+
+          return {
+            success: true,
+            piiComplete: completeValidation.isValid,
+            updatedFields: Object.keys(piiData),
+            missingFields: completeValidation.isValid
+              ? []
+              : validatePartialPii(completePiiData).missingFields || [],
+            message: completeValidation.isValid
+              ? "PII collection complete - ready for lead packaging!"
+              : "PII updated successfully - still collecting additional information",
+          };
+        } catch (error) {
+          this.logger.error("PII collection error", {
+            visitorId: params.visitorId,
+            error: error instanceof Error ? error.message : "Unknown error",
+          });
+
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error",
+          };
+        }
+      },
+    });
+  }
+
+  private createTriggerLeadPackagingTool() {
+    return tool({
+      name: "trigger_lead_packaging",
+      description: "Trigger lead packaging when PII collection is complete",
+      execute: async (params: { visitorId: number; source?: string }) => {
+        try {
+          const { visitorId, source = "chat_pii_complete" } = params;
+
+          // Verify PII is complete before triggering
+          const visitor = await storage.getVisitor(visitorId);
+          if (!visitor) {
+            return {
+              success: false,
+              error: "Visitor not found",
+            };
+          }
+
+          const piiData = {
+            firstName: visitor.firstName,
+            lastName: visitor.lastName,
+            street: visitor.street,
+            city: visitor.city,
+            state: visitor.state,
+            zip: visitor.zip,
+            employer: visitor.employer,
+            jobTitle: visitor.jobTitle,
+            annualIncome: visitor.annualIncome,
+            timeOnJobMonths: visitor.timeOnJobMonths,
+            phoneNumber: visitor.phoneNumber,
+            email: visitor.email,
+            emailHash: visitor.emailHash,
+          };
+
+          const validation = validateCompletePii(piiData);
+          if (!validation.isValid) {
+            return {
+              success: false,
+              piiComplete: false,
+              error: "PII not complete - cannot trigger lead packaging",
+            };
+          }
+
+          // Log the trigger event
+          await storage.createAgentActivity({
+            agentName: "RealtimeChatAgent",
+            action: "lead_packaging_triggered",
+            details: `Cathy triggered lead packaging after PII collection completion. Source: ${source}`,
+            visitorId: visitorId,
+            status: "success",
+          });
+
+          this.logger.info("Lead packaging triggered by chat agent", {
+            visitorId,
+            source,
+            piiComplete: true,
+          });
+
+          return {
+            success: true,
+            piiComplete: true,
+            leadPackagingTriggered: true,
+            message: "PII collection complete - lead packaging has been triggered!",
+          };
+        } catch (error) {
+          this.logger.error("Lead packaging trigger error", {
+            visitorId: params.visitorId,
+            error: error instanceof Error ? error.message : "Unknown error",
+          });
+
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error",
+          };
+        }
+      },
+    });
+  }
+
+  private createHandleUserMessageTool() {
+    return tool({
+      name: "handle_user_message",
+      description:
+        "Process and respond to user messages with Cathy's empathetic personality and PII collection",
+      execute: async (params: { sessionId: string; message: string; visitorId?: number }) => {
+        try {
+          const { sessionId, message, visitorId } = params;
+
+          // Get or create chat session
+          let chatSession = await storage.getChatSessionBySessionId(sessionId);
+          if (!chatSession) {
+            const newSession: InsertChatSession = {
+              sessionId,
+              visitorId: visitorId || null,
+              messages: [],
+            };
+            chatSession = await storage.createChatSession(newSession);
+          }
+
+          // Analyze conversation context
       const messages = (chatSession.messages as ChatMessage[]) || [];
       const isFirstMessage = messages.filter(m => m.type === "user").length === 0;
 
@@ -83,33 +317,473 @@ export class RealtimeChatAgent {
       const phoneRegex = /(?:\+1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/;
       const phoneMatch = message.match(phoneRegex);
 
-      let response = "";
-      let shouldHandoff = false;
+          // Enhanced analysis for PII extraction
+          const piiExtracted = this.extractPiiFromMessage(message);
+          const shouldCollectPii = Object.keys(piiExtracted).length > 0;
 
-      if (phoneMatch) {
-        response = this.generatePhoneNumberResponse();
-        shouldHandoff = true;
-      } else if (isFirstMessage) {
-        response = this.generateWelcomeResponse(message);
-      } else {
-        response = this.generateContextualResponse(message, messages);
+          let response = "";
+          let shouldHandoff = false;
+          let piiCollected = false;
+          let leadPackagingTriggered = false;
+
+          if (phoneMatch) {
+            response = this.generatePhoneNumberResponse();
+            shouldHandoff = true;
+          } else if (shouldCollectPii && visitorId) {
+            // Collect PII and update visitor
+            const collectResult = await this.collectPii(visitorId, piiExtracted);
+            piiCollected = collectResult.success;
+
+            if (collectResult.piiComplete) {
+              // Trigger lead packaging
+              const triggerResult = await this.triggerLeadPackaging(visitorId, "chat_conversation");
+              leadPackagingTriggered = triggerResult.success;
+              response = this.generatePiiCompleteResponse(collectResult.updatedFields || []);
+            } else {
+              response = this.generatePiiCollectionResponse(
+                piiExtracted,
+                collectResult.missingFields || []
+              );
+            }
+          } else if (isFirstMessage) {
+            response = this.generateWelcomeResponse(message);
+          } else {
+            response = await this.generateContextualResponse(message, messages, visitorId);
+          }
+
+          return {
+            success: true,
+            response,
+            shouldHandoff,
+            piiCollected,
+            leadPackagingTriggered,
+            phoneNumber: phoneMatch ? phoneMatch[0] : null,
+            sessionId,
+          };
+        } catch (error) {
+          this.logger.error("Error handling user message", {
+            sessionId: params.sessionId,
+            error: error instanceof Error ? error.message : "Unknown error",
+          });
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : "Unknown error",
+            response:
+              "I'm so sorry, but I'm experiencing some technical difficulties right now. This is frustrating for both of us! Could you give me just a moment to get this sorted out?",
+          };
+        }
+      },
+    });
+  }
+
+  /**
+   * Extract PII information from user message using natural language patterns
+   */
+  private extractPiiFromMessage(message: string): any {
+    const extracted: any = {};
+    const lowerMsg = message.toLowerCase();
+
+    // Name extraction
+    const namePatterns = [
+      /my name is ([a-z]+)\\s+([a-z]+)/i,
+      /i'm ([a-z]+)\\s+([a-z]+)/i,
+      /i am ([a-z]+)\\s+([a-z]+)/i,
+      /call me ([a-z]+)/i,
+    ];
+
+    for (const pattern of namePatterns) {
+      const match = message.match(pattern);
+      if (match) {
+        if (match[2]) {
+          extracted.firstName = match[1];
+          extracted.lastName = match[2];
+        } else {
+          extracted.firstName = match[1];
+        }
+        break;
       }
+    }
+
+    // Email extraction
+    const emailPattern = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})/;
+    const emailMatch = message.match(emailPattern);
+    if (emailMatch) {
+      extracted.email = emailMatch[1].toLowerCase();
+    }
+
+    // Address extraction
+    const addressPatterns = [
+      /i live at ([^,]+),\\s*([^,]+),\\s*([A-Z]{2})\\s*(\\d{5})/i,
+      /my address is ([^,]+),\\s*([^,]+),\\s*([A-Z]{2})\\s*(\\d{5})/i,
+      /address: ([^,]+),\\s*([^,]+),\\s*([A-Z]{2})\\s*(\\d{5})/i,
+    ];
+
+    for (const pattern of addressPatterns) {
+      const match = message.match(pattern);
+      if (match) {
+        extracted.street = match[1].trim();
+        extracted.city = match[2].trim();
+        extracted.state = match[3].toUpperCase();
+        extracted.zip = match[4];
+        break;
+      }
+    }
+
+    // ZIP code extraction (standalone)
+    if (!extracted.zip) {
+      const zipPattern = /\\b(\\d{5}(?:-\\d{4})?)\\b/;
+      const zipMatch = message.match(zipPattern);
+      if (zipMatch) {
+        extracted.zip = zipMatch[1];
+      }
+    }
+
+    // Employment information
+    const employerPatterns = [
+      /i work at ([^,\\.]+)/i,
+      /my employer is ([^,\\.]+)/i,
+      /work for ([^,\\.]+)/i,
+      /employed at ([^,\\.]+)/i,
+      /company is ([^,\\.]+)/i,
+    ];
+
+    for (const pattern of employerPatterns) {
+      const match = message.match(pattern);
+      if (match) {
+        extracted.employer = match[1].trim();
+        break;
+      }
+    }
+
+    // Job title extraction
+    const jobTitlePatterns = [
+      /i'm a ([^,\\.]+)/i,
+      /i am a ([^,\\.]+)/i,
+      /job title is ([^,\\.]+)/i,
+      /i work as a ([^,\\.]+)/i,
+      /my position is ([^,\\.]+)/i,
+    ];
+
+    for (const pattern of jobTitlePatterns) {
+      const match = message.match(pattern);
+      if (match) {
+        extracted.jobTitle = match[1].trim();
+        break;
+      }
+    }
+
+    // Income extraction
+    const incomePatterns = [
+      /make \\$([\\d,]+)\\s*(?:per year|annually|a year)/i,
+      /income is \\$([\\d,]+)/i,
+      /salary is \\$([\\d,]+)/i,
+      /earn \\$([\\d,]+)/i,
+      /\\$([\\d,]+)\\s*(?:per year|annually)/i,
+    ];
+
+    for (const pattern of incomePatterns) {
+      const match = message.match(pattern);
+      if (match) {
+        const income = parseInt(match[1].replace(/,/g, ""));
+        if (income > 10000 && income < 1000000) {
+          // Reasonable range
+          extracted.annualIncome = income;
+        }
+        break;
+      }
+    }
+
+    // Time on job extraction
+    const timePatterns = [
+      /been there for (\\d+)\\s*years?/i,
+      /worked there for (\\d+)\\s*years?/i,
+      /(\\d+)\\s*years at/i,
+      /been employed for (\\d+)\\s*months?/i,
+    ];
+
+    for (const pattern of timePatterns) {
+      const match = message.match(pattern);
+      if (match) {
+        const time = parseInt(match[1]);
+        if (pattern.source.includes("year")) {
+          extracted.timeOnJobMonths = time * 12;
+        } else {
+          extracted.timeOnJobMonths = time;
+        }
+        break;
+      }
+    }
+
+    return extracted;
+  }
+
+  /**
+   * Generate PII-guided response based on missing information
+   */
+  private async generateContextualResponse(
+    message: string,
+    conversationHistory: ChatMessage[],
+    visitorId?: number
+  ): Promise<string> {
+    const lowerMsg = message.toLowerCase();
+
+    // If we have a visitor ID, check for PII gaps and prompt accordingly
+    if (visitorId) {
+      try {
+        // Check current PII status
+        const visitor = await storage.getVisitor(visitorId);
+        if (visitor) {
+          const piiData = {
+            firstName: visitor.firstName,
+            lastName: visitor.lastName,
+            street: visitor.street,
+            city: visitor.city,
+            state: visitor.state,
+            zip: visitor.zip,
+            employer: visitor.employer,
+            jobTitle: visitor.jobTitle,
+            annualIncome: visitor.annualIncome,
+            timeOnJobMonths: visitor.timeOnJobMonths,
+            phoneNumber: visitor.phoneNumber,
+            email: visitor.email,
+            emailHash: visitor.emailHash,
+          };
+
+          const validation = validatePartialPii(piiData);
+          const missingFields = validation.missingFields || [];
+
+          // If missing fields, generate PII collection prompt
+          if (missingFields.length > 0) {
+            return this.generateMissingPiiPrompt(missingFields, message);
+          }
+        }
+      } catch (error) {
+        this.logger.error("Error checking PII for contextual response", { visitorId, error });
+      }
+    }
+
+    // Default contextual responses
+    if (lowerMsg.includes("confused") || lowerMsg.includes("don't understand")) {
+      return formatResponseByTone(
+        "negative",
+        "I can absolutely see how this might feel overwhelming - car financing can seem complicated, but it doesn't have to be! Let me break this down in simple terms for you. Think of me as your personal guide through this process. What specific part would you like me to explain more clearly?"
+      );
+    }
+
+    if (
+      lowerMsg.includes("worried") ||
+      lowerMsg.includes("nervous") ||
+      lowerMsg.includes("scared")
+    ) {
+      return formatResponseByTone(
+        "negative",
+        "Those feelings are completely normal, and I appreciate you sharing that with me. Many of my customers felt exactly the same way when they first reached out. The good news? You've already taken the hardest step by starting this conversation. I'm going to walk you through everything step by step, and there are no surprises or pressure here. What's your biggest worry right now?"
+      );
+    }
+
+    if (lowerMsg.includes("rate") || lowerMsg.includes("payment") || lowerMsg.includes("monthly")) {
+      return formatResponseByTone(
+        "positive",
+        "That's exactly the right question to ask! Your rate and payment will depend on a few factors like your credit profile, the vehicle you choose, and loan term. The great news is that our current rates start as low as 3.9% APR for qualified customers, and we have programs for all credit situations. Our soft credit check takes just a moment and won't impact your score at all. Would you like me to check what specific rate and payment you'd qualify for?"
+      );
+    }
+
+    return formatResponseByTone(
+      "progress",
+      "I want to make sure I'm giving you exactly the help you need. Every customer's situation is unique, and I believe in taking the time to understand yours. Our soft credit check process is completely free and won't impact your credit score - it just helps me see what options will work best for you. What would be most helpful for you to know right now?"
+    );
+  }
+
+  /**
+   * Generate prompts for missing PII fields
+   */
+  private generateMissingPiiPrompt(missingFields: string[], userMessage: string): string {
+    const lowerMsg = userMessage.toLowerCase();
+
+    // Prioritize fields based on conversation context
+    let priorityField = missingFields[0];
+
+    // If user mentions specific topics, prioritize related fields
+    if (lowerMsg.includes("work") || lowerMsg.includes("job") || lowerMsg.includes("employ")) {
+      const workFields = missingFields.filter(f =>
+        ["employer", "jobTitle", "annualIncome", "timeOnJobMonths"].includes(f)
+      );
+      if (workFields.length > 0) priorityField = workFields[0];
+    }
+
+    if (lowerMsg.includes("address") || lowerMsg.includes("live") || lowerMsg.includes("zip")) {
+      const addressFields = missingFields.filter(f =>
+        ["street", "city", "state", "zip"].includes(f)
+      );
+      if (addressFields.length > 0) priorityField = addressFields[0];
+    }
+
+    const fieldPrompts = {
+      firstName: "I'd love to personalize this for you! What's your first name?",
+      lastName: "And what's your last name?",
+      street:
+        "To get you the best rates, I'll need your street address. What's your current address?",
+      city: "What city do you live in?",
+      state: "Which state are you in?",
+      zip: "And what's your ZIP code?",
+      employer:
+        "For the loan application, I'll need to know where you work. What's your current employer?",
+      jobTitle: "What's your job title or position?",
+      annualIncome: "What's your annual income? This helps me find the best loan options for you.",
+      timeOnJobMonths: "How long have you been working at your current job?",
+      email: "I'd like to send you some information - what's your email address?",
+    };
+
+    const prompt =
+      fieldPrompts[priorityField as keyof typeof fieldPrompts] ||
+      "I just need a bit more information to help you get the best loan terms.";
+
+    // Add context about why we need the information
+    const context = this.getPiiContextExplanation(priorityField);
+
+    return formatResponseByTone("progress", `${prompt} ${context}`);
+  }
+
+  /**
+   * Explain why we need specific PII information
+   */
+  private getPiiContextExplanation(field: string): string {
+    const explanations = {
+      firstName: "This helps me give you a more personal experience!",
+      lastName: "I want to make sure I have your complete name for the application.",
+      street:
+        "Lenders need your complete address to verify your identity and determine local regulations.",
+      city: "This helps me find lenders that work in your area.",
+      state:
+        "Different states have different lending regulations, so this helps me find the right options.",
+      zip: "Your ZIP code helps me find local dealerships and the best rates in your area.",
+      employer:
+        "Employment verification is required for auto loans - this shows lenders you have steady income.",
+      jobTitle: "Your job title helps lenders understand your income stability.",
+      annualIncome:
+        "This is probably the most important factor in determining your loan amount and interest rate.",
+      timeOnJobMonths:
+        "Lenders like to see employment stability - longer tenure often means better rates!",
+      email:
+        "I'll use this to send you your pre-approval letter and keep you updated on your application.",
+    };
+
+    return (
+      explanations[field as keyof typeof explanations] ||
+      "This information helps me get you pre-approved with the best possible terms."
+    );
+  }
+
+  /**
+   * Generate response when PII is collected
+   */
+  private generatePiiCollectionResponse(extractedPii: any, stillMissingFields: string[]): string {
+    const collectedFields = Object.keys(extractedPii);
+    let response = "Perfect! ";
+
+    if (collectedFields.includes("firstName") && collectedFields.includes("lastName")) {
+      response += `Thank you, ${extractedPii.firstName}! `;
+    }
+
+    if (collectedFields.includes("employer")) {
+      response += `Great to know you work at ${extractedPii.employer}. `;
+    }
+
+    if (collectedFields.includes("annualIncome")) {
+      response += `With your income level, you should have some excellent financing options! `;
+    }
+
+    if (stillMissingFields.length > 0) {
+      const nextField = stillMissingFields[0];
+      response += this.generateMissingPiiPrompt([nextField], "");
+    } else {
+      response += "I have everything I need now! Let me get your financing options ready.";
+    }
+
+    return formatResponseByTone("progress", response);
+  }
+
+  /**
+   * Generate response when PII collection is complete
+   */
+  private generatePiiCompleteResponse(updatedFields: string[]): string {
+    return formatResponseByTone(
+      "positive",
+      "Excellent! I now have all the information I need to get you pre-approved. " +
+        "You're going to love how quickly this works - I'm processing your application right now and " +
+        "should have your financing options ready in just a moment. " +
+        "This is the exciting part where we turn your car dreams into reality!"
+    );
+  }
+
+  /**
+   * Helper methods for tool integration
+   */
+  private async collectPii(visitorId: number, piiData: any) {
+    try {
+      const validation = validatePartialPii(piiData);
+      if (!validation.isValid) {
+        return { success: false, error: "Invalid PII data" };
+      }
+
+      await storage.updateVisitor(visitorId.toString(), validation.data);
+
+      // Check completeness
+      const updatedVisitor = await storage.getVisitor(visitorId.toString());
+      if (!updatedVisitor) {
+        return { success: false, error: "Failed to retrieve updated visitor" };
+      }
+
+      const completePiiData = {
+        firstName: updatedVisitor.firstName,
+        lastName: updatedVisitor.lastName,
+        street: updatedVisitor.street,
+        city: updatedVisitor.city,
+        state: updatedVisitor.state,
+        zip: updatedVisitor.zip,
+        employer: updatedVisitor.employer,
+        jobTitle: updatedVisitor.jobTitle,
+        annualIncome: updatedVisitor.annualIncome,
+        timeOnJobMonths: updatedVisitor.timeOnJobMonths,
+        phoneNumber: updatedVisitor.phoneNumber,
+        email: updatedVisitor.email,
+        emailHash: updatedVisitor.emailHash,
+      };
+
+      const completeValidation = validateCompletePii(completePiiData);
+      const partialValidation = validatePartialPii(completePiiData);
 
       return {
         success: true,
-        response,
-        shouldHandoff,
-        phoneNumber: phoneMatch ? phoneMatch[0] : null,
-        sessionId,
+        piiComplete: completeValidation.isValid,
+        updatedFields: Object.keys(piiData),
+        missingFields: partialValidation.missingFields || [],
       };
     } catch (error) {
-      console.error("[RealtimeChatAgent] Error handling user message:", error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Unknown error",
-        response:
-          "I'm so sorry, but I'm experiencing some technical difficulties right now. This is frustrating for both of us! Could you give me just a moment to get this sorted out?",
-      };
+      this.logger.error("PII collection helper error", { visitorId, error });
+      return { success: false, error: "Failed to collect PII" };
+    }
+  }
+
+  private async triggerLeadPackaging(visitorId: number, source: string) {
+    try {
+      await storage.createAgentActivity({
+        agentName: "RealtimeChatAgent",
+        action: "lead_packaging_triggered",
+        details: "Cathy triggered lead packaging after PII collection completion",
+        visitorId: visitorId,
+        metadata: {
+          source,
+          piiComplete: true,
+          triggeredAt: new Date(),
+        },
+      });
+
+      this.logger.info("Lead packaging triggered", { visitorId, source });
+      return { success: true };
+    } catch (error) {
+      this.logger.error("Lead packaging trigger error", { visitorId, error });
+      return { success: false };
     }
   }
 
@@ -158,68 +832,6 @@ export class RealtimeChatAgent {
     );
   }
 
-  private generateContextualResponse(message: string, conversationHistory: ChatMessage[]): string {
-    const lowerMsg = message.toLowerCase();
-
-    // Handle emotional states with empathy
-    if (lowerMsg.includes("confused") || lowerMsg.includes("don't understand")) {
-      return formatResponseByTone(
-        "negative",
-        "I can absolutely see how this might feel overwhelming - car financing can seem complicated, but it doesn't have to be! Let me break this down in simple terms for you. Think of me as your personal guide through this process. What specific part would you like me to explain more clearly?"
-      );
-    }
-
-    if (
-      lowerMsg.includes("worried") ||
-      lowerMsg.includes("nervous") ||
-      lowerMsg.includes("scared")
-    ) {
-      return formatResponseByTone(
-        "negative",
-        "Those feelings are completely normal, and I appreciate you sharing that with me. Many of my customers felt exactly the same way when they first reached out. The good news? You've already taken the hardest step by starting this conversation. I'm going to walk you through everything step by step, and there are no surprises or pressure here. What's your biggest worry right now?"
-      );
-    }
-
-    // Handle rate and payment inquiries with relationship building
-    if (lowerMsg.includes("rate") || lowerMsg.includes("payment") || lowerMsg.includes("monthly")) {
-      return formatResponseByTone(
-        "positive",
-        "That's exactly the right question to ask! Your rate and payment will depend on a few factors like your credit profile, the vehicle you choose, and loan term. The great news is that our current rates start as low as 3.9% APR for qualified customers, and we have programs for all credit situations. Our soft credit check takes just a moment and won't impact your score at all. Would you like me to check what specific rate and payment you'd qualify for?"
-      );
-    }
-
-    // Handle application/process questions
-    if (
-      lowerMsg.includes("apply") ||
-      lowerMsg.includes("application") ||
-      lowerMsg.includes("process")
-    ) {
-      return formatResponseByTone(
-        "progress",
-        "I love that you're ready to move forward! The process is actually much simpler than most people expect. We start with a quick, soft credit check that won't affect your score, then I can show you exactly what you qualify for. The whole pre-approval usually takes less than 2 minutes. Once you're pre-approved, you'll know your exact buying power before you even look at vehicles. Should we get your pre-approval started?"
-      );
-    }
-
-    // Handle vehicle-specific questions
-    if (
-      lowerMsg.includes("car") ||
-      lowerMsg.includes("truck") ||
-      lowerMsg.includes("suv") ||
-      lowerMsg.includes("vehicle")
-    ) {
-      return formatResponseByTone(
-        "positive",
-        "It sounds like you're getting excited about your next vehicle - I love that energy! Whether you're looking at something specific or still exploring options, getting pre-approved first is always the smart move. It gives you real negotiating power and helps you shop with confidence. Plus, our financing often beats dealer rates. Have you been looking at anything particular, or are you still in the browsing stage?"
-      );
-    }
-
-    // Default response that builds connection
-    return formatResponseByTone(
-      "progress",
-      "I want to make sure I'm giving you exactly the help you need. Every customer's situation is unique, and I believe in taking the time to understand yours. Our soft credit check process is completely free and won't impact your credit score - it just helps me see what options will work best for you. What would be most helpful for you to know right now?"
-    );
-  }
-
   private generatePhoneNumberResponse(): string {
     return formatResponseByTone(
       "progress",
@@ -236,11 +848,10 @@ export class RealtimeChatAgent {
       const { sessionId, phoneNumber, visitorId } = params;
 
       // Update chat session status
-      const chatSession = await storage.getVisitorById(sessionId);
+      const chatSession = await storage.getChatSessionBySessionId(sessionId);
       if (chatSession) {
-        await storage.updateVisitor(chatSession.id, {
-          status: "completed",
-          agentType: "credit_check_handoff",
+        await storage.updateChatSession(chatSession.id, {
+          isActive: false,
         });
       }
 
@@ -252,18 +863,22 @@ export class RealtimeChatAgent {
       }
 
       // Log handoff activity
-      await storage.createActivity(
-        "handoff_to_credit_check",
-        "Cathy successfully connected customer to credit check with warm handoff",
-        "realtime_chat",
-        {
-          targetId: sessionId,
+      await storage.createAgentActivity({
+        agentName: "RealtimeChatAgent",
+        action: "handoff_to_credit_check",
+        details: "Cathy successfully connected customer to credit check with warm handoff",
+        visitorId: visitorId,
+        metadata: {
           phoneNumber: this.formatPhoneNumber(phoneNumber),
           visitorId,
-        }
-      );
+        },
+      });
 
-      console.log(`[RealtimeChatAgent] Cathy handed off session ${sessionId} to credit check`);
+      this.logger.info("Credit check handoff completed", {
+        sessionId,
+        phoneNumber: this.formatPhoneNumber(phoneNumber),
+        visitorId,
+      });
 
       return {
         success: true,
@@ -272,7 +887,10 @@ export class RealtimeChatAgent {
         message: "Warm handoff to credit check completed",
       };
     } catch (error) {
-      console.error("[RealtimeChatAgent] Error during handoff:", error);
+      this.logger.error("Error during credit check handoff", {
+        sessionId: params.sessionId,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
@@ -313,10 +931,10 @@ export class RealtimeChatAgent {
 
       // Log recovery activity
       await storage.createAgentActivity({
-        agentType: "realtime_chat",
+        agentName: "RealtimeChatAgent",
         action: "application_recovery",
-        description: "Cathy provided empathetic application recovery assistance",
-        targetId: visitor.id.toString(),
+        details: "Cathy provided empathetic application recovery assistance",
+        visitorId: visitor.id,
         metadata: {
           abandonmentStep: visitor.abandonmentStep,
           recoveryMethod: returnToken ? "return_token" : "email_hash",
@@ -330,7 +948,10 @@ export class RealtimeChatAgent {
         abandonmentStep: visitor.abandonmentStep,
       };
     } catch (error) {
-      console.error("[RealtimeChatAgent] Error recovering application:", error);
+      this.logger.error("Error recovering application", {
+        params,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
       return {
         success: false,
         error: error instanceof Error ? error.message : "Unknown error",
@@ -368,21 +989,21 @@ export class RealtimeChatAgent {
     success: boolean;
     response: string;
     shouldHandoff?: boolean;
+    piiCollected?: boolean;
+    leadPackagingTriggered?: boolean;
     phoneNumber?: string;
     error?: string;
   }> {
     try {
       // Get or create chat session
-      let chatSession = await storage.getVisitorById(sessionId);
+      let chatSession = await storage.getChatSessionBySessionId(sessionId);
       if (!chatSession) {
         const newSession: InsertChatSession = {
           sessionId,
           visitorId: visitorId || null,
-          agentType: "realtime_chat",
-          status: "active",
           messages: [],
         };
-        chatSession = await storage.createVisitor(newSession);
+        chatSession = await storage.createChatSession(newSession);
       }
 
       // Add user message to session
@@ -400,8 +1021,14 @@ export class RealtimeChatAgent {
       const phoneRegex = /(?:\+1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/;
       const phoneMatch = message.match(phoneRegex);
 
+      // Extract PII from message
+      const piiExtracted = this.extractPiiFromMessage(message);
+      const shouldCollectPii = Object.keys(piiExtracted).length > 0;
+
       let response = "";
       let shouldHandoff = false;
+      let piiCollected = false;
+      let leadPackagingTriggered = false;
 
       if (phoneMatch) {
         response = this.generatePhoneNumberResponse();
@@ -409,14 +1036,30 @@ export class RealtimeChatAgent {
 
         // Update visitor with phone number
         if (visitorId) {
-          await storage.updateVisitor(visitorId, {
+          await storage.updateVisitor(visitorId.toString(), {
             phoneNumber: this.formatPhoneNumber(phoneMatch[0]),
           });
+        }
+      } else if (shouldCollectPii && visitorId) {
+        // Collect PII and update visitor
+        const collectResult = await this.collectPii(visitorId, piiExtracted);
+        piiCollected = collectResult.success;
+
+        if (collectResult.piiComplete) {
+          // Trigger lead packaging
+          const triggerResult = await this.triggerLeadPackaging(visitorId, "chat_conversation");
+          leadPackagingTriggered = triggerResult.success;
+          response = this.generatePiiCompleteResponse(collectResult.updatedFields || []);
+        } else {
+          response = this.generatePiiCollectionResponse(
+            piiExtracted,
+            collectResult.missingFields || []
+          );
         }
       } else if (isFirstMessage) {
         response = this.generateWelcomeResponse(message);
       } else {
-        response = this.generateContextualResponse(message, currentMessages);
+        response = await this.generateContextualResponse(message, currentMessages, visitorId);
       }
 
       // Add agent response to session
@@ -429,21 +1072,31 @@ export class RealtimeChatAgent {
       currentMessages.push(agentMessage);
 
       // Update chat session
-      await storage.updateVisitor(chatSession.id, {
+      await storage.updateChatSession(chatSession.id, {
         messages: currentMessages,
-        updatedAt: new Date(),
       });
 
-      console.log(`[RealtimeChatAgent] Cathy processed message for session: ${sessionId}`);
+      this.logger.info("Chat message processed", {
+        sessionId,
+        visitorId,
+        piiCollected,
+        leadPackagingTriggered,
+        shouldHandoff,
+      });
 
       return {
         success: true,
         response,
         shouldHandoff,
+        piiCollected,
+        leadPackagingTriggered,
         phoneNumber: phoneMatch ? this.formatPhoneNumber(phoneMatch[0]) : undefined,
       };
     } catch (error) {
-      console.error("[RealtimeChatAgent] Error handling chat message:", error);
+      this.logger.error("Error handling chat message", {
+        sessionId,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
       return {
         success: false,
         response:

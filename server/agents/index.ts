@@ -1,16 +1,21 @@
-import { VisitorIdentifierService } from "./visitor-identifier-service";
-import { EmailReengagementService } from "./email-reengagement-service";
-// import { creditCheckService } from "./credit-check";
-// import { leadPackagingService } from "./lead-packaging";
-// import { WebSocketManager } from "../services/websocket";
+import { visitorIdentifierService } from "./visitor-identifier-service";
+import { emailReengagementService } from "./email-reengagement-service";
+// import { creditCheckService } from "./credit-check"; // Not found
+// import { leadPackagingService } from "./lead-packaging"; // Not found
+// import { WebSocketManager } from "../services/websocket"; // File not found
 
-// Create service instances
-export const visitorIdentifierService = new VisitorIdentifierService();
-export const emailReengagementService = new EmailReengagementService();
+// Temporary WebSocketManager interface
+interface WebSocketManager {
+  // Add methods as needed
+}
 
-// Mock the missing services for now
-export const creditCheckService = null;
-export const leadPackagingService = null;
+export {
+  // Services
+  visitorIdentifierService,
+  emailReengagementService,
+  // creditCheckService,
+  // leadPackagingService,
+};
 
 export interface AgentMetrics {
   activeAgents: number;
@@ -27,11 +32,6 @@ export interface AgentStatus {
   description: string;
   icon: string;
   color: string;
-}
-
-// Define WebSocketManager interface locally
-interface WebSocketManager {
-  // Add necessary methods here
 }
 
 export class AgentOrchestrator {

@@ -41,6 +41,7 @@ class MockEmailService implements EmailService {
 
 export class EmailReengagementService extends BaseAgent {
   private emailService: EmailService;
+  private tools: any[];
 
   constructor() {
     const tools = [
@@ -74,10 +75,41 @@ export class EmailReengagementService extends BaseAgent {
         Always use empathetic, human-like communication.
         Never reveal you are an AI system.
       `,
-      tools,
+      tools: [],
     });
 
     this.emailService = new MockEmailService();
+
+    // Add tools after super() call
+    this.tools = [
+      this.createGenerateEmailContentTool(),
+      this.createCreateReturnTokenTool(),
+      this.createSendEmailTool(),
+    ];
+  }
+
+  private createGenerateEmailContentTool() {
+    return {
+      name: "generate_email_content",
+      description: "Generate personalized email content based on visitor abandonment data",
+      execute: (params: any) => this.generateEmailContent(params),
+    };
+  }
+
+  private createCreateReturnTokenTool() {
+    return {
+      name: "create_return_token",
+      description: "Create a secure return token with TTL",
+      execute: (params: any) => this.createReturnToken(params),
+    };
+  }
+
+  private createSendEmailTool() {
+    return {
+      name: "send_email",
+      description: "Send email via service provider",
+      execute: (params: any) => this.sendEmail(params),
+    };
   }
 
   private async generateEmailContent(params: { visitorId: number; abandonmentStep: number }) {
@@ -109,9 +141,11 @@ export class EmailReengagementService extends BaseAgent {
       expiryTime.setHours(expiryTime.getHours() + 24);
 
       await storage.updateVisitor(visitorId.toString(), {
-        returnToken,
-        returnTokenExpiry: expiryTime,
-      } as any);
+        metadata: {
+          returnToken,
+          returnTokenExpiry: expiryTime.toISOString(),
+        },
+      });
 
       return this.createSuccessResult(
         {
@@ -196,9 +230,11 @@ export class EmailReengagementService extends BaseAgent {
       expiryTime.setHours(expiryTime.getHours() + 24);
 
       await storage.updateVisitor(visitorId.toString(), {
-        returnToken,
-        returnTokenExpiry: expiryTime,
-      } as any);
+        metadata: {
+          returnToken,
+          returnTokenExpiry: expiryTime.toISOString(),
+        },
+      });
 
       const content = this.generatePersonalizedContent(visitor.abandonmentStep || 1);
 

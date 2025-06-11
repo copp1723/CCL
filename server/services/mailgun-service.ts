@@ -76,7 +76,7 @@ export class MailgunService {
         to: emailData.to,
         subject: emailData.subject,
         html: sanitizedHtml,
-        text: emailData.text || this.stripHtml(emailData.html),
+        text: emailData.text || this.stripHtml(sanitizedHtml),
       };
 
       const result = await mg.messages.create(this.domain, messageData);

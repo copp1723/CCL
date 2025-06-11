@@ -175,7 +175,7 @@ router.get("/production-readiness", (req, res) => {
           database: !!environment.DATABASE_URL,
           email: !!(environment.MAILGUN_API_KEY && environment.MAILGUN_DOMAIN),
           ai: !!environment.OPENAI_API_KEY,
-          authentication: !!environment.INTERNAL_API_KEY,
+          authentication: !!(environment.INTERNAL_API_KEY || environment.API_KEY),
         },
         securityFeatures: {
           rateLimiting: true,
@@ -211,11 +211,11 @@ router.get("/config", (req, res) => {
       NODE_ENV: environment.NODE_ENV,
       PORT: environment.PORT,
       LOG_LEVEL: environment.LOG_LEVEL,
-      METRICS_ENABLED: environment.METRICS_ENABLED,
+      METRICS_ENABLED: environment.ENABLE_METRICS,
       RATE_LIMIT_WINDOW_MS: environment.RATE_LIMIT_WINDOW_MS,
       RATE_LIMIT_MAX_REQUESTS: environment.RATE_LIMIT_MAX_REQUESTS,
       CORS_ORIGIN: environment.CORS_ORIGIN,
-      DB_POOL_SIZE: environment.DB_POOL_SIZE,
+      DB_POOL_SIZE: environment.DB_POOL_SIZE || 20,
       services: {
         database: !!environment.DATABASE_URL,
         email: !!(environment.MAILGUN_API_KEY && environment.MAILGUN_DOMAIN),

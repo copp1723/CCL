@@ -244,6 +244,32 @@ Complete Car Loans
       };
     }
   }
+
+  async sendReengagementEmail(params: {
+    to: string;
+    subject: string;
+    content: string;
+    returnToken?: string;
+  }): Promise<EmailResponse> {
+    const { to, subject, content, returnToken } = params;
+
+    let htmlContent = content.replace(/\n/g, "<br>");
+    if (returnToken) {
+      const returnUrl = `${process.env.BASE_URL || "https://completecarloans.com"}/return/${returnToken}`;
+      htmlContent += `<br><br><a href="${returnUrl}" style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Continue Your Application</a>`;
+    }
+
+    return this.sendEmail({
+      to,
+      subject,
+      text: content,
+      html: htmlContent,
+    });
+  }
+
+  getProviderName(): string {
+    return "Mailgun";
+  }
 }
 
 export const emailService = new OnerylieEmailService();

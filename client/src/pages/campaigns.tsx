@@ -203,10 +203,10 @@ export default function CampaignsPage() {
                 <Button
                   className="mt-4 w-full"
                   onClick={() => handleStartCampaign(campaign.id)}
-                  disabled={startCampaignMutation.isLoading}
+                  disabled={startCampaignMutation.isPending}
                   variant="default"
                 >
-                  {startCampaignMutation.isLoading ? (
+                  {startCampaignMutation.isPending ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       Starting...

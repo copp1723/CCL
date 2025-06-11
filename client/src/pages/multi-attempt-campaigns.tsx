@@ -76,7 +76,7 @@ export default function MultiAttemptCampaigns() {
   });
 
   useEffect(() => {
-    if (schedulesData && (schedulesData as any).success) {
+    if ((schedulesData as any)?.success) {
       setSchedules((schedulesData as any).data);
     }
   }, [schedulesData]);

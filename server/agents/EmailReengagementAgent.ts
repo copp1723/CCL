@@ -1,7 +1,7 @@
 // Remove dependency on @openai/agents
 // import { Agent, tool } from "@openai/agents";
 import { storage } from "../storage";
-// import { EmailService } from "../services/EmailService";
+import emailService from "../services/email-onerylie";
 import { randomUUID } from "crypto";
 import type { InsertEmailCampaign } from "@shared/schema";
 import {
@@ -19,20 +19,13 @@ interface Agent {
   tools: any[];
 }
 
-// Mock EmailService for now
-class EmailService {
-  async sendEmail(params: any) {
-    console.log("Mock email sent:", params);
-    return { success: true, messageId: `msg_${Date.now()}` };
-  }
-}
 
 export class EmailReengagementAgent {
   private agent: Agent;
-  private emailService: EmailService;
+  private emailService: typeof emailService;
 
   constructor() {
-    this.emailService = new EmailService();
+    this.emailService = emailService;
 
     this.agent = {
       name: "Email Re-engagement Agent",
@@ -128,11 +121,13 @@ export class EmailReengagementAgent {
       const expiryTime = new Date();
       expiryTime.setHours(expiryTime.getHours() + 24); // 24-hour TTL
 
-      // Update visitor with return token
+      // Update visitor with return token in metadata
       await storage.updateVisitor(visitorId.toString(), {
-        returnToken,
-        returnTokenExpiry: expiryTime,
-      } as any);
+        metadata: {
+          returnToken,
+          returnTokenExpiry: expiryTime.toISOString(),
+        },
+      });
 
       console.log(`[EmailReengagementAgent] Created return token for visitor: ${visitorId}`);
 
@@ -161,30 +156,32 @@ export class EmailReengagementAgent {
     try {
       const { visitorId, emailHash, subject, body, returnToken } = params;
 
-      // Create email campaign record - simplified without database
-      const campaign = {
+      // Create email campaign record
+      const campaign: InsertEmailCampaign = {
         visitorId,
-        templateId: "abandonment_reengagement",
-        emailHash,
         returnToken,
-        status: "sent",
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+        emailSent: true,
       };
 
       // Simplified - just log the campaign
       console.log("[EmailReengagementAgent] Would create email campaign:", campaign);
 
       // Send email via service
-      const emailResult = await this.emailService.sendEmail({
+      const emailResult = await this.emailService.sendReengagementEmail({
         to: emailHash, // In production, this would be the actual email
         subject,
-        body,
+        content: body,
         returnToken,
       });
 
       // Log activity
-      await storage.createActivity("email_sent", `Re-engagement email sent`, "email_reengagement", {
-        returnToken,
-        visitorId: visitorId.toString(),
+      await storage.createAgentActivity({
+        agentName: "EmailReengagementAgent",
+        action: "email_sent",
+        details: `Re-engagement email sent via ${this.emailService.getProviderName()}`,
+        visitorId: visitorId,
+        status: "success",
       });
 
       console.log(`[EmailReengagementAgent] Sent email for visitor: ${visitorId}`);
@@ -284,11 +281,13 @@ export class EmailReengagementAgent {
       const expiryTime = new Date();
       expiryTime.setHours(expiryTime.getHours() + 24);
 
-      // Update visitor with return token
+      // Update visitor with return token in metadata
       await storage.updateVisitor(visitorId.toString(), {
-        returnToken,
-        returnTokenExpiry: expiryTime,
-      } as any);
+        metadata: {
+          returnToken,
+          returnTokenExpiry: expiryTime.toISOString(),
+        },
+      });
 
       // Generate personalized content
       const content = this.generatePersonalizedContent(visitor.abandonmentStep || 1);
@@ -296,10 +295,9 @@ export class EmailReengagementAgent {
       // Create email campaign
       const campaign: InsertEmailCampaign = {
         visitorId,
-        templateId: "abandonment_reengagement",
-        emailHash: visitor.emailHash,
         returnToken,
-        status: "sent",
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+        emailSent: true,
       };
 
       // Simplified - just create a mock campaign
@@ -309,7 +307,7 @@ export class EmailReengagementAgent {
       const emailResult = await this.emailService.sendEmail({
         to: visitor.emailHash,
         subject: content.subject,
-        body: content.body.replace(
+        content: content.body.replace(
           "{{RETURN_LINK}}",
           `${process.env.BASE_URL || "https://app.completecarloans.com"}/return/${returnToken}`
         ),
@@ -317,17 +315,13 @@ export class EmailReengagementAgent {
       });
 
       // Log activity
-      await storage.createActivity(
-        "email_sent",
-        "Re-engagement email sent successfully",
-        "email_reengagement",
-        {
-          targetId: visitorId.toString(),
-          emailCampaignId: emailCampaign.id,
-          returnToken,
-          abandonmentStep: visitor.abandonmentStep,
-        }
-      );
+      await storage.createAgentActivity({
+        agentName: "EmailReengagementAgent",
+        action: "email_sent",
+        details: "Re-engagement email sent successfully",
+        visitorId: visitorId,
+        status: "success",
+      });
 
       console.log(`[EmailReengagementAgent] Sent re-engagement email for visitor: ${visitorId}`);
 
