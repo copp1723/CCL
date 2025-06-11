@@ -27,6 +27,8 @@ import {
   type EmailCampaign,
   type InsertAgentActivity,
   type AgentActivity,
+  type InsertIngestedFile,
+  type IngestedFile,
 } from "../shared/schema";
 import { db } from "./db-postgres";
 import { eq, desc, count, and, isNull, lt, sql } from "drizzle-orm";
@@ -343,19 +345,19 @@ class DatabaseStorage implements StorageInterface {
       let existingVisitor: Visitor | undefined;
 
       if (data.emailHash) {
-        const visitors = await db
+        const visitorResults = await db
           .select()
           .from(visitors)
           .where(eq(visitors.emailHash, data.emailHash));
-        existingVisitor = visitors[0];
+        existingVisitor = visitorResults[0];
       }
 
       if (!existingVisitor && data.sessionId) {
-        const visitors = await db
+        const visitorResults = await db
           .select()
           .from(visitors)
           .where(eq(visitors.sessionId, data.sessionId));
-        existingVisitor = visitors[0];
+        existingVisitor = visitorResults[0];
       }
 
       if (existingVisitor) {
@@ -451,13 +453,13 @@ class DatabaseStorage implements StorageInterface {
   }
 
   async getVisitorByReturnToken(returnToken: string): Promise<Visitor | null> {
-    const visitors = await db.select().from(visitors).where(eq(visitors.returnToken, returnToken));
-    return visitors[0] || null;
+    const visitorResults = await db.select().from(visitors).where(eq(visitors.returnToken, returnToken));
+    return visitorResults[0] || null;
   }
 
   async getVisitorByEmailHash(emailHash: string): Promise<Visitor | null> {
-    const visitors = await db.select().from(visitors).where(eq(visitors.emailHash, emailHash));
-    return visitors[0] || null;
+    const visitorResults = await db.select().from(visitors).where(eq(visitors.emailHash, emailHash));
+    return visitorResults[0] || null;
   }
 
   async getVisitor(id: number): Promise<Visitor | null> {
