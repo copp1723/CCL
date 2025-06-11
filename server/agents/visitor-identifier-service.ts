@@ -3,6 +3,11 @@ import { BaseAgent, AgentResult } from "./base-agent";
 // import { tool } from "@openai/agents";
 import { storage } from "../storage";
 
+// Define tool function
+function tool(definition: { name: string; description: string; execute: (params: any) => Promise<any> }) {
+  return definition;
+}
+
 interface AbandonmentEvent {
   email: string;
   sessionId: string;
@@ -31,12 +36,15 @@ export class VisitorIdentifierService extends BaseAgent {
         Always hash email addresses for storage and never store raw email data.
         Validate all input data and sanitize before processing.
       `,
-      tools: [
-        this.createDetectAbandonmentTool(),
-        this.createStoreVisitorTool(),
-        this.createEmitLeadReadyTool(),
-      ],
+      tools: [],
     });
+    
+    // Add tools after super() call
+    (this.agent as any).tools = [
+      this.createDetectAbandonmentTool(),
+      this.createStoreVisitorTool(),
+      this.createEmitLeadReadyTool(),
+    ];
   }
 
   private createDetectAbandonmentTool() {
@@ -120,7 +128,7 @@ export class VisitorIdentifierService extends BaseAgent {
         try {
           const { visitorId, reason } = params;
 
-          const visitor = await storage.getVisitor(visitorId);
+          const visitor = await storage.getVisitor(visitorId.toString());
           if (!visitor) {
             throw new Error("Visitor not found");
           }

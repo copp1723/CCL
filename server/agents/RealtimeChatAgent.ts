@@ -47,8 +47,6 @@ export class RealtimeChatAgent {
         this.createCollectPiiTool(),
         this.createTriggerLeadPackagingTool(),
         this.createHandleUserMessageTool(),
-        this.createHandoffToCreditCheckTool(),
-        this.createRecoverAbandonedApplicationTool(),
       ],
     };
   }
@@ -372,6 +370,26 @@ export class RealtimeChatAgent {
               "I'm so sorry, but I'm experiencing some technical difficulties right now. This is frustrating for both of us! Could you give me just a moment to get this sorted out?",
           };
         }
+      },
+    });
+  }
+
+  private createHandoffToCreditCheckTool() {
+    return tool({
+      name: "handoff_to_credit_check",
+      description: "Hand off customer to credit check process after phone number collection",
+      execute: async (params: { sessionId: string; phoneNumber: string; visitorId?: number }) => {
+        return await this.handoffToCreditCheck(params);
+      },
+    });
+  }
+
+  private createRecoverAbandonedApplicationTool() {
+    return tool({
+      name: "recover_abandoned_application",
+      description: "Help customers recover their abandoned applications with empathy",
+      execute: async (params: { returnToken?: string; emailHash?: string }) => {
+        return await this.recoverAbandonedApplication(params);
       },
     });
   }
@@ -772,11 +790,7 @@ export class RealtimeChatAgent {
         action: "lead_packaging_triggered",
         details: "Cathy triggered lead packaging after PII collection completion",
         visitorId: visitorId,
-        metadata: {
-          source,
-          piiComplete: true,
-          triggeredAt: new Date(),
-        },
+        status: "success",
       });
 
       this.logger.info("Lead packaging triggered", { visitorId, source });
@@ -868,10 +882,7 @@ export class RealtimeChatAgent {
         action: "handoff_to_credit_check",
         details: "Cathy successfully connected customer to credit check with warm handoff",
         visitorId: visitorId,
-        metadata: {
-          phoneNumber: this.formatPhoneNumber(phoneNumber),
-          visitorId,
-        },
+        status: "success",
       });
 
       this.logger.info("Credit check handoff completed", {
@@ -935,10 +946,7 @@ export class RealtimeChatAgent {
         action: "application_recovery",
         details: "Cathy provided empathetic application recovery assistance",
         visitorId: visitor.id,
-        metadata: {
-          abandonmentStep: visitor.abandonmentStep,
-          recoveryMethod: returnToken ? "return_token" : "email_hash",
-        },
+        status: "success",
       });
 
       return {

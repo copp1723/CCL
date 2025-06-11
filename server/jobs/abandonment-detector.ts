@@ -257,10 +257,6 @@ export class AbandonmentDetectorService {
         details: `Queued outreach for visitor ${visitorId} at abandonment step ${abandonmentStep}`,
         visitorId,
         status: "success",
-        metadata: {
-          abandonmentStep,
-          queuedAt: new Date().toISOString(),
-        },
       });
     } catch (error) {
       abandonmentLogger.error(

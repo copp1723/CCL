@@ -7,6 +7,12 @@ interface Agent {
   instructions: string;
   tools: any[];
 }
+
+// Define tool function
+function tool(definition: { name: string; description: string; execute: (params: any) => Promise<any> }) {
+  return definition;
+}
+
 import { storage } from "../storage";
 import { createHash } from "crypto";
 import type { InsertVisitor, InsertAgentActivity } from "@shared/schema";
@@ -24,7 +30,7 @@ export class VisitorIdentifierAgent {
   private agent: Agent;
 
   constructor() {
-    this.agent = new Agent({
+    this.agent = {
       name: "Visitor Identifier Agent",
       instructions: `
         You are responsible for detecting abandonment events and managing visitor data.
@@ -42,7 +48,7 @@ export class VisitorIdentifierAgent {
         this.createStoreVisitorTool(),
         this.createEmitLeadReadyTool(),
       ],
-    });
+    };
   }
 
   private createDetectAbandonmentTool() {
@@ -104,7 +110,7 @@ export class VisitorIdentifierAgent {
           let visitor;
           if (existingVisitor) {
             // Update existing visitor
-            visitor = await storage.updateVisitor(existingVisitor.id, visitorData);
+            visitor = await storage.updateVisitor(existingVisitor.id.toString(), visitorData);
             console.log(`[VisitorIdentifierAgent] Updated visitor: ${existingVisitor.id}`);
           } else {
             // Create new visitor
@@ -196,7 +202,6 @@ export class VisitorIdentifierAgent {
         emailHash,
         sessionId: event.sessionId,
         abandonmentStep: event.step,
-        abandonmentTime: event.timestamp,
       };
 
       // Check if visitor exists
@@ -204,7 +209,7 @@ export class VisitorIdentifierAgent {
 
       let visitor;
       if (existingVisitor) {
-        visitor = await storage.updateVisitor(existingVisitor.id, visitorData);
+        visitor = await storage.updateVisitor(existingVisitor.id.toString(), visitorData);
       } else {
         visitor = await storage.createVisitor(visitorData);
       }

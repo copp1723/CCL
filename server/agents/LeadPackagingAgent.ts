@@ -460,7 +460,7 @@ export class LeadPackagingAgent {
           }
 
           // Update lead status to failed
-          await storage.updateLead(leadId, {
+          await storage.updateLead(leadId.toString(), {
             status: "closed",
           });
 

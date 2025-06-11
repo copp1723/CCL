@@ -7,6 +7,12 @@ interface Agent {
   instructions: string;
   tools: any[];
 }
+
+// Define tool function
+function tool(definition: { name: string; description: string; parameters?: any; }, execute: (params: any) => Promise<any>) {
+  return { ...definition, execute };
+}
+
 import { storage } from "../storage";
 import type { InsertChatSession } from "@shared/schema";
 import {
@@ -19,7 +25,7 @@ export class ProductionCathyAgent {
   private agent: Agent;
 
   constructor() {
-    this.agent = new Agent({
+    this.agent = {
       name: `${CATHY_PERSONA_CONFIG.name} - ${CATHY_PERSONA_CONFIG.role}`,
       instructions: CATHY_SYSTEM_PROMPT,
       tools: [
@@ -27,7 +33,7 @@ export class ProductionCathyAgent {
         this.createEmailResponseTool(),
         this.createPhoneCollectionTool(),
       ],
-    });
+    };
   }
 
   private createChatResponseTool() {
@@ -409,9 +415,15 @@ export class ProductionCathyAgent {
 
   async generateResponse(input: string, context?: any): Promise<any> {
     try {
-      const response = await this.agent.run(input, {
-        messages: context?.messages || [],
-        tools: ["generate_chat_response"],
+      // Since we're not using the openai/agents library, we'll directly call the tool
+      const chatTool = this.agent.tools.find(t => t.name === "generate_chat_response");
+      if (!chatTool) {
+        throw new Error("Chat response tool not found");
+      }
+
+      const response = await chatTool.execute({
+        userMessage: input,
+        conversationHistory: context?.messages?.join("\n") || "",
       });
 
       return response;

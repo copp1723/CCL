@@ -1,6 +1,6 @@
 import React from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useParams, Link } from "wouter";
+import { useParams, Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -269,7 +269,22 @@ function EditCampaignForm({
 
 export default function CampaignDetailPage() {
   const params = useParams<{ id: string }>();
+  const [, setLocation] = useLocation();
   const campaignId = params.id || "";
+  
+  // Early return if no campaignId to prevent mutations with empty values
+  if (!campaignId) {
+    setLocation("/campaigns");
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <h2 className="text-lg font-semibold mb-2">Invalid Campaign</h2>
+          <p className="text-muted-foreground mb-4">No campaign ID provided. Redirecting...</p>
+        </div>
+      </div>
+    );
+  }
+
   const [open, setOpen] = React.useState(false);
   const [editOpen, setEditOpen] = React.useState(false);
   const [confirmDelete, setConfirmDelete] = React.useState(false);

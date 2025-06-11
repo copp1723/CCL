@@ -299,11 +299,6 @@ export class OutreachOrchestratorService {
           details: `SMS outreach sent to visitor ${visitor.id} at abandonment step ${visitor.abandonmentStep}`,
           visitorId: visitor.id,
           status: "success",
-          metadata: {
-            channel: "sms",
-            messageId: smsResult.messageId,
-            abandonmentStep: visitor.abandonmentStep,
-          },
         });
       }
 
@@ -340,11 +335,6 @@ export class OutreachOrchestratorService {
       details: `Email outreach simulated for visitor ${visitor.id}`,
       visitorId: visitor.id,
       status: "success",
-      metadata: {
-        channel: "email",
-        abandonmentStep: visitor.abandonmentStep,
-        note: "Email service not yet implemented",
-      },
     });
 
     return {

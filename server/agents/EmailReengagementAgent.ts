@@ -168,11 +168,10 @@ export class EmailReengagementAgent {
       console.log("[EmailReengagementAgent] Would create email campaign:", campaign);
 
       // Send email via service
-      const emailResult = await this.emailService.sendReengagementEmail({
+      const emailResult = await this.emailService.sendEmail({
         to: emailHash, // In production, this would be the actual email
         subject,
-        content: body,
-        returnToken,
+        html: body,
       });
 
       // Log activity
@@ -307,11 +306,10 @@ export class EmailReengagementAgent {
       const emailResult = await this.emailService.sendEmail({
         to: visitor.emailHash,
         subject: content.subject,
-        content: content.body.replace(
+        html: content.body.replace(
           "{{RETURN_LINK}}",
           `${process.env.BASE_URL || "https://app.completecarloans.com"}/return/${returnToken}`
         ),
-        returnToken,
       });
 
       // Log activity
