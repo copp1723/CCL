@@ -19,10 +19,12 @@ export default defineConfig({
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
     rollupOptions: {
+      external: ['pg-native'],
       output: {
         manualChunks: {
           vendor: ["react", "react-dom"],
           ui: ["@radix-ui/react-dialog", "@radix-ui/react-dropdown-menu"],
+          utils: ["date-fns", "zod", "clsx"],
         },
       },
     },

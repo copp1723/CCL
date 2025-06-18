@@ -158,12 +158,6 @@ npm run dev
 # Opens at http://localhost:5000
 ```
 
-### **Replit (Quick Demo)**
-
-- Upload CCL 3 folder to Replit
-- Set environment variables in Secrets
-- Click "Run" button
-
 ---
 
 ## 🔧 **Development**

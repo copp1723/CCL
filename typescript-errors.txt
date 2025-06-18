@@ -1,0 +1,69 @@
+
+> ccl-agent-system@2.0.0 check
+> tsc --noEmit
+
+server/agents/LeadPackagingAgent.ts(555,38): error TS2339: Property 'leadId' does not exist on type '{ success: boolean; error: string; boberdooResult?: undefined; revenue?: undefined; } | { success: boolean; boberdooResult: BoberdooResponse; revenue: number; error?: undefined; }'.
+  Property 'leadId' does not exist on type '{ success: boolean; error: string; boberdooResult?: undefined; revenue?: undefined; }'.
+server/agents/LeadPackagingAgent.ts(585,13): error TS2322: Type 'string' is not assignable to type 'number'.
+server/agents/LeadPackagingAgent.ts(827,43): error TS2345: Argument of type '{ leadId: string; visitorId: number; leadData: unknown; status?: "pending" | "processing" | "submitted" | "failed"; source?: string; createdAt?: Date; id?: number; contactEmail?: string; contactPhone?: string; creditStatus?: string; dealerCrmSubmitted?: boolean; dealerResponse?: unknown; submittedAt?: Date; }' is not assignable to parameter of type 'Omit<LeadData, "createdAt" | "id">'.
+  Property 'email' is missing in type '{ leadId: string; visitorId: number; leadData: unknown; status?: "pending" | "processing" | "submitted" | "failed"; source?: string; createdAt?: Date; id?: number; contactEmail?: string; contactPhone?: string; creditStatus?: string; dealerCrmSubmitted?: boolean; dealerResponse?: unknown; submittedAt?: Date; }' but required in type 'Omit<LeadData, "createdAt" | "id">'.
+server/agents/RealtimeChatAgent.ts(157,59): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
+server/agents/RealtimeChatAgent.ts(750,55): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
+server/agents/visitor-identifier-service.ts(100,51): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+server/agents/visitor-identifier-service.ts(102,51): error TS2559: Type 'InsertVisitor' has no properties in common with type '{ ipAddress?: string; userAgent?: string; phoneNumber?: string; email?: string; metadata?: any; }'.
+server/agents/visitor-identifier-service.ts(131,52): error TS2345: Argument of type 'string' is not assignable to parameter of type 'number'.
+server/agents/visitor-identifier-service.ts(174,47): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+server/agents/visitor-identifier-service.ts(176,47): error TS2559: Type 'InsertVisitor' has no properties in common with type '{ ipAddress?: string; userAgent?: string; phoneNumber?: string; email?: string; metadata?: any; }'.
+server/db-render-fix.ts(19,38): error TS2556: A spread argument must either have a tuple type or be passed to a rest parameter.
+server/jobs/outreach-orchestrator.ts(357,9): error TS2353: Object literal may only specify known properties, and 'agentType' does not exist in type '{ sessionId: string; id?: number; createdAt?: Date; visitorId?: number; isActive?: boolean; messages?: unknown; updatedAt?: Date; }'.
+server/middleware/auth.ts(142,7): error TS2353: Object literal may only specify known properties, and 'role' does not exist in type '{ id: string; email: string; name?: string; }'.
+server/middleware/auth.ts(186,7): error TS2322: Type 'Response<any, Record<string, any>>' is not assignable to type 'void'.
+server/middleware/auth.ts(197,18): error TS2339: Property 'role' does not exist on type '{ id: string; email: string; name?: string; }'.
+server/middleware/auth.ts(197,47): error TS2339: Property 'permissions' does not exist on type '{ id: string; email: string; name?: string; }'.
+server/middleware/auth.ts(268,19): error TS2339: Property 'sessionId' does not exist on type '{ id: string; email: string; name?: string; }'.
+server/middleware/auth.ts(269,45): error TS2339: Property 'sessionId' does not exist on type '{ id: string; email: string; name?: string; }'.
+server/middleware/request-validation.ts(73,29): error TS2339: Property 'input' does not exist on type 'ZodIssue'.
+  Property 'input' does not exist on type 'ZodCustomIssue & { fatal?: boolean; message: string; }'.
+server/middleware/request-validation.ts(102,29): error TS2339: Property 'input' does not exist on type 'ZodIssue'.
+  Property 'input' does not exist on type 'ZodCustomIssue & { fatal?: boolean; message: string; }'.
+server/middleware/security-consolidated.ts(202,9): error TS2339: Property 'requestId' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+server/middleware/security-consolidated.ts(235,27): error TS2339: Property 'requestId' does not exist on type 'Request<ParamsDictionary, any, any, ParsedQs, Record<string, any>>'.
+server/routes/dashboard.ts(274,32): error TS2339: Property 'configured' does not exist on type '{ healthy: boolean; error?: string; }'.
+server/routes/dashboard.ts(304,39): error TS2345: Argument of type 'string | 0' is not assignable to parameter of type 'string'.
+  Type 'number' is not assignable to type 'string'.
+server/routes/dashboard.ts(305,39): error TS2345: Argument of type 'string | 0' is not assignable to parameter of type 'string'.
+  Type 'number' is not assignable to type 'string'.
+server/routes/dashboard.ts(306,30): error TS2345: Argument of type 'string | 0' is not assignable to parameter of type 'string'.
+  Type 'number' is not assignable to type 'string'.
+server/routes/monitoring.ts(218,33): error TS2339: Property 'DB_POOL_SIZE' does not exist on type '{ NODE_ENV?: "development" | "production" | "staging"; DATABASE_URL?: string; PORT?: number; OPENAI_API_KEY?: string; API_KEY?: string; MAILGUN_API_KEY?: string; MAILGUN_DOMAIN?: string; JWT_SECRET?: string; ... 27 more ...; ENABLE_METRICS?: boolean; }'.
+server/routes/staging-deployment.ts(20,25): error TS2339: Property 'MAILGUN_FROM_EMAIL' does not exist on type '{ NODE_ENV?: "development" | "production" | "staging"; DATABASE_URL?: string; PORT?: number; OPENAI_API_KEY?: string; API_KEY?: string; MAILGUN_API_KEY?: string; MAILGUN_DOMAIN?: string; JWT_SECRET?: string; ... 27 more ...; ENABLE_METRICS?: boolean; }'.
+server/routes/staging-deployment.ts(122,27): error TS2339: Property 'MAILGUN_FROM_EMAIL' does not exist on type '{ NODE_ENV?: "development" | "production" | "staging"; DATABASE_URL?: string; PORT?: number; OPENAI_API_KEY?: string; API_KEY?: string; MAILGUN_API_KEY?: string; MAILGUN_DOMAIN?: string; JWT_SECRET?: string; ... 27 more ...; ENABLE_METRICS?: boolean; }'.
+server/services/sftp-ingestor.ts(266,10): error TS2339: Property 'createReadStream' does not exist on type 'typeof import("fs/promises")'.
+server/services/sftp-ingestor.ts(270,13): error TS2353: Object literal may only specify known properties, and 'skipEmptyLines' does not exist in type 'ParserOptionsArgs'.
+server/services/storage-service.ts(718,22): error TS2345: Argument of type 'unknown' is not assignable to parameter of type 'string'.
+server/storage.ts(30,8): error TS2724: '"../shared/schema"' has no exported member named 'InsertIngestedFile'. Did you mean 'ingestedFiles'?
+server/storage.ts(31,8): error TS2724: '"../shared/schema"' has no exported member named 'IngestedFile'. Did you mean 'ingestedFiles'?
+server/storage.ts(491,45): error TS2448: Block-scoped variable 'visitors' used before its declaration.
+server/storage.ts(491,64): error TS2448: Block-scoped variable 'visitors' used before its declaration.
+server/storage.ts(533,37): error TS2304: Cannot find name 'InsertOutreachAttempt'.
+server/storage.ts(533,69): error TS2304: Cannot find name 'OutreachAttempt'.
+server/storage.ts(538,66): error TS2304: Cannot find name 'OutreachAttempt'.
+server/storage.ts(546,77): error TS2304: Cannot find name 'OutreachAttempt'.
+server/storage.ts(556,14): error TS2304: Cannot find name 'OutreachAttempt'.
+server/storage.ts(570,60): error TS2304: Cannot find name 'InsertOutreachAttempt'.
+server/storage.ts(627,48): error TS2769: No overload matches this call.
+  Overload 1 of 3, '(left: PgColumn<{ name: "status"; tableName: "leads"; dataType: "string"; columnType: "PgText"; data: "failed" | "submitted" | "pending" | "processing"; driverParam: string; notNull: true; hasDefault: true; ... 6 more ...; generated: undefined; }, {}, {}>, right: "failed" | ... 3 more ... | "processing"): SQL<...>', gave the following error.
+    Argument of type 'string' is not assignable to parameter of type '"failed" | "submitted" | "pending" | SQLWrapper | "processing"'.
+  Overload 2 of 3, '(left: Aliased<string>, right: string | SQLWrapper): SQL<unknown>', gave the following error.
+    Argument of type 'PgColumn<{ name: "status"; tableName: "leads"; dataType: "string"; columnType: "PgText"; data: "failed" | "submitted" | "pending" | "processing"; driverParam: string; notNull: true; hasDefault: true; ... 6 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'Aliased<string>'.
+      Type 'PgColumn<{ name: "status"; tableName: "leads"; dataType: "string"; columnType: "PgText"; data: "failed" | "submitted" | "pending" | "processing"; driverParam: string; notNull: true; hasDefault: true; ... 6 more ...; generated: undefined; }, {}, {}>' is missing the following properties from type 'Aliased<string>': sql, fieldAlias
+  Overload 3 of 3, '(left: never, right: unknown): SQL<unknown>', gave the following error.
+    Argument of type 'PgColumn<{ name: "status"; tableName: "leads"; dataType: "string"; columnType: "PgText"; data: "failed" | "submitted" | "pending" | "processing"; driverParam: string; notNull: true; hasDefault: true; ... 6 more ...; generated: undefined; }, {}, {}>' is not assignable to parameter of type 'never'.
+server/storage.ts(733,15): error TS2339: Property 'conversionRate' does not exist on type '{ stage: string; count: number; }'.
+server/storage.ts(753,28): error TS2339: Property 'boberdooPrice' does not exist on type '{ id: string; email: string; status: "new" | "contacted" | "qualified" | "closed"; leadData: unknown; createdAt: Date; boberdooStatus: string; boberdooResponseJson: unknown; boberdooLeadId: string; ... 4 more ...; interestRate: string; }'.
+server/storage.ts(815,67): error TS2339: Property 'boberdooPrice' does not exist on type '{ id: string; email: string; status: "new" | "contacted" | "qualified" | "closed"; leadData: unknown; createdAt: Date; boberdooStatus: string; boberdooResponseJson: unknown; boberdooLeadId: string; ... 4 more ...; interestRate: string; }'.
+server/storage.ts(825,60): error TS2339: Property 'boberdooPrice' does not exist on type '{ id: string; email: string; status: "new" | "contacted" | "qualified" | "closed"; leadData: unknown; createdAt: Date; boberdooStatus: string; boberdooResponseJson: unknown; boberdooLeadId: string; ... 4 more ...; interestRate: string; }'.
+server/utils/error-codes.ts(9,3): error TS2300: Duplicate identifier 'SESSION_EXPIRED'.
+server/utils/error-codes.ts(53,3): error TS2300: Duplicate identifier 'SESSION_EXPIRED'.
+server/utils/error-codes.ts(88,14): error TS2741: Property '[ErrorCode.SESSION_EXPIRED]' is missing in type '{ SYSTEM_001: { code: ErrorCode.SYSTEM_HEALTH_CHECK_FAILED; httpStatus: number; message: string; category: string; retryable: true; logLevel: "error"; }; SYSTEM_002: { code: ErrorCode.SYSTEM_STATS_UNAVAILABLE; httpStatus: number; message: string; category: string; retryable: true; logLevel: "warn"; }; ... 41 more .....' but required in type 'Record<ErrorCode, ErrorDefinition>'.
+server/utils/error-codes.ts(334,3): error TS1117: An object literal cannot have multiple properties with the same name.
