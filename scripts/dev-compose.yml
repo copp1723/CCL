@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  postgres:
+    container_name: ccl-postgres
+    image: postgres:15
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ccl
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - ccl-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ccl"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    container_name: ccl-redis
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --requirepass "yoursecurepassword" # Added a password for security
+    networks:
+      - ccl-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "yoursecurepassword", "ping"] # Test with password
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  mailhog:
+    container_name: ccl-mailhog
+    image: mailhog/mailhog:latest
+    ports:
+      - "1025:1025" # SMTP server
+      - "8025:8025" # Web UI
+    networks:
+      - ccl-network
+    restart: unless-stopped
+    # No explicit healthcheck needed for MailHog for typical dev use,
+    # but you could add one if desired, e.g., checking HTTP UI endpoint.
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  ccl-network:
+    driver: bridge
