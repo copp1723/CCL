@@ -372,3 +372,15 @@ export type Lead = typeof leads.$inferSelect;
 
 export type InsertAgentActivity = typeof agentActivity.$inferInsert;
 export type AgentActivity = typeof agentActivity.$inferSelect;
+
+// ⬇️───────────────────────────────────────────────────────────────────────────
+// 🔧  Missing Type Exports (Fixes TS errors in storage layer)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Ingested files (SFTP / CSV processing)
+export type InsertIngestedFile = typeof ingestedFiles.$inferInsert;
+export type IngestedFile = typeof ingestedFiles.$inferSelect;
+
+// Outreach attempts (email / sms tracking)
+export type InsertOutreachAttempt = typeof outreachAttempts.$inferInsert;
+export type OutreachAttempt = typeof outreachAttempts.$inferSelect;
