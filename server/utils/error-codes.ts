@@ -50,7 +50,7 @@ export enum ErrorCode {
   UNAUTHORIZED_ACCESS = "AUTH_001",
   INVALID_API_KEY = "AUTH_002",
   PERMISSION_DENIED = "AUTH_003",
-  SESSION_EXPIRED = "AUTH_004",
+  SESSION_INVALID = "AUTH_004",
 
   // External Service Errors (5500-5599)
   MAILGUN_API_ERROR = "EXTERNAL_001",
@@ -331,10 +331,10 @@ export const ERROR_DEFINITIONS: Record<ErrorCode, ErrorDefinition> = {
     retryable: false,
     logLevel: "warn",
   },
-  [ErrorCode.SESSION_EXPIRED]: {
-    code: ErrorCode.SESSION_EXPIRED,
+  [ErrorCode.SESSION_INVALID]: {
+    code: ErrorCode.SESSION_INVALID,
     httpStatus: 401,
-    message: "Session has expired",
+    message: "Session is invalid or has expired",
     category: "auth",
     retryable: false,
     logLevel: "info",
