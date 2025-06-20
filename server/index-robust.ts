@@ -393,6 +393,17 @@ async function setupRoutes() {
       console.warn(`⚠️ Prompt testing routes failed to load:`, error);
     }
 
+    // Bulk email settings route
+    try {
+      const { default: bulkEmailSettingsRoutes } = await import(
+        "./routes/bulk-email-settings.js"
+      );
+      app.use("/api/bulk-email", bulkEmailSettingsRoutes);
+      console.log(`✅ Bulk email settings routes loaded`);
+    } catch (error) {
+      console.warn(`⚠️ Bulk email settings routes failed to load:`, error);
+    }
+
     // System stats endpoint (protected)
     app.get("/api/system/stats", apiKeyAuth, async (req: Request, res: Response) => {
       try {
