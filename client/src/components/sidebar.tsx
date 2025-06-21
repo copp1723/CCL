@@ -34,6 +34,12 @@ const navItems: NavItem[] = [
     description: "Create and manage email campaigns",
   },
   {
+    title: "New Campaign",
+    href: "/campaigns/new",
+    icon: Mail,
+    description: "Start a new email campaign",
+  },
+  {
     title: "Data Ingestion",
     href: "/data-ingestion",
     icon: Database,

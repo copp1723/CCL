@@ -8,6 +8,7 @@ import { ChatWidget } from "@/components/chat-widget";
 import Dashboard from "@/pages/dashboard-streamlined";
 import CampaignsPage from "@/pages/campaigns-enhanced";
 import CampaignDetailPage from "@/pages/campaign-detail";
+import CampaignWizard from "@/pages/campaigns-new";
 import DataIngestion from "@/pages/data-ingestion";
 import PromptTesting from "@/pages/prompt-testing-clean";
 import PromptVariables from "@/pages/prompt-variables";
@@ -24,6 +25,7 @@ function Router() {
             <Route path="/" component={Dashboard} />
             <Route path="/dashboard" component={Dashboard} />
             <Route path="/campaigns" component={CampaignsPage} />
+            <Route path="/campaigns/new" component={CampaignWizard} />
             <Route path="/campaigns/:id" component={CampaignDetailPage} />
             <Route path="/data-ingestion" component={DataIngestion} />
             <Route path="/prompt-testing" component={PromptTesting} />
