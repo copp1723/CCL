@@ -478,12 +478,18 @@ class DatabaseStorage implements StorageInterface {
   }
 
   async getVisitorByReturnToken(returnToken: string): Promise<Visitor | null> {
-    const visitorResults = await db.select().from(visitors).where(eq(visitors.returnToken, returnToken));
+    const visitorResults = await db
+      .select()
+      .from(visitors)
+      .where(eq(visitors.returnToken, returnToken));
     return visitorResults[0] || null;
   }
 
   async getVisitorByEmailHash(emailHash: string): Promise<Visitor | null> {
-    const visitorResults = await db.select().from(visitors).where(eq(visitors.emailHash, emailHash));
+    const visitorResults = await db
+      .select()
+      .from(visitors)
+      .where(eq(visitors.emailHash, emailHash));
     return visitorResults[0] || null;
   }
 

@@ -2,11 +2,12 @@ import { Router } from "express";
 import { storage } from "../storage";
 import { boberdooService } from "../services/boberdoo-service";
 import { twilioSms } from "../services/twilio-sms";
-import { sftpIngestor } from "../services/sftp-ingestor";
+// import { sftpIngestor } from "../services/sftp-ingestor"; // SFTP Ingestor not used in these routes
 import { abandonmentDetector } from "../jobs/abandonment-detector";
 import { outreachOrchestrator } from "../jobs/outreach-orchestrator";
 import { logger } from "../logger";
-import config from "../config/environment";
+// import config from "../config/environment"; // Config not directly used in these routes
+import { asyncHandler } from "../utils/errorHandler";
 
 const router = Router();
 const dashboardLogger = logger.child({ component: "DashboardAPI" });
@@ -15,8 +16,9 @@ const dashboardLogger = logger.child({ component: "DashboardAPI" });
  * GET /api/dashboard/overview
  * Get comprehensive dashboard overview with key metrics
  */
-router.get("/overview", async (req, res) => {
-  try {
+router.get(
+  "/overview",
+  asyncHandler(async (req, res) => {
     dashboardLogger.info("Dashboard overview requested");
 
     // Get lead metrics
@@ -55,23 +57,16 @@ router.get("/overview", async (req, res) => {
     };
 
     res.json(overview);
-  } catch (error) {
-    dashboardLogger.error("Error getting dashboard overview", {
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
-    res.status(500).json({
-      error: "Failed to retrieve dashboard overview",
-      message: error instanceof Error ? error.message : "Unknown error",
-    });
-  }
-});
+  })
+);
 
 /**
  * GET /api/dashboard/revenue
  * Get detailed revenue analytics
  */
-router.get("/revenue", async (req, res) => {
-  try {
+router.get(
+  "/revenue",
+  asyncHandler(async (req, res) => {
     const { timeframe = "30d" } = req.query;
 
     dashboardLogger.info("Revenue analytics requested", { timeframe });
@@ -104,23 +99,16 @@ router.get("/revenue", async (req, res) => {
     };
 
     res.json(revenue);
-  } catch (error) {
-    dashboardLogger.error("Error getting revenue analytics", {
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
-    res.status(500).json({
-      error: "Failed to retrieve revenue analytics",
-      message: error instanceof Error ? error.message : "Unknown error",
-    });
-  }
-});
+  })
+);
 
 /**
  * GET /api/dashboard/conversion-funnel
  * Get detailed conversion funnel analysis
  */
-router.get("/conversion-funnel", async (req, res) => {
-  try {
+router.get(
+  "/conversion-funnel",
+  asyncHandler(async (req, res) => {
     const { timeframe = "30d" } = req.query;
 
     dashboardLogger.info("Conversion funnel requested", { timeframe });
@@ -147,36 +135,29 @@ router.get("/conversion-funnel", async (req, res) => {
         recoveryRate:
           recoveryStats.totalAttempts > 0
             ? ((recoveryStats.successful / recoveryStats.totalAttempts) * 100).toFixed(2)
-            : 0,
+            : "0.00", // Ensure string for consistency if toFixed is used
       },
       piiCollection: {
         ...piiStats,
         completionRate:
           piiStats.totalStarted > 0
             ? ((piiStats.completed / piiStats.totalStarted) * 100).toFixed(2)
-            : 0,
+            : "0.00", // Ensure string for consistency
       },
       optimizationOpportunities: identifyOptimizationOpportunities(funnelData, abandonmentAnalysis),
     };
 
     res.json(funnel);
-  } catch (error) {
-    dashboardLogger.error("Error getting conversion funnel", {
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
-    res.status(500).json({
-      error: "Failed to retrieve conversion funnel",
-      message: error instanceof Error ? error.message : "Unknown error",
-    });
-  }
-});
+  })
+);
 
 /**
  * GET /api/dashboard/boberdoo
  * Get Boberdoo marketplace performance
  */
-router.get("/boberdoo", async (req, res) => {
-  try {
+router.get(
+  "/boberdoo",
+  asyncHandler(async (req, res) => {
     const { timeframe = "30d" } = req.query;
 
     dashboardLogger.info("Boberdoo analytics requested", { timeframe });
@@ -221,19 +202,13 @@ router.get("/boberdoo", async (req, res) => {
     };
 
     res.json(boberdoo);
-  } catch (error) {
-    dashboardLogger.error("Error getting Boberdoo analytics", {
-      error: error instanceof Error ? error.message : "Unknown error",
-    });
-    res.status(500).json({
-      error: "Failed to retrieve Boberdoo analytics",
-      message: error instanceof Error ? error.message : "Unknown error",
-    });
-  }
-});
+  })
+);
 
 /**
  * Helper Functions
+ * These functions are not route handlers themselves, so they don't need asyncHandler.
+ * Their internal errors, if any, will propagate to the calling asyncHandler-wrapped route.
  */
 
 async function getServiceHealth() {

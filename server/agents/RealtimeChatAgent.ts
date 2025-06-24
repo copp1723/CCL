@@ -9,7 +9,11 @@ interface Agent {
 }
 
 // Define tool function
-function tool(definition: { name: string; description: string; execute: (params: any) => Promise<any> }) {
+function tool(definition: {
+  name: string;
+  description: string;
+  execute: (params: any) => Promise<any>;
+}) {
   return definition;
 }
 import { storage } from "../storage";
@@ -308,12 +312,12 @@ export class RealtimeChatAgent {
           }
 
           // Analyze conversation context
-      const messages = (chatSession.messages as ChatMessage[]) || [];
-      const isFirstMessage = messages.filter(m => m.type === "user").length === 0;
+          const messages = (chatSession.messages as ChatMessage[]) || [];
+          const isFirstMessage = messages.filter(m => m.type === "user").length === 0;
 
-      // Check for phone number
-      const phoneRegex = /(?:\+1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/;
-      const phoneMatch = message.match(phoneRegex);
+          // Check for phone number
+          const phoneRegex = /(?:\+1[-.\s]?)?\(?([0-9]{3})\)?[-.\s]?([0-9]{3})[-.\s]?([0-9]{4})/;
+          const phoneMatch = message.match(phoneRegex);
 
           // Enhanced analysis for PII extraction
           const piiExtracted = this.extractPiiFromMessage(message);

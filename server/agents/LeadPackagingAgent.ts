@@ -23,7 +23,11 @@ interface Agent {
 }
 
 // Define tool function
-function tool(definition: { name: string; description: string; execute: (params: any) => Promise<any> }) {
+function tool(definition: {
+  name: string;
+  description: string;
+  execute: (params: any) => Promise<any>;
+}) {
   return definition;
 }
 

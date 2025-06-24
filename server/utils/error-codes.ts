@@ -7,7 +7,7 @@ export enum ErrorCode {
   // Authentication Errors
   AUTHENTICATION_REQUIRED = "AUTH_001",
   SESSION_EXPIRED = "AUTH_002",
-  
+
   // System Errors (5000-5099)
   SYSTEM_HEALTH_CHECK_FAILED = "SYSTEM_001",
   SYSTEM_STATS_UNAVAILABLE = "SYSTEM_002",

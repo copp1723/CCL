@@ -271,7 +271,7 @@ export default function CampaignDetailPage() {
   const params = useParams<{ id: string }>();
   const [, setLocation] = useLocation();
   const campaignId = params.id || "";
-  
+
   // Early return if no campaignId to prevent mutations with empty values
   if (!campaignId) {
     setLocation("/campaigns");

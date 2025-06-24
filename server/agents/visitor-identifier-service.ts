@@ -4,7 +4,11 @@ import { BaseAgent, AgentResult } from "./base-agent";
 import { storage } from "../storage";
 
 // Define tool function
-function tool(definition: { name: string; description: string; execute: (params: any) => Promise<any> }) {
+function tool(definition: {
+  name: string;
+  description: string;
+  execute: (params: any) => Promise<any>;
+}) {
   return definition;
 }
 
@@ -38,7 +42,7 @@ export class VisitorIdentifierService extends BaseAgent {
       `,
       tools: [],
     });
-    
+
     // Add tools after super() call
     (this.agent as any).tools = [
       this.createDetectAbandonmentTool(),

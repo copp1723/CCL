@@ -42,7 +42,11 @@ export default function CampaignWizard() {
           </CardHeader>
           <CardContent className="space-y-4">
             <Label>Upload CSV</Label>
-            <Input type="file" accept=".csv" onChange={e => setCsvFile(e.target.files?.[0] || null)} />
+            <Input
+              type="file"
+              accept=".csv"
+              onChange={e => setCsvFile(e.target.files?.[0] || null)}
+            />
             {csvFile && <p className="text-sm">Selected: {csvFile.name}</p>}
           </CardContent>
         </Card>

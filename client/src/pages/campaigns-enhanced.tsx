@@ -44,66 +44,43 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle } from "lucide-react";
 import { Link } from "wouter";
+import { apiRequest } from "@/lib/queryClient"; // Import the generalized apiRequest
 
-// API functions
-const fetchCampaigns = async () => {
-  const res = await fetch("/api/campaigns");
-  if (!res.ok) throw new Error("Failed to fetch campaigns");
-  return res.json();
-};
+// API functions using apiRequest
+const fetchCampaigns = () => apiRequest<any[]>("/api/campaigns");
 
-const fetchLeads = async () => {
-  const res = await fetch("/api/leads");
-  if (!res.ok) throw new Error("Failed to fetch leads");
-  return res.json();
-};
+const fetchLeads = () => apiRequest<any[]>("/api/leads");
 
-const fetchBulkEmailSettings = async () => {
-  const res = await fetch("/api/bulk-email/settings");
-  if (!res.ok) throw new Error("Failed to fetch settings");
-  return res.json();
-};
+const fetchBulkEmailSettings = () =>
+  apiRequest<any>("/api/bulk-email/settings", { includeApiKey: true }); // Assuming this needs API key
 
-const createCampaign = async (data: any) => {
-  const res = await fetch("/api/campaigns", {
+const createCampaign = (data: any) => apiRequest<any>("/api/campaigns", { method: "POST", data });
+
+const enrollLeads = ({ campaignId, leadIds }: { campaignId: string; leadIds: string[] }) =>
+  apiRequest<any>(`/api/campaigns/${campaignId}/enroll-leads`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data),
+    data: { leadIds },
   });
-  if (!res.ok) throw new Error("Failed to create campaign");
-  return res.json();
-};
 
-const enrollLeads = async ({ campaignId, leadIds }: { campaignId: string; leadIds: string[] }) => {
-  const res = await fetch(`/api/campaigns/${campaignId}/enroll-leads`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ leadIds }),
-  });
-  if (!res.ok) throw new Error("Failed to enroll leads");
-  return res.json();
-};
-
-const startCampaign = async (campaignId: string) => {
-  const res = await fetch(`/api/campaigns/${campaignId}/start`, {
-    method: "PUT",
-  });
-  if (!res.ok) {
-    const error = await res.json();
-    throw new Error(error.error || "Failed to start campaign");
-  }
-  return res.json();
-};
+const startCampaign = (campaignId: string) =>
+  apiRequest<any>(`/api/campaigns/${campaignId}/start`, { method: "PUT" });
 
 const uploadCSV = async (file: File) => {
   const formData = new FormData();
   formData.append("csvFile", file);
-
+  // apiRequest is designed for JSON, FormData needs raw fetch or a modified apiRequest
+  // For now, keeping fetch for FormData, or this could be a point for further apiRequest enhancement
   const res = await fetch("/api/bulk-email/send", {
     method: "POST",
     body: formData,
+    // headers for FormData are set automatically by browser, don't set Content-Type manually
   });
-  if (!res.ok) throw new Error("Failed to upload CSV");
+  if (!res.ok) {
+    const errorData = await res
+      .json()
+      .catch(() => ({ error: "Failed to upload CSV and parse error response" }));
+    throw new Error(errorData.error || `Failed to upload CSV: ${res.statusText}`);
+  }
   return res.json();
 };
 

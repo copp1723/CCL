@@ -19,7 +19,6 @@ interface Agent {
   tools: any[];
 }
 
-
 export class EmailReengagementAgent {
   private agent: Agent;
   private emailService: typeof emailService;
